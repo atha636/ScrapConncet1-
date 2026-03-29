@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
@@ -13,49 +13,47 @@ import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute role="user">
-              <UserDashboard />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute role="user">
+            <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/request"
-          element={
-            <ProtectedRoute role="user">
-              <RequestPickup />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/request"
+        element={
+          <ProtectedRoute role="user">
+            <RequestPickup />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/my-requests"
-          element={
-            <ProtectedRoute role="user">
-              <MyRequests />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/my-requests"
+        element={
+          <ProtectedRoute role="user">
+            <MyRequests />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/collector"
-          element={
-            <ProtectedRoute role="collector">
-              <CollectorDashboard />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/collector"
+        element={
+          <ProtectedRoute role="collector">
+            <CollectorDashboard />
+          </ProtectedRoute>
+        }
+      />
 
-      </Routes>
-    </BrowserRouter>
+    </Routes>
   );
 }
