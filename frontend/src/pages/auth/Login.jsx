@@ -134,7 +134,7 @@ export default function Login() {
           animation: "riseUp 0.5s ease both",
         }}>
 
-          {/* Top accent line */}
+          
           <div style={{
             position:"absolute", top:0, left:"20%", right:"20%",
             height:"1.5px",
