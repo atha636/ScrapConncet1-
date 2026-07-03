@@ -1,28 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* YOUR EXISTING CSS BELOW 👇 */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  color-scheme: light;
 }
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #EDE4D3;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(36, 26, 18, 0.06) 1px, transparent 0);
+  background-size: 22px 22px;
+  color: #241A12;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Roboto Slab', serif;
+}
+
+/* Visible keyboard focus everywhere — no glassy focus rings */
+:focus-visible {
+  outline: 2.5px solid #A63D24;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Ticket card: the signature surface ---------- */
+/* A pickup/job card reads like a scrap-weight receipt: a perforated top
+   edge (punched-hole notches). */
+.ticket {
+  position: relative;
+  background: #FAF5EA;
+  border: 1px solid #D8C9AE;
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgba(36, 26, 18, 0.04);
+}
+
+.ticket::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background-image: radial-gradient(circle at center, #EDE4D3 3px, transparent 3.5px);
+  background-size: 16px 8px;
+  background-position: 8px 0;
+  background-repeat: repeat-x;
+}
+
+/* ---------- Ink-stamp status badge ---------- */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border: 2px dashed currentColor;
+  border-radius: 999px;
+  transform: rotate(-2deg);
+}
+
+.stamp-pending  { color: #9C6816; }
+.stamp-accepted { color: #A63D24; }
+.stamp-progress { color: #7E2E1A; }
+.stamp-completed{ color: #4A3B28; border-style: solid; }
+.stamp-cancelled{ color: #8C2F1B; opacity: 0.7; }
+
+/* ---------- Form controls ---------- */
+.field-label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6B5A47;
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: #FFFCF5;
+  border: 1.5px solid #D8C9AE;
+  border-radius: 6px;
+  color: #241A12;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-input::placeholder { color: #9C8A73; }
+
+.field-input:hover {
+  border-color: #C25836;
+}
+
+.field-input:focus {
+  border-color: #A63D24;
+  box-shadow: 0 0 0 3px rgba(166, 61, 36, 0.12);
+}
+
+.field-input.field-error {
+  border-color: #8C2F1B;
+  box-shadow: 0 0 0 3px rgba(140, 47, 27, 0.1);
+}
+
+/* ---------- Buttons ---------- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #A63D24;
+  color: #FAF5EA;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover:not(:disabled) { background: #7E2E1A; }
+.btn-primary:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  color: #241A12;
+  border: 1.5px solid #D8C9AE;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.btn-secondary:hover:not(:disabled) { border-color: #A63D24; background: rgba(166, 61, 36, 0.05); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
