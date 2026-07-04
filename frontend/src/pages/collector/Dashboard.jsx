@@ -121,14 +121,23 @@ export default function CollectorDashboard() {
             ) : (
               available.map((item) => (
                 <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="font-display font-semibold text-ink capitalize">
-                      {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                  <div className="flex gap-4">
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.scrapType}
+                        className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                      />
+                    )}
+                    <div>
+                      <div className="font-display font-semibold text-ink capitalize">
+                        {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                      </div>
+                      <div className="text-xs text-inkFaint mt-0.5">
+                        {item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}
+                      </div>
+                      {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
                     </div>
-                    <div className="text-xs text-inkFaint mt-0.5">
-                      {item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}
-                    </div>
-                    {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
@@ -153,9 +162,18 @@ export default function CollectorDashboard() {
                 const action = NEXT_ACTION[item.status];
                 return (
                   <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
-                      {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
+                    <div className="flex gap-4">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.scrapType}
+                          className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                        />
+                      )}
+                      <div>
+                        <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
+                        {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <StatusStamp status={item.status} />
@@ -181,7 +199,16 @@ export default function CollectorDashboard() {
             ) : (
               pastJobs.map((item) => (
                 <Card key={item._id} className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="font-medium text-ink capitalize">{item.scrapType}</div>
+                  <div className="flex gap-4">
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.scrapType}
+                        className="w-12 h-12 rounded-md object-cover shrink-0 border border-line"
+                      />
+                    )}
+                    <div className="font-medium text-ink capitalize self-center">{item.scrapType}</div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
                     <StatusStamp status={item.status} />
