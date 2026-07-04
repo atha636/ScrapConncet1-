@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
 
@@ -19,6 +19,20 @@ export const AuthProvider = ({ children }) => {
   // Read synchronously on first render — no rehydration flash, no effect needed.
   const [user, setUser] = useState(readStoredUser);
   const [loading] = useState(false);
+
+  // Keep every open tab in sync. Without this, logging in as a different
+  // account in one tab leaves other already-open tabs holding a stale
+  // in-memory `user` — which then makes wrong role-based routing decisions
+  // even though localStorage itself is correct.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "user" || e.key === "token") {
+        setUser(readStoredUser());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const login = (token, userData) => {
     localStorage.setItem("token", token);

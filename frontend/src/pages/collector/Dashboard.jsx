@@ -1,89 +1,195 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { getMyRequests } from "../../services/pickupService";
-import { useAuth } from "../../context/AuthContext";
+import { useCallback, useEffect, useState } from "react";
+import {
+  getAvailable,
+  getCollectorJobs,
+  acceptPickup,
+  updateStatus,
+} from "../../services/pickupService";
+import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import Loader from "../../components/common/Loader";
+import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 
-export default function Dashboard() {
-  const { user } = useAuth();
-  const [recent, setRecent] = useState([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, earned: 0 });
-  const [loading, setLoading] = useState(true);
+const NEXT_ACTION = {
+  accepted: { label: "Start pickup", next: "in_progress" },
+  in_progress: { label: "Mark completed", next: "completed" },
+};
 
-  useEffect(() => {
-    getMyRequests({ page: 1, limit: 5 })
-      .then((res) => {
-        setRecent(res.data.data);
-        const all = res.data.data;
-        setStats({
-          total: res.data.total,
-          pending: all.filter((p) => p.status === "pending").length,
-          completed: all.filter((p) => p.status === "completed").length,
-          earned: all.filter((p) => p.status === "completed").reduce((s, p) => s + p.price, 0),
-        });
-      })
-      .finally(() => setLoading(false));
+export default function CollectorDashboard() {
+  const [tab, setTab] = useState("available");
+  const [available, setAvailable] = useState([]);
+  const [myJobs, setMyJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actingId, setActingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [a, m] = await Promise.all([
+        getAvailable({ limit: 20 }),
+        getCollectorJobs({ limit: 20 }),
+      ]);
+      setAvailable(a.data.data);
+      setMyJobs(m.data.data);
+    } catch {
+      setError("Couldn't load pickups. Try refreshing.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
+  useEffect(() => { load(); }, [load]);
+
+  // New request comes in -> add it to the available list live
+  useSocket("newPickup", (pickup) => {
+    setAvailable((prev) => [pickup, ...prev]);
+  });
+
+  // Any pickup updated (by this collector or another) -> reconcile both lists
+  useSocket("updatePickup", (updated) => {
+    setAvailable((prev) => prev.filter((p) => p._id !== updated._id));
+    setMyJobs((prev) => {
+      const exists = prev.some((p) => p._id === updated._id);
+      return exists ? prev.map((p) => (p._id === updated._id ? updated : p)) : prev;
+    });
+  });
+
+  const handleAccept = async (id) => {
+    setActingId(id);
+    try {
+      const res = await acceptPickup(id);
+      setAvailable((prev) => prev.filter((p) => p._id !== id));
+      setMyJobs((prev) => [res.data, ...prev]);
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't accept this pickup — it may already be taken.");
+    } finally {
+      setActingId(null);
+    }
   };
+
+  const handleAdvance = async (id, next) => {
+    setActingId(id);
+    try {
+      const res = await updateStatus(id, next);
+      setMyJobs((prev) => prev.map((p) => (p._id === id ? res.data : p)));
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't update the status.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const activeJobs = myJobs.filter((j) => ["accepted", "in_progress"].includes(j.status));
+  const pastJobs = myJobs.filter((j) => ["completed", "cancelled"].includes(j.status));
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-ink mb-1">
-        {greeting()}, {user?.name?.split(" ")[0] || "there"}
-      </h1>
-      <p className="text-sm text-inkSoft mb-6">Here's what's happening with your pickups.</p>
+      <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
+      <p className="text-sm text-inkSoft mb-6">Pick up nearby scrap and manage your jobs.</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div className="flex gap-1 mb-6 border-b border-line">
         {[
-          { label: "Total requests", value: stats.total },
-          { label: "Pending", value: stats.pending },
-          { label: "Completed", value: stats.completed },
-          { label: "Total earned", value: formatPrice(stats.earned) },
-        ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <div className="text-xs text-inkFaint uppercase tracking-wide font-mono mb-1">{s.label}</div>
-            <div className="font-display text-xl font-bold text-ink">{s.value}</div>
-          </Card>
+          { key: "available", label: `Available (${available.length})` },
+          { key: "mine", label: `My jobs (${activeJobs.length})` },
+          { key: "history", label: `History (${pastJobs.length})` },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t.key ? "border-rust text-rust" : "border-transparent text-inkSoft hover:text-ink"
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-lg font-semibold text-ink">Recent activity</h2>
-        <Link to="/my-requests" className="text-sm font-semibold text-rust hover:underline">View all</Link>
-      </div>
+      {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
       {loading ? (
         <Loader />
-      ) : recent.length === 0 ? (
-        <Card className="p-10 text-center">
-          <p className="text-inkSoft mb-4">No pickups yet — request your first one.</p>
-          <Link to="/request" className="btn-primary inline-flex">Request a pickup</Link>
-        </Card>
       ) : (
         <div className="space-y-3">
-          {recent.map((item) => (
-            <Card key={item._id} className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <div className="font-medium text-ink capitalize">{item.scrapType}</div>
-                <div className="text-xs text-inkFaint font-mono mt-0.5">
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-semibold text-ink">{formatPrice(item.price)}</span>
-                <StatusStamp status={item.status} />
-              </div>
-            </Card>
-          ))}
+          {tab === "available" && (
+            available.length === 0 ? (
+              <Card className="p-10 text-center text-inkSoft">No pickups available right now — check back soon.</Card>
+            ) : (
+              available.map((item) => (
+                <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-display font-semibold text-ink capitalize">
+                      {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                    </div>
+                    <div className="text-xs text-inkFaint mt-0.5">
+                      {item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}
+                    </div>
+                    {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
+                    <button
+                      onClick={() => handleAccept(item._id)}
+                      disabled={actingId === item._id}
+                      className="btn-primary !py-2 !px-4 text-sm"
+                    >
+                      {actingId === item._id ? "Accepting…" : "Accept"}
+                    </button>
+                  </div>
+                </Card>
+              ))
+            )
+          )}
+
+          {tab === "mine" && (
+            activeJobs.length === 0 ? (
+              <Card className="p-10 text-center text-inkSoft">No active jobs — accept a pickup to get started.</Card>
+            ) : (
+              activeJobs.map((item) => {
+                const action = NEXT_ACTION[item.status];
+                return (
+                  <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
+                      {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusStamp status={item.status} />
+                      {action && (
+                        <button
+                          onClick={() => handleAdvance(item._id, action.next)}
+                          disabled={actingId === item._id}
+                          className="btn-primary !py-2 !px-4 text-sm"
+                        >
+                          {actingId === item._id ? "Updating…" : action.label}
+                        </button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })
+            )
+          )}
+
+          {tab === "history" && (
+            pastJobs.length === 0 ? (
+              <Card className="p-10 text-center text-inkSoft">No completed jobs yet.</Card>
+            ) : (
+              pastJobs.map((item) => (
+                <Card key={item._id} className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="font-medium text-ink capitalize">{item.scrapType}</div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
+                    <StatusStamp status={item.status} />
+                  </div>
+                </Card>
+              ))
+            )
+          )}
         </div>
       )}
     </div>
