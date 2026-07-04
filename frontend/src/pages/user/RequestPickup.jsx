@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPickup, SCRAP_TYPES } from "../../services/pickupService";
 import useGeolocation from "../../hooks/useGeolocation";
+import { compressImage } from "../../utils/compressImage";
 import Card from "../../components/ui/Card";
 import ErrorBox from "../../components/common/ErrorBox";
 
@@ -25,12 +26,21 @@ export default function RequestPickup() {
   const [preview, setPreview] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFile = (f) => {
+  const handleFile = async (f) => {
     if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    setPreview(URL.createObjectURL(f)); // instant preview from the original
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(f);
+      setFile(compressed);
+    } catch {
+      setFile(f); // compression failed — fall back to the original file
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -156,7 +166,14 @@ export default function RequestPickup() {
               }`}
             >
               {preview ? (
-                <img src={preview} alt="Scrap preview" className="h-28 rounded-md object-cover" />
+                <div className="relative">
+                  <img src={preview} alt="Scrap preview" className="h-28 rounded-md object-cover" />
+                  {compressing && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-ink/40 rounded-md">
+                      <span className="text-xs font-medium text-surface">Optimizing photo…</span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9C8A73" strokeWidth="1.8">
@@ -169,8 +186,8 @@ export default function RequestPickup() {
             </label>
           </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={submitting}>
-            {submitting ? "Submitting…" : "Submit request"}
+          <button type="submit" className="btn-primary w-full" disabled={submitting || compressing}>
+            {submitting ? "Submitting…" : compressing ? "Optimizing photo…" : "Submit request"}
           </button>
         </form>
       </Card>
