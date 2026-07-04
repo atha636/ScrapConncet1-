@@ -1,24 +1,24 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const readStoredUser = () => {
+  const stored = localStorage.getItem("user");
+  const token = localStorage.getItem("token");
+  if (!stored || !token) return null;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    return null;
+  }
+};
 
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
-    if (stored && token) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      }
-    }
-    setLoading(false);
-  }, []);
+export const AuthProvider = ({ children }) => {
+  // Read synchronously on first render — no rehydration flash, no effect needed.
+  const [user, setUser] = useState(readStoredUser);
+  const [loading] = useState(false);
 
   const login = (token, userData) => {
     localStorage.setItem("token", token);
@@ -39,4 +39,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

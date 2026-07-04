@@ -1,16 +1,19 @@
 import API from "./api";
 
-export const createPickup = (data) =>
-  API.post("/pickup/request", data);
+export const SCRAP_TYPES = ["metal", "plastic", "paper", "e-waste", "glass", "other"];
 
-export const getMyRequests = () =>
-  API.get("/pickup/my-requests");
+// FormData in, because image upload is multipart.
+export const createPickup = (formData) =>
+  API.post("/pickup/request", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
-export const getAvailable = () =>
-  API.get("/pickup/available");
+export const getMyRequests = (params = {}) => API.get("/pickup/my-requests", { params });
 
-export const acceptPickup = (id) =>
-  API.patch(`/pickup/${id}/accept`);
+export const getAvailable = (params = {}) => API.get("/pickup/available", { params });
 
-export const updateStatus = (id, status) =>
-  API.patch(`/pickup/${id}/status`, { status });
+export const getCollectorJobs = (params = {}) => API.get("/pickup/collector/jobs", { params });
+
+export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
+
+export const updateStatus = (id, status) => API.patch(`/pickup/${id}/status`, { status });

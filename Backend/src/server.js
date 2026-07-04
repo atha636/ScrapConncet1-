@@ -4,13 +4,13 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const dotenv = require("dotenv");
-const mongoSanitize = require("express-mongo-sanitize");
 const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
 
 dotenv.config();
 
 const connectDB = require("./config/db");
+const sanitize = require("./middleware/sanitize");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 connectDB();
@@ -28,7 +28,7 @@ const io = new Server(server, {
 app.use(helmet());
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
-app.use(mongoSanitize());
+app.use(sanitize);
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // Basic abuse protection on auth endpoints
