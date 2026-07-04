@@ -1,13 +1,9 @@
 import { useEffect, useRef } from "react";
-import { io } from "socket.io-client";
-
-const SOCKET_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(
-  /\/api\/?$/,
-  ""
-);
+import { connectSocket } from "../lib/socket";
 
 /**
- * Subscribes to a socket.io event for the component's lifetime.
+ * Subscribes to a socket.io event for the component's lifetime, using the
+ * shared authenticated connection.
  * @param {string} event - "newPickup" | "updatePickup"
  * @param {(payload: any) => void} handler
  */
@@ -19,8 +15,9 @@ export default function useSocket(event, handler) {
   }, [handler]);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ["websocket"] });
-    socket.on(event, (payload) => handlerRef.current?.(payload));
-    return () => socket.disconnect();
+    const socket = connectSocket();
+    const onEvent = (payload) => handlerRef.current?.(payload);
+    socket.on(event, onEvent);
+    return () => socket.off(event, onEvent);
   }, [event]);
 }

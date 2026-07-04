@@ -10,6 +10,7 @@ import Card from "../../components/ui/Card";
 import Loader from "../../components/common/Loader";
 import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
+import ChatBox from "../../components/chat/ChatBox";
 import { formatPrice } from "../../utils/formatPrice";
 
 const NEXT_ACTION = {
@@ -24,6 +25,7 @@ export default function CollectorDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
+  const [chatPickup, setChatPickup] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,6 +179,15 @@ export default function CollectorDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <StatusStamp status={item.status} />
+                      <button
+                        onClick={() => setChatPickup(item)}
+                        className="text-xs font-semibold text-rust hover:underline flex items-center gap-1"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                        </svg>
+                        Chat
+                      </button>
                       {action && (
                         <button
                           onClick={() => handleAdvance(item._id, action.next)}
@@ -219,6 +230,13 @@ export default function CollectorDashboard() {
           )}
         </div>
       )}
+
+      <ChatBox
+        pickupId={chatPickup?._id}
+        open={!!chatPickup}
+        onClose={() => setChatPickup(null)}
+        otherPartyName={chatPickup?.user?.name}
+      />
     </div>
   );
 }

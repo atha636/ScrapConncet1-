@@ -11,6 +11,7 @@ dotenv.config();
 
 const connectDB = require("./config/db");
 const sanitize = require("./middleware/sanitize");
+const setupSocket = require("./socket/setupSocket");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 connectDB();
@@ -23,6 +24,8 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 const io = new Server(server, {
   cors: { origin: CLIENT_ORIGIN },
 });
+
+setupSocket(io);
 
 // --- Security & core middleware ---
 app.use(helmet());
@@ -52,6 +55,7 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 // --- Routes ---
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/pickup", require("./routes/pickupRoutes"));
+app.use("/api/pickup", require("./routes/messageRoutes"));
 
 // --- Error handling (must be last) ---
 app.use(notFound);
