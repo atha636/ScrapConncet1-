@@ -15,6 +15,7 @@ import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import MapModal from "../../components/map/MapModal";
 import { formatPrice } from "../../utils/formatPrice";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 const NEXT_ACTION = {
   accepted: { label: "Start pickup", next: "in_progress" },
@@ -22,6 +23,7 @@ const NEXT_ACTION = {
 };
 
 export default function CollectorDashboard() {
+  useDocumentMeta({ title: "Collector Dashboard", noindex: true });
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
   const [myJobs, setMyJobs] = useState([]);

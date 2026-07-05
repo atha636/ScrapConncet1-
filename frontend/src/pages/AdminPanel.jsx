@@ -12,8 +12,10 @@ import CardSkeleton from "../components/common/CardSkeleton";
 import ErrorBox from "../components/common/ErrorBox";
 import StatusStamp from "../components/ui/StatusStamp";
 import { formatPrice } from "../utils/formatPrice";
+import useDocumentMeta from "../hooks/useDocumentMeta";
 
 export default function AdminPanel() {
+  useDocumentMeta({ title: "Admin Panel", noindex: true });
   const [tab, setTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);

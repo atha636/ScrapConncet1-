@@ -2,8 +2,14 @@ import { useState } from "react";
 import { loginUser } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 export default function Login() {
+  useDocumentMeta({
+    title: "Log In",
+    description: "Log in to ScrapConnect to request a scrap pickup or manage your collector jobs.",
+  });
+
   const { login } = useAuth();
   const navigate = useNavigate();
 

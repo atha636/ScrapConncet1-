@@ -9,6 +9,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import { formatPrice } from "../../utils/formatPrice";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 const TYPE_LABELS = {
   metal: "Metal",
@@ -20,6 +21,8 @@ const TYPE_LABELS = {
 };
 
 export default function MyRequests() {
+  useDocumentMeta({ title: "My Requests", noindex: true });
+
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);

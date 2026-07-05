@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { registerUser } from "../../services/authService";
 import { useNavigate } from "react-router-dom";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 export default function Register() {
+  useDocumentMeta({
+    title: "Sign Up",
+    description:
+      "Create a free ScrapConnect account as a requester to sell scrap, or as a collector to find pickup jobs nearby and earn.",
+  });
+
   const navigate = useNavigate();
 
   const [form, setForm] = useState({

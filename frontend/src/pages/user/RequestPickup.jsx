@@ -5,6 +5,7 @@ import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
 import Card from "../../components/ui/Card";
 import ErrorBox from "../../components/common/ErrorBox";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 const TYPE_LABELS = {
   metal: "Metal",
@@ -16,6 +17,8 @@ const TYPE_LABELS = {
 };
 
 export default function RequestPickup() {
+  useDocumentMeta({ title: "Request Pickup", noindex: true });
+
   const navigate = useNavigate();
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 

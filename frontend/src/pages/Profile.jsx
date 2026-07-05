@@ -3,8 +3,11 @@ import { updateProfile, changePassword } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import Card from "../components/ui/Card";
 import ErrorBox from "../components/common/ErrorBox";
+import useDocumentMeta from "../hooks/useDocumentMeta";
 
 export default function Profile() {
+  useDocumentMeta({ title: "Profile", noindex: true });
+
   const { user, login } = useAuth();
 
   const [name, setName] = useState(user?.name || "");

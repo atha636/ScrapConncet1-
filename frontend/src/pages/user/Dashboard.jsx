@@ -6,8 +6,11 @@ import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
+import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 export default function Dashboard() {
+  useDocumentMeta({ title: "Dashboard", noindex: true });
+
   const { user } = useAuth();
   const [recent, setRecent] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, earned: 0 });

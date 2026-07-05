@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+
+# Everything past this point is a per-user authenticated view — no public
+# content to index, and indexing it would leak nothing but empty shells
+# (client-side auth redirects before any real content renders anyway).
+Disallow: /request
+Disallow: /my-requests
+Disallow: /collector
+Disallow: /admin
+Disallow: /profile
+
+Sitemap: https://scrapconnect.example.com/sitemap.xml
