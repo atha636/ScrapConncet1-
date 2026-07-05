@@ -2,6 +2,14 @@ const Pickup = require("../models/Pickup");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimatePrice } = require("../utils/pricing");
+const notifyUser = require("../utils/notifyUser");
+
+const STATUS_LABELS = {
+  accepted: "accepted",
+  in_progress: "started",
+  completed: "completed",
+  cancelled: "cancelled",
+};
 
 const paginate = (query) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -86,8 +94,16 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   pickup.collector = req.user.id;
   pickup.pushHistory("accepted", req.user.id);
   await pickup.save();
+  await pickup.populate("collector", "name");
 
   req.io.emit("updatePickup", pickup);
+
+  await notifyUser(req.io, pickup.user, {
+    type: "pickup_accepted",
+    text: `${pickup.collector.name} accepted your ${pickup.scrapType} pickup request`,
+    pickupId: pickup._id,
+  });
+
   res.json(pickup);
 });
 
@@ -113,5 +129,12 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   await pickup.save();
 
   req.io.emit("updatePickup", pickup);
+
+  await notifyUser(req.io, pickup.user, {
+    type: "status_update",
+    text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[req.body.status] || req.body.status}`,
+    pickupId: pickup._id,
+  });
+
   res.json(pickup);
 });

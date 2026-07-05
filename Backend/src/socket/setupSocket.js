@@ -26,6 +26,11 @@ function setupSocket(io) {
   });
 
   io.on("connection", (socket) => {
+    // Every authenticated socket automatically joins its own private room —
+    // this is how notifications reach a user regardless of which page
+    // they're on, without ever being a global broadcast.
+    socket.join(`user:${socket.user.id}`);
+
     socket.on("joinPickup", async (pickupId) => {
       try {
         await assertChatAccess(pickupId, socket.user.id);

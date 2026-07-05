@@ -56,6 +56,7 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/pickup", require("./routes/pickupRoutes"));
 app.use("/api/pickup", require("./routes/messageRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 // --- Error handling (must be last) ---
 app.use(notFound);
