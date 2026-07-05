@@ -56,12 +56,12 @@ export default function Navbar() {
         <div className="flex items-center gap-3 shrink-0">
           <NotificationBell />
 
-          <div className="hidden sm:flex items-center gap-2">
+          <Link to="/profile" className="hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-7 h-7 rounded-full bg-amber/20 border border-amber/40 flex items-center justify-center text-xs font-bold text-amber-dark font-display">
               {(user?.name || "U")[0].toUpperCase()}
             </div>
             <span className="text-sm text-inkSoft max-w-[110px] truncate">{user?.name || "User"}</span>
-          </div>
+          </Link>
 
           <button onClick={handleLogout} className="btn-secondary !py-2 !px-3.5 text-xs">
             Log out
@@ -97,6 +97,15 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/profile"
+            onClick={() => setMenuOpen(false)}
+            className={`px-3 py-2.5 rounded-md text-sm font-medium ${
+              location.pathname === "/profile" ? "text-rust bg-rust/[0.08]" : "text-inkSoft"
+            }`}
+          >
+            Profile
+          </Link>
         </div>
       )}
     </nav>

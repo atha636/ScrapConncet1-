@@ -7,3 +7,7 @@ export const loginUser = (data) => API.post("/auth/login", data);
 export const registerUser = (data) => API.post("/auth/register", data);
 
 export const fetchMe = () => API.get("/auth/me");
+
+export const updateProfile = (data) => API.patch("/auth/me", data);
+
+export const changePassword = (data) => API.patch("/auth/change-password", data);

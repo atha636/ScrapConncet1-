@@ -11,6 +11,7 @@ import Loader from "../../components/common/Loader";
 import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
+import RatingModal from "../../components/rating/RatingModal";
 import { formatPrice } from "../../utils/formatPrice";
 
 const NEXT_ACTION = {
@@ -26,6 +27,8 @@ export default function CollectorDashboard() {
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
   const [chatPickup, setChatPickup] = useState(null);
+  const [ratePickup, setRatePickup] = useState(null);
+  const [ratedIds, setRatedIds] = useState(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -223,6 +226,17 @@ export default function CollectorDashboard() {
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
                     <StatusStamp status={item.status} />
+                    {item.status === "completed" && item.user && !ratedIds.has(item._id) && (
+                      <button
+                        onClick={() => setRatePickup(item)}
+                        className="text-xs font-semibold text-amber-dark hover:underline flex items-center gap-1"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        Rate requester
+                      </button>
+                    )}
                   </div>
                 </Card>
               ))
@@ -236,6 +250,14 @@ export default function CollectorDashboard() {
         open={!!chatPickup}
         onClose={() => setChatPickup(null)}
         otherPartyName={chatPickup?.user?.name}
+      />
+
+      <RatingModal
+        pickupId={ratePickup?._id}
+        open={!!ratePickup}
+        onClose={() => setRatePickup(null)}
+        otherPartyName={ratePickup?.user?.name}
+        onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
       />
     </div>
   );

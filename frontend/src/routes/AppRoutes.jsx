@@ -8,6 +8,7 @@ import RequestPickup from "../pages/user/RequestPickup";
 import MyRequests from "../pages/user/MyRequests";
 
 import CollectorDashboard from "../pages/collector/Dashboard";
+import Profile from "../pages/Profile";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -50,6 +51,16 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute role="collector">
             <CollectorDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* No role restriction — both requesters and collectors have a profile */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />

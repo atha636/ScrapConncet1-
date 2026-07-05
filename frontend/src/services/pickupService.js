@@ -17,3 +17,5 @@ export const getCollectorJobs = (params = {}) => API.get("/pickup/collector/jobs
 export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 
 export const updateStatus = (id, status) => API.patch(`/pickup/${id}/status`, { status });
+
+export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
