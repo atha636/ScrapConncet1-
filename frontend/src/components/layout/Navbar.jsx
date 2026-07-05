@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import NotificationBell from "./NotificationBell";
 
 const USER_LINKS = [
   { to: "/", label: "Dashboard" },
@@ -53,6 +54,8 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <NotificationBell />
+
           <div className="hidden sm:flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-amber/20 border border-amber/40 flex items-center justify-center text-xs font-bold text-amber-dark font-display">
               {(user?.name || "U")[0].toUpperCase()}
