@@ -9,6 +9,7 @@ import MyRequests from "../pages/user/MyRequests";
 
 import CollectorDashboard from "../pages/collector/Dashboard";
 import Profile from "../pages/Profile";
+import AdminPanel from "../pages/AdminPanel";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -55,7 +56,16 @@ export default function AppRoutes() {
         }
       />
 
-      {/* No role restriction — both requesters and collectors have a profile */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminPanel />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* No role restriction — every role has a profile */}
       <Route
         path="/profile"
         element={

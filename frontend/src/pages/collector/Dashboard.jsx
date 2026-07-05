@@ -4,6 +4,7 @@ import {
   getCollectorJobs,
   acceptPickup,
   updateStatus,
+  SCRAP_TYPES,
 } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
@@ -12,6 +13,7 @@ import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
+import MapModal from "../../components/map/MapModal";
 import { formatPrice } from "../../utils/formatPrice";
 
 const NEXT_ACTION = {
@@ -29,6 +31,10 @@ export default function CollectorDashboard() {
   const [chatPickup, setChatPickup] = useState(null);
   const [ratePickup, setRatePickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
+  const [mapPickup, setMapPickup] = useState(null);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [minPrice, setMinPrice] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +97,17 @@ export default function CollectorDashboard() {
   const activeJobs = myJobs.filter((j) => ["accepted", "in_progress"].includes(j.status));
   const pastJobs = myJobs.filter((j) => ["completed", "cancelled"].includes(j.status));
 
+  const filteredAvailable = available
+    .filter((item) => typeFilter === "all" || item.scrapType === typeFilter)
+    .filter((item) => !minPrice || item.price >= Number(minPrice))
+    .sort((a, b) =>
+      sortBy === "price_high"
+        ? b.price - a.price
+        : sortBy === "price_low"
+        ? a.price - b.price
+        : new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
   return (
     <div>
       <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
@@ -98,7 +115,7 @@ export default function CollectorDashboard() {
 
       <div className="flex gap-1 mb-6 border-b border-line">
         {[
-          { key: "available", label: `Available (${available.length})` },
+          { key: "available", label: `Available (${filteredAvailable.length})` },
           { key: "mine", label: `My jobs (${activeJobs.length})` },
           { key: "history", label: `History (${pastJobs.length})` },
         ].map((t) => (
@@ -116,15 +133,62 @@ export default function CollectorDashboard() {
 
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
+      {tab === "available" && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="field-input !w-auto text-sm"
+          >
+            <option value="all">All types</option>
+            {SCRAP_TYPES.map((t) => (
+              <option key={t} value={t} className="capitalize">{t}</option>
+            ))}
+          </select>
+
+          <input
+            type="number"
+            min="0"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            placeholder="Min price ₹"
+            className="field-input !w-32 text-sm"
+          />
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="field-input !w-auto text-sm"
+          >
+            <option value="newest">Newest first</option>
+            <option value="price_high">Price: high to low</option>
+            <option value="price_low">Price: low to high</option>
+          </select>
+
+          {(typeFilter !== "all" || minPrice) && (
+            <button
+              onClick={() => { setTypeFilter("all"); setMinPrice(""); }}
+              className="text-xs font-semibold text-rust hover:underline self-center"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <Loader />
       ) : (
         <div className="space-y-3">
           {tab === "available" && (
-            available.length === 0 ? (
-              <Card className="p-10 text-center text-inkSoft">No pickups available right now — check back soon.</Card>
+            filteredAvailable.length === 0 ? (
+              <Card className="p-10 text-center text-inkSoft">
+                {available.length === 0
+                  ? "No pickups available right now — check back soon."
+                  : "No pickups match your filters."}
+              </Card>
             ) : (
-              available.map((item) => (
+              filteredAvailable.map((item) => (
                 <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex gap-4">
                     {item.image && (
@@ -138,8 +202,14 @@ export default function CollectorDashboard() {
                       <div className="font-display font-semibold text-ink capitalize">
                         {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
                       </div>
-                      <div className="text-xs text-inkFaint mt-0.5">
-                        {item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}
+                      <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5">
+                        <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
+                        <button
+                          onClick={() => setMapPickup(item)}
+                          className="text-rust font-semibold hover:underline"
+                        >
+                          View map
+                        </button>
                       </div>
                       {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
                     </div>
@@ -258,6 +328,15 @@ export default function CollectorDashboard() {
         onClose={() => setRatePickup(null)}
         otherPartyName={ratePickup?.user?.name}
         onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
+      />
+
+      <MapModal
+        open={!!mapPickup}
+        onClose={() => setMapPickup(null)}
+        lat={mapPickup?.location?.lat}
+        lng={mapPickup?.location?.lng}
+        address={mapPickup?.location?.address}
+        label={mapPickup?.scrapType}
       />
     </div>
   );

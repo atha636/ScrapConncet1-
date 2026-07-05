@@ -8,12 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
-    
   },
   "dependencies": {
     "axios": "^1.14.0",
+    "leaflet": "^1.9.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.13.2",
     "socket.io-client": "^4.8.3",
     "zustand": "^5.0.12"
@@ -32,5 +33,4 @@
     "tailwindcss": "^3.4.1",
     "vite": "^8.0.1"
   }
-  
 }

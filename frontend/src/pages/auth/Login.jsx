@@ -19,7 +19,13 @@ export default function Login() {
       setLoading(true);
       const res = await loginUser(form);
       login(res.data.token, res.data.user);
-      navigate(res.data.user.role === "collector" ? "/collector" : "/");
+      const dest =
+        res.data.user.role === "collector"
+          ? "/collector"
+          : res.data.user.role === "admin"
+          ? "/admin"
+          : "/";
+      navigate(dest);
     } catch (err) {
       setError(err.response?.data?.message || "Invalid email or password.");
     } finally {
