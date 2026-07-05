@@ -107,7 +107,37 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   res.json(pickup);
 });
 
-// PATCH /api/pickup/:id/status  (collector only, must own the job)
+// PATCH /api/pickup/:id/cancel  (requester only, must own the request)
+exports.cancelByRequester = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+
+  if (String(pickup.user) !== String(req.user.id)) {
+    throw new ApiError(403, "This isn't your pickup request");
+  }
+
+  // Once a collector is en route (in_progress) it's too late to cancel from
+  // the app — real-world coordination should happen via chat/phone instead.
+  if (!["pending", "accepted"].includes(pickup.status)) {
+    throw new ApiError(400, `Can't cancel a pickup that's already ${pickup.status}`);
+  }
+
+  const hadCollector = pickup.collector;
+  pickup.pushHistory("cancelled", req.user.id);
+  await pickup.save();
+
+  req.io.emit("updatePickup", pickup);
+
+  if (hadCollector) {
+    await notifyUser(req.io, hadCollector, {
+      type: "status_update",
+      text: `The ${pickup.scrapType} pickup you accepted was cancelled by the requester`,
+      pickupId: pickup._id,
+    });
+  }
+
+  res.json(pickup);
+});
 exports.updateStatus = asyncHandler(async (req, res) => {
   const pickup = await Pickup.findById(req.params.id);
   if (!pickup) throw new ApiError(404, "Pickup not found");

@@ -12,6 +12,7 @@ const {
   getCollectorJobs,
   acceptPickup,
   updateStatus,
+  cancelByRequester,
 } = require("../controllers/pickupController");
 
 router.post(
@@ -24,6 +25,7 @@ router.post(
 );
 
 router.get("/my-requests", auth, role("user"), getMyRequests);
+router.patch("/:id/cancel", auth, role("user"), cancelByRequester);
 
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);

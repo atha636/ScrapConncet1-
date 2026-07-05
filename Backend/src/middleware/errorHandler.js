@@ -16,7 +16,8 @@ const errorHandler = (err, req, res, next) => {
       message = err.message;
     } else if (err.code === 11000) {
       statusCode = 409;
-      message = "Email already registered";
+      const field = Object.keys(err.keyPattern || {})[0];
+      message = field === "email" ? "Email already registered" : "This already exists";
     } else {
       statusCode = 500;
       message = "Internal server error";

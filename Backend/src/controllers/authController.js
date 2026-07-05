@@ -48,3 +48,33 @@ exports.me = asyncHandler(async (req, res) => {
   if (!user) throw new ApiError(404, "User not found");
   res.json(user);
 });
+
+// PATCH /api/auth/me
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const { name, phone } = req.body;
+
+  const user = await User.findById(req.user.id);
+  if (!user) throw new ApiError(404, "User not found");
+
+  if (name !== undefined) user.name = name;
+  if (phone !== undefined) user.phone = phone;
+  await user.save();
+
+  res.json(user);
+});
+
+// PATCH /api/auth/change-password
+exports.changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user.id).select("+password");
+  if (!user) throw new ApiError(404, "User not found");
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) throw new ApiError(401, "Current password is incorrect");
+
+  user.password = await bcrypt.hash(newPassword, 12);
+  await user.save();
+
+  res.json({ success: true });
+});

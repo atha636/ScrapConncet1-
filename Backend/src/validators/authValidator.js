@@ -20,4 +20,19 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-module.exports = { registerSchema, loginSchema };
+const updateProfileSchema = z.object({
+  name: z.string().trim().min(2).max(60).optional(),
+  // Empty string clears the phone field; omit the key entirely to leave it untouched.
+  phone: z.union([z.string().trim().min(7).max(20), z.literal("")]).optional(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters")
+    .regex(/[A-Za-z]/, "New password must contain a letter")
+    .regex(/[0-9]/, "New password must contain a number"),
+});
+
+module.exports = { registerSchema, loginSchema, updateProfileSchema, changePasswordSchema };
