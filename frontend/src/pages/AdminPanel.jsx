@@ -8,6 +8,7 @@ import {
 } from "../services/adminService";
 import Card from "../components/ui/Card";
 import Loader from "../components/common/Loader";
+import CardSkeleton from "../components/common/CardSkeleton";
 import ErrorBox from "../components/common/ErrorBox";
 import StatusStamp from "../components/ui/StatusStamp";
 import { formatPrice } from "../utils/formatPrice";
@@ -89,7 +90,7 @@ export default function AdminPanel() {
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
       {loading ? (
-        <Loader />
+        tab === "overview" ? <Loader /> : <CardSkeleton count={4} />
       ) : (
         <>
           {tab === "overview" && stats && (
@@ -125,7 +126,10 @@ export default function AdminPanel() {
               </form>
 
               <div className="space-y-2">
-                {users.map((u) => (
+                {users.length === 0 ? (
+                  <Card className="p-10 text-center text-inkSoft">No users match your search.</Card>
+                ) : (
+                  users.map((u) => (
                   <Card key={u._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <div className="font-medium text-ink">
@@ -148,14 +152,18 @@ export default function AdminPanel() {
                       )}
                     </div>
                   </Card>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
 
           {tab === "pickups" && (
             <div className="space-y-2">
-              {pickups.map((p) => (
+              {pickups.length === 0 ? (
+                <Card className="p-10 text-center text-inkSoft">No pickups on the platform yet.</Card>
+              ) : (
+                pickups.map((p) => (
                 <Card key={p._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
                   <div>
                     <div className="font-medium text-ink capitalize">{p.scrapType}</div>
@@ -168,7 +176,8 @@ export default function AdminPanel() {
                     <StatusStamp status={p.status} />
                   </div>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           )}
         </>

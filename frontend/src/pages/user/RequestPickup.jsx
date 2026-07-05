@@ -82,7 +82,7 @@ export default function RequestPickup() {
           {/* Scrap type */}
           <div>
             <label className="field-label">Scrap type</label>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SCRAP_TYPES.map((t) => (
                 <button
                   key={t}
@@ -119,14 +119,14 @@ export default function RequestPickup() {
           <div>
             <label className="field-label">Pickup location</label>
             {coords ? (
-              <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-ticket border-1.5 border-amber/50 bg-amber/[0.06]" style={{ borderWidth: "1.5px" }}>
-                <div className="flex items-center gap-2 text-sm text-ink">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4841E" strokeWidth="2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 px-4 py-3 rounded-ticket border-1.5 border-amber/50 bg-amber/[0.06]" style={{ borderWidth: "1.5px" }}>
+                <div className="flex items-center gap-2 text-sm text-ink min-w-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4841E" strokeWidth="2" className="shrink-0">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
                   </svg>
-                  Location captured ({coords.lat.toFixed(4)}, {coords.lng.toFixed(4)})
+                  <span className="truncate">Location captured ({coords.lat.toFixed(4)}, {coords.lng.toFixed(4)})</span>
                 </div>
-                <button type="button" onClick={locate} className="text-xs font-semibold text-rust hover:underline shrink-0">
+                <button type="button" onClick={locate} className="text-xs font-semibold text-rust hover:underline shrink-0 self-start sm:self-auto">
                   Refresh
                 </button>
               </div>

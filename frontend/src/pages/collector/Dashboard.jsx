@@ -8,7 +8,7 @@ import {
 } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
-import Loader from "../../components/common/Loader";
+import CardSkeleton from "../../components/common/CardSkeleton";
 import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
@@ -177,7 +177,7 @@ export default function CollectorDashboard() {
       )}
 
       {loading ? (
-        <Loader />
+        <CardSkeleton count={3} withImage />
       ) : (
         <div className="space-y-3">
           {tab === "available" && (

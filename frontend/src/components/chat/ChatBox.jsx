@@ -23,7 +23,7 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/30 p-0 sm:p-4">
-      <div className="ticket w-full sm:max-w-md h-[80vh] sm:h-[560px] flex flex-col overflow-hidden rounded-b-none sm:rounded-b-md">
+      <div className="ticket w-full sm:max-w-md h-[80dvh] sm:h-[560px] flex flex-col overflow-hidden rounded-b-none sm:rounded-b-md">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-surfaceRaised">
           <div>

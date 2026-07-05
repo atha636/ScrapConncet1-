@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getMyRequests, cancelPickup } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
-import Loader from "../../components/common/Loader";
+import CardSkeleton from "../../components/common/CardSkeleton";
 import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
@@ -79,7 +79,7 @@ export default function MyRequests() {
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
       {loading ? (
-        <Loader label="Loading your requests…" />
+        <CardSkeleton count={3} withImage />
       ) : items.length === 0 ? (
         <Card className="p-10 text-center">
           <p className="text-inkSoft mb-4">You haven't requested a pickup yet.</p>

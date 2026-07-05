@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getMyRequests } from "../../services/pickupService";
 import { useAuth } from "../../context/AuthContext";
 import Card from "../../components/ui/Card";
-import Loader from "../../components/common/Loader";
+import CardSkeleton from "../../components/common/CardSkeleton";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <Loader />
+        <CardSkeleton count={3} />
       ) : recent.length === 0 ? (
         <Card className="p-10 text-center">
           <p className="text-inkSoft mb-4">No pickups yet — request your first one.</p>
