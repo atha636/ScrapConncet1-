@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
+import AdminLogin from "../pages/auth/AdminLogin";
+import Home from "../pages/Home";
 
 import UserDashboard from "../pages/user/Dashboard";
 import RequestPickup from "../pages/user/RequestPickup";
@@ -17,8 +19,10 @@ export default function AppRoutes() {
   return (
     <Routes>
 
+      <Route path="/home" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
 
       <Route
         path="/"

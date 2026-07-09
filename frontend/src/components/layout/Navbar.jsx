@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import NotificationBell from "./NotificationBell";
@@ -10,24 +10,49 @@ const USER_LINKS = [
 ];
 
 const COLLECTOR_LINKS = [{ to: "/collector", label: "Collector" }];
+const ADMIN_LINKS = [{ to: "/admin", label: "Admin" }];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const clickCount = useRef(0);
+  const clickTimer = useRef(null);
 
-  const links = user?.role === "collector" ? COLLECTOR_LINKS : USER_LINKS;
+  const links =
+    user?.role === "collector" ? COLLECTOR_LINKS : user?.role === "admin" ? ADMIN_LINKS : USER_LINKS;
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  // Single click -> public landing page. Three clicks within the window ->
+  // hidden admin portal. There's no visible link to /admin-login anywhere
+  // else in the app on purpose.
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    clickCount.current += 1;
+
+    if (clickCount.current === 3) {
+      clearTimeout(clickTimer.current);
+      clickCount.current = 0;
+      navigate("/admin-login");
+      return;
+    }
+
+    clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => {
+      clickCount.current = 0;
+      navigate("/home");
+    }, 350);
+  };
+
   return (
     <nav className="sticky top-0 z-40 bg-surface border-b border-line">
       <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+        <button onClick={handleLogoClick} className="flex items-center gap-2.5 shrink-0" aria-label="ScrapConnect home">
           <div className="w-8 h-8 rounded-md bg-rust flex items-center justify-center rotate-[-3deg]">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2.3">
               <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
@@ -35,7 +60,7 @@ export default function Navbar() {
             </svg>
           </div>
           <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
-        </Link>
+        </button>
 
         <div className="hidden sm:flex items-center gap-1 flex-1 justify-center">
           {links.map((link) => (
