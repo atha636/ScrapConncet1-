@@ -62,8 +62,8 @@ export default function Home() {
             on the spot. No fees, no middlemen, no listing hassle.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link to="/register" className="btn-primary">Request a pickup</Link>
-            <Link to="/register" className="btn-secondary">Become a collector</Link>
+            <Link to="/register?role=user" className="btn-primary">Request a pickup</Link>
+            <Link to="/register?role=collector" className="btn-secondary">Become a collector</Link>
           </div>
         </div>
 

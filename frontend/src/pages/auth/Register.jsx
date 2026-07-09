@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { registerUser } from "../../services/authService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
+
+const ROLE_FROM_PARAM = { user: false, collector: true };
 
 export default function Register() {
   useDocumentMeta({
@@ -12,18 +14,30 @@ export default function Register() {
   });
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Deep-linked from Home's "Request a pickup" / "Become a collector" CTAs
+  // (e.g. /register?role=collector) skip straight to the form. Otherwise
+  // the visitor picks their role on a dedicated first screen.
+  const presetRole = ROLE_FROM_PARAM[searchParams.get("role")];
+  const [step, setStep] = useState(presetRole !== undefined ? "form" : "choose");
 
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
-    wantsToBeCollector: false,
+    wantsToBeCollector: presetRole ?? false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPass, setShowPass] = useState(false);
+
+  const chooseRole = (wantsToBeCollector) => {
+    setForm({ ...form, wantsToBeCollector });
+    setStep("form");
+  };
 
   const handleChange = (e) => {
     setError("");
@@ -75,24 +89,129 @@ export default function Register() {
     );
   }
 
+  // --- Step 1: choose a role ---
+  if (step === "choose") {
+    return (
+      <div className="min-h-screen flex">
+        <AuthSidePanel variant="register" />
+
+        <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-lg">
+            <div className="flex flex-col items-center mb-10">
+              <div className="w-14 h-14 rounded-ticket bg-rust flex items-center justify-center mb-4 rotate-[-3deg] lg:hidden">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2">
+                  <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <h1 className="font-display text-2xl font-bold text-ink tracking-tight">How will you use ScrapConnect?</h1>
+              <p className="text-sm text-inkSoft mt-1">You can always tell us more on the next step.</p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => chooseRole(false)}
+                className="text-left ticket p-6 hover:border-rust hover:-translate-y-1 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-full bg-rust/10 text-rust flex items-center justify-center mb-4 group-hover:bg-rust group-hover:text-surface transition-colors">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div className="font-display font-semibold text-ink mb-1.5">I have scrap to sell</div>
+                <p className="text-sm text-inkSoft leading-relaxed">
+                  Post a pickup request and get matched with a collector nearby who'll pay you for it.
+                </p>
+                <div className="text-sm font-semibold text-rust mt-4 flex items-center gap-1">
+                  Continue as requester
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                </div>
+              </button>
+
+              <button
+                onClick={() => chooseRole(true)}
+                className="text-left ticket p-6 hover:border-amber hover:-translate-y-1 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-full bg-amber/15 text-amber-dark flex items-center justify-center mb-4 group-hover:bg-amber group-hover:text-surface transition-colors">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                  </svg>
+                </div>
+                <div className="font-display font-semibold text-ink mb-1.5">I want to collect scrap</div>
+                <p className="text-sm text-inkSoft leading-relaxed">
+                  Browse pickup requests near you, accept jobs, and get paid directly for each pickup.
+                </p>
+                <div className="text-sm font-semibold text-amber-dark mt-4 flex items-center gap-1">
+                  Continue as collector
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                </div>
+              </button>
+            </div>
+
+            <p className="text-center text-sm text-inkSoft mt-8">
+              Already have an account?{" "}
+              <button type="button" onClick={() => navigate("/login")} className="text-rust font-semibold hover:underline">
+                Sign in
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Step 2: the actual form, role already decided ---
   return (
     <div className="min-h-screen flex">
       <AuthSidePanel variant="register" />
 
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
-          <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-col items-center mb-6">
             <div className="w-14 h-14 rounded-ticket bg-rust flex items-center justify-center mb-4 rotate-[-3deg] lg:hidden">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2">
                 <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
                 <path d="M9 12l2 2 4-4" />
               </svg>
             </div>
-            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Create account</h1>
+            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Create your account</h1>
             <p className="text-sm text-inkSoft mt-1">Join ScrapConnect</p>
           </div>
 
-          <form onSubmit={handleRegister} className="ticket p-8 pt-9">
+          {/* Chosen role, with a way back to change it */}
+          <button
+            type="button"
+            onClick={() => setStep("choose")}
+            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-ticket border-1.5 mb-5 ${
+              form.wantsToBeCollector ? "border-amber/50 bg-amber/[0.06]" : "border-rust/40 bg-rust/[0.05]"
+            }`}
+            style={{ borderWidth: "1.5px" }}
+          >
+            <div className="flex items-center gap-2.5 text-left">
+              <span className={form.wantsToBeCollector ? "text-amber-dark" : "text-rust"}>
+                {form.wantsToBeCollector ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                )}
+              </span>
+              <div>
+                <div className="text-sm font-semibold text-ink">
+                  Signing up as {form.wantsToBeCollector ? "a Collector" : "a Requester"}
+                </div>
+                <div className="text-xs text-inkFaint">
+                  {form.wantsToBeCollector ? "Pick up & earn" : "Schedule pickups"}
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-rust shrink-0">Change</span>
+          </button>
+
+          <form onSubmit={handleRegister} className="ticket p-8 pt-7">
             {error && (
               <div className="flex items-center gap-2 text-sm text-danger bg-[#8C2F1B]/[0.07] border border-[#8C2F1B]/30 rounded-md px-3 py-2.5 mb-5">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="shrink-0">
@@ -101,50 +220,6 @@ export default function Register() {
                 {error}
               </div>
             )}
-
-            {/* Role toggle — sends wantsToBeCollector, never a raw role */}
-            <div className="mb-4">
-              <label className="field-label">I am a</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, wantsToBeCollector: false })}
-                  className={`text-left p-3.5 rounded-ticket border-1.5 transition-all ${
-                    !form.wantsToBeCollector
-                      ? "border-rust bg-rust/[0.06] -translate-y-0.5"
-                      : "border-line bg-surfaceRaised"
-                  }`}
-                  style={{ borderWidth: "1.5px" }}
-                >
-                  <div className={!form.wantsToBeCollector ? "text-rust mb-2" : "text-inkFaint mb-2"}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div className="font-display font-semibold text-sm text-ink">Requester</div>
-                  <div className="text-xs text-inkFaint mt-0.5">Schedule pickups</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, wantsToBeCollector: true })}
-                  className={`text-left p-3.5 rounded-ticket border-1.5 transition-all ${
-                    form.wantsToBeCollector
-                      ? "border-amber bg-amber/[0.08] -translate-y-0.5"
-                      : "border-line bg-surfaceRaised"
-                  }`}
-                  style={{ borderWidth: "1.5px" }}
-                >
-                  <div className={form.wantsToBeCollector ? "text-amber-dark mb-2" : "text-inkFaint mb-2"}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-                    </svg>
-                  </div>
-                  <div className="font-display font-semibold text-sm text-ink">Collector</div>
-                  <div className="text-xs text-inkFaint mt-0.5">Pick up & earn</div>
-                </button>
-              </div>
-            </div>
 
             <div className="mb-4">
               <label className="field-label">Full name</label>
