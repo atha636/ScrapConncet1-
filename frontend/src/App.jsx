@@ -6,7 +6,7 @@ import { useAuth } from "./context/AuthContext";
 // Pages with their own full-bleed layout (nav, hero, footer) — never wrap
 // these in the authenticated app chrome, even if the visitor happens to be
 // logged in (e.g. clicking the logo from inside the dashboard).
-const STANDALONE_ROUTES = ["/home", "/admin-login"];
+const STANDALONE_ROUTES = ["/", "/login", "/register", "/admin-login"];
 
 export default function App() {
   const { user } = useAuth();

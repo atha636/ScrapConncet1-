@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { loginUser } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
+import { roleHome } from "../../utils/roleHome";
 
 export default function Login() {
   useDocumentMeta({
@@ -11,13 +12,19 @@ export default function Login() {
     description: "Log in to ScrapConnect to request a scrap pickup or manage your collector jobs.",
   });
 
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+
+  // Already signed in? Skip the login form entirely — this is exactly what
+  // caused the "logged-in navbar showing on top of the login page" bug: a
+  // stale session should send you straight to your dashboard, never show
+  // you the form for a state you're already past.
+  if (user) return <Navigate to={roleHome(user.role)} replace />;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,13 +33,7 @@ export default function Login() {
       setLoading(true);
       const res = await loginUser(form);
       login(res.data.token, res.data.user);
-      const dest =
-        res.data.user.role === "collector"
-          ? "/collector"
-          : res.data.user.role === "admin"
-          ? "/admin"
-          : "/";
-      navigate(dest);
+      navigate(roleHome(res.data.user.role));
     } catch (err) {
       setError(err.response?.data?.message || "Invalid email or password.");
     } finally {
