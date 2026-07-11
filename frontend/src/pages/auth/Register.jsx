@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { registerUser } from "../../services/authService";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
+import { useAuth } from "../../context/AuthContext";
+import { roleHome } from "../../utils/roleHome";
 
 const ROLE_FROM_PARAM = { user: false, collector: true };
 
@@ -13,6 +15,7 @@ export default function Register() {
       "Create a free ScrapConnect account as a requester to sell scrap, or as a collector to find pickup jobs nearby and earn.",
   });
 
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -33,6 +36,11 @@ export default function Register() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPass, setShowPass] = useState(false);
+
+  // Same reasoning as Login — an already-signed-in visitor should never see
+  // the signup form, just land on their own dashboard. All hooks above run
+  // unconditionally first; this early return comes after, per Rules of Hooks.
+  if (user) return <Navigate to={roleHome(user.role)} replace />;
 
   const chooseRole = (wantsToBeCollector) => {
     setForm({ ...form, wantsToBeCollector });
