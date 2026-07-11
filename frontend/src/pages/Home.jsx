@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import useDocumentMeta from "../hooks/useDocumentMeta";
+import { useAuth } from "../context/AuthContext";
+import { roleHome } from "../utils/roleHome";
 
 const STEPS = [
   {
@@ -24,6 +26,8 @@ const FEATURES = [
 ];
 
 export default function Home() {
+  const { user } = useAuth();
+
   useDocumentMeta({
     title: "Sell Your Scrap, Get Picked Up Fast",
     description:
@@ -35,7 +39,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="border-b border-line bg-surface">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-md bg-rust flex items-center justify-center rotate-[-3deg]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2.3">
                 <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
@@ -45,8 +49,16 @@ export default function Home() {
             <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/login" className="btn-secondary !py-2 !px-4 text-sm">Sign in</Link>
-            <Link to="/register" className="btn-primary !py-2 !px-4 text-sm">Get started</Link>
+            {user ? (
+              <Link to={roleHome(user.role)} className="btn-primary !py-2 !px-4 text-sm">
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="btn-secondary !py-2 !px-4 text-sm">Sign in</Link>
+                <Link to="/register" className="btn-primary !py-2 !px-4 text-sm">Get started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -62,8 +74,14 @@ export default function Home() {
             on the spot. No fees, no middlemen, no listing hassle.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link to="/register?role=user" className="btn-primary">Request a pickup</Link>
-            <Link to="/register?role=collector" className="btn-secondary">Become a collector</Link>
+            {user ? (
+              <Link to={roleHome(user.role)} className="btn-primary">Go to Dashboard</Link>
+            ) : (
+              <>
+                <Link to="/register?role=user" className="btn-primary">Request a pickup</Link>
+                <Link to="/register?role=collector" className="btn-secondary">Become a collector</Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -132,26 +150,34 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-rust py-16">
-        <div className="max-w-2xl mx-auto px-5 text-center">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-surface mb-4">
-            Ready to clear out your scrap?
-          </h2>
-          <p className="text-surface/80 mb-8">Join free — takes less than a minute.</p>
-          <Link to="/register" className="inline-flex btn-primary !bg-surface !text-rust hover:!bg-surfaceRaised">
-            Create your account
-          </Link>
-        </div>
-      </section>
+      {/* CTA — only relevant to visitors who don't have an account yet */}
+      {!user && (
+        <section className="bg-rust py-16">
+          <div className="max-w-2xl mx-auto px-5 text-center">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-surface mb-4">
+              Ready to clear out your scrap?
+            </h2>
+            <p className="text-surface/80 mb-8">Join free — takes less than a minute.</p>
+            <Link to="/register" className="inline-flex btn-primary !bg-surface !text-rust hover:!bg-surfaceRaised">
+              Create your account
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-line py-8">
         <div className="max-w-6xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-inkFaint">
           <span>© {new Date().getFullYear()} ScrapConnect</span>
           <div className="flex gap-5">
-            <Link to="/login" className="hover:text-rust">Sign in</Link>
-            <Link to="/register" className="hover:text-rust">Sign up</Link>
+            {user ? (
+              <Link to={roleHome(user.role)} className="hover:text-rust">Dashboard</Link>
+            ) : (
+              <>
+                <Link to="/login" className="hover:text-rust">Sign in</Link>
+                <Link to="/register" className="hover:text-rust">Sign up</Link>
+              </>
+            )}
           </div>
         </div>
       </footer>
