@@ -3,14 +3,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 
+const HOME_LINK = { to: "/", label: "Home" };
+
 const USER_LINKS = [
-  { to: "/", label: "Dashboard" },
+  HOME_LINK,
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/request", label: "Request pickup" },
   { to: "/my-requests", label: "My requests" },
 ];
 
-const COLLECTOR_LINKS = [{ to: "/collector", label: "Collector" }];
-const ADMIN_LINKS = [{ to: "/admin", label: "Admin" }];
+const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "Collector" }];
+const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "Admin" }];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -45,7 +48,7 @@ export default function Navbar() {
     clearTimeout(clickTimer.current);
     clickTimer.current = setTimeout(() => {
       clickCount.current = 0;
-      navigate("/home");
+      navigate("/");
     }, 350);
   };
 
