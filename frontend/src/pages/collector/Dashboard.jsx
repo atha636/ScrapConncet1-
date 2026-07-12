@@ -15,7 +15,9 @@ import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import MapModal from "../../components/map/MapModal";
 import { formatPrice } from "../../utils/formatPrice";
+import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
+import useGeolocation from "../../hooks/useGeolocation";
 
 const NEXT_ACTION = {
   accepted: { label: "Start pickup", next: "in_progress" },
@@ -37,6 +39,7 @@ export default function CollectorDashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,13 +105,16 @@ export default function CollectorDashboard() {
   const filteredAvailable = available
     .filter((item) => typeFilter === "all" || item.scrapType === typeFilter)
     .filter((item) => !minPrice || item.price >= Number(minPrice))
-    .sort((a, b) =>
-      sortBy === "price_high"
-        ? b.price - a.price
-        : sortBy === "price_low"
-        ? a.price - b.price
-        : new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    .sort((a, b) => {
+      if (sortBy === "distance" && myCoords) {
+        const distA = distanceKm(myCoords.lat, myCoords.lng, a.location.lat, a.location.lng);
+        const distB = distanceKm(myCoords.lat, myCoords.lng, b.location.lat, b.location.lng);
+        return distA - distB;
+      }
+      if (sortBy === "price_high") return b.price - a.price;
+      if (sortBy === "price_low") return a.price - b.price;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
 
   return (
     <div>
@@ -159,13 +165,34 @@ export default function CollectorDashboard() {
 
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              if (e.target.value === "distance" && !myCoords) locateMe();
+            }}
             className="field-input !w-auto text-sm"
           >
             <option value="newest">Newest first</option>
             <option value="price_high">Price: high to low</option>
             <option value="price_low">Price: low to high</option>
+            <option value="distance">Nearest first</option>
           </select>
+
+          {sortBy === "distance" && !myCoords && (
+            <span className="text-xs text-inkFaint self-center flex items-center gap-1.5">
+              {locStatus === "locating" ? (
+                "Finding your location…"
+              ) : locStatus === "error" ? (
+                <span className="text-danger">{locError}</span>
+              ) : (
+                <>
+                  Need your location to sort by distance.
+                  <button onClick={locateMe} className="text-rust font-semibold hover:underline">
+                    Enable
+                  </button>
+                </>
+              )}
+            </span>
+          )}
 
           {(typeFilter !== "all" || minPrice) && (
             <button
@@ -204,7 +231,12 @@ export default function CollectorDashboard() {
                       <div className="font-display font-semibold text-ink capitalize">
                         {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
                       </div>
-                      <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5">
+                      <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        {myCoords && (
+                          <span className="font-mono font-semibold text-amber-dark">
+                            {formatDistance(distanceKm(myCoords.lat, myCoords.lng, item.location.lat, item.location.lng))} away
+                          </span>
+                        )}
                         <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
                         <button
                           onClick={() => setMapPickup(item)}
