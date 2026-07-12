@@ -20,10 +20,6 @@ export default function Login() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
 
-  // Already signed in? Skip the login form entirely — this is exactly what
-  // caused the "logged-in navbar showing on top of the login page" bug: a
-  // stale session should send you straight to your dashboard, never show
-  // you the form for a state you're already past.
   if (user) return <Navigate to={roleHome(user.role)} replace />;
 
   const handleLogin = async (e) => {
