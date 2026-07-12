@@ -46,6 +46,65 @@ exports.getStats = asyncHandler(async (req, res) => {
   });
 });
 
+// GET /api/admin/analytics
+// Time-series data for charts — daily pickup volume and daily revenue over
+// the last 30 days. Missing days (no activity) are backfilled with zero
+// rather than left out, so the chart doesn't silently skip gaps.
+exports.getAnalytics = asyncHandler(async (req, res) => {
+  const days = 30;
+  const since = new Date();
+  since.setDate(since.getDate() - (days - 1));
+  since.setHours(0, 0, 0, 0);
+
+  const [pickupsAgg, revenueAgg] = await Promise.all([
+    Pickup.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Pickup.aggregate([
+      { $match: { status: "completed" } },
+      { $unwind: "$statusHistory" },
+      {
+        $match: {
+          "statusHistory.status": "completed",
+          "statusHistory.changedAt": { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$statusHistory.changedAt" } },
+          revenue: { $sum: "$price" },
+        },
+      },
+    ]),
+  ]);
+
+  const pickupsByDay = Object.fromEntries(pickupsAgg.map((d) => [d._id, d.count]));
+  const revenueByDay = Object.fromEntries(revenueAgg.map((d) => [d._id, d.revenue]));
+
+  // Build the full 30-day range so every day appears on the chart, even
+  // ones with zero activity — otherwise a quiet day just vanishes instead
+  // of showing as a dip, which is misleading at a glance.
+  const series = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    series.push({
+      date: key,
+      pickups: pickupsByDay[key] || 0,
+      revenue: revenueByDay[key] || 0,
+    });
+  }
+
+  res.json({ series });
+});
+
 // GET /api/admin/users
 exports.getUsers = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
