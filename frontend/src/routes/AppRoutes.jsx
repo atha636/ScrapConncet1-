@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
@@ -11,9 +12,14 @@ import MyRequests from "../pages/user/MyRequests";
 
 import CollectorDashboard from "../pages/collector/Dashboard";
 import Profile from "../pages/Profile";
-import AdminPanel from "../pages/AdminPanel";
 
 import ProtectedRoute from "./ProtectedRoute";
+import Loader from "../components/common/Loader";
+
+// Code-split — AdminPanel pulls in Recharts (and its D3 dependencies),
+// which added ~400KB to the bundle. Only admins ever see this page, so it
+// shouldn't cost every requester/collector a slower initial load.
+const AdminPanel = lazy(() => import("../pages/AdminPanel"));
 
 export default function AppRoutes() {
   return (
@@ -68,7 +74,9 @@ export default function AppRoutes() {
         path="/admin"
         element={
           <ProtectedRoute role="admin">
-            <AdminPanel />
+            <Suspense fallback={<Loader />}>
+              <AdminPanel />
+            </Suspense>
           </ProtectedRoute>
         }
       />

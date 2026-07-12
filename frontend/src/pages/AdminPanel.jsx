@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   getAdminStats,
+  getAdminAnalytics,
   getAdminUsers,
   deactivateUser,
   activateUser,
@@ -11,6 +12,7 @@ import Loader from "../components/common/Loader";
 import CardSkeleton from "../components/common/CardSkeleton";
 import ErrorBox from "../components/common/ErrorBox";
 import StatusStamp from "../components/ui/StatusStamp";
+import AdminCharts from "../components/admin/AdminCharts";
 import { formatPrice } from "../utils/formatPrice";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 
@@ -18,6 +20,7 @@ export default function AdminPanel() {
   useDocumentMeta({ title: "Admin Panel", noindex: true });
   const [tab, setTab] = useState("overview");
   const [stats, setStats] = useState(null);
+  const [series, setSeries] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [pickups, setPickups] = useState([]);
@@ -28,6 +31,12 @@ export default function AdminPanel() {
   const loadOverview = useCallback(async () => {
     const res = await getAdminStats();
     setStats(res.data);
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    const [statsRes, analyticsRes] = await Promise.all([getAdminStats(), getAdminAnalytics()]);
+    setStats(statsRes.data);
+    setSeries(analyticsRes.data.series);
   }, []);
 
   const loadUsers = useCallback(async (search = "") => {
@@ -43,11 +52,18 @@ export default function AdminPanel() {
   useEffect(() => {
     setLoading(true);
     setError("");
-    const load = tab === "overview" ? loadOverview : tab === "users" ? () => loadUsers() : loadPickups;
+    const load =
+      tab === "overview"
+        ? loadOverview
+        : tab === "analytics"
+        ? loadAnalytics
+        : tab === "users"
+        ? () => loadUsers()
+        : loadPickups;
     load()
       .catch(() => setError("Couldn't load this section. Try refreshing."))
       .finally(() => setLoading(false));
-  }, [tab, loadOverview, loadUsers, loadPickups]);
+  }, [tab, loadOverview, loadAnalytics, loadUsers, loadPickups]);
 
   const handleToggleActive = async (u) => {
     setActingId(u._id);
@@ -74,6 +90,7 @@ export default function AdminPanel() {
       <div className="flex gap-1 mb-6 border-b border-line">
         {[
           { key: "overview", label: "Overview" },
+          { key: "analytics", label: "Analytics" },
           { key: "users", label: "Users" },
           { key: "pickups", label: "All pickups" },
         ].map((t) => (
@@ -92,7 +109,7 @@ export default function AdminPanel() {
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
       {loading ? (
-        tab === "overview" ? <Loader /> : <CardSkeleton count={4} />
+        tab === "overview" || tab === "analytics" ? <Loader /> : <CardSkeleton count={4} />
       ) : (
         <>
           {tab === "overview" && stats && (
@@ -114,6 +131,8 @@ export default function AdminPanel() {
               ))}
             </div>
           )}
+
+          {tab === "analytics" && <AdminCharts series={series} stats={stats} />}
 
           {tab === "users" && (
             <div>
