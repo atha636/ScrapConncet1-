@@ -12,6 +12,7 @@ import MyRequests from "../pages/user/MyRequests";
 
 import CollectorDashboard from "../pages/collector/Dashboard";
 import Profile from "../pages/Profile";
+import NotFound from "../pages/NotFound";
 
 import ProtectedRoute from "./ProtectedRoute";
 import Loader from "../components/common/Loader";
@@ -90,6 +91,9 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Catch-all — must stay last so it doesn't shadow real routes above it */}
+      <Route path="*" element={<NotFound />} />
 
     </Routes>
   );
