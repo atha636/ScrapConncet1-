@@ -92,7 +92,7 @@ export default function Profile() {
       setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err) {
       const details = err.response?.data?.details;
-      setPasswordError(details?.[0]?.message || err.response?.data?.message || "Couldn't change password.");
+      setPasswordError(details?.[0]?.message || err.response?.data?.message || "Could not change password.");
     } finally {
       setSavingPassword(false);
     }
