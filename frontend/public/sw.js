@@ -21,8 +21,6 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(payload.title || "ScrapConnect", options));
 });
 
-// Clicking the OS-level notification focuses an existing tab if one's open,
-// otherwise opens a new one — never stacks duplicate tabs.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
