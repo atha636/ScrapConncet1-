@@ -11,8 +11,7 @@ describe("urlBase64ToUint8Array", () => {
   });
 
   test("correctly substitutes URL-safe characters back to standard base64", () => {
-    // '-' -> '+', '_' -> '/' — verify round-trip against a known value.
-    // "PA==" in standard base64 decodes to a single byte: 0x3C
+   
     const bytes = urlBase64ToUint8Array("PA");
     expect(Array.from(bytes)).toEqual([0x3c]);
   });
