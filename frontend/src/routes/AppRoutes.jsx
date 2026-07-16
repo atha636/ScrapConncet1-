@@ -17,9 +17,7 @@ import NotFound from "../pages/NotFound";
 import ProtectedRoute from "./ProtectedRoute";
 import Loader from "../components/common/Loader";
 
-// Code-split — AdminPanel pulls in Recharts (and its D3 dependencies),
-// which added ~400KB to the bundle. Only admins ever see this page, so it
-// shouldn't cost every requester/collector a slower initial load.
+
 const AdminPanel = lazy(() => import("../pages/AdminPanel"));
 
 export default function AppRoutes() {
