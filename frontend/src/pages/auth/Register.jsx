@@ -19,9 +19,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Deep-linked from Home's "Request a pickup" / "Become a collector" CTAs
-  // (e.g. /register?role=collector) skip straight to the form. Otherwise
-  // the visitor picks their role on a dedicated first screen.
+ 
   const presetRole = ROLE_FROM_PARAM[searchParams.get("role")];
   const [step, setStep] = useState(presetRole !== undefined ? "form" : "choose");
 
