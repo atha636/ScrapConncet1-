@@ -3,7 +3,7 @@ import { urlBase64ToUint8Array, isPushSupported } from "./push";
 
 describe("urlBase64ToUint8Array", () => {
   test("decodes a standard base64url VAPID-style key into the correct byte length", () => {
-    // Real VAPID public keys are always 65 bytes (uncompressed P-256 point)
+  
     const sample = "BMNYH7G1hzFSJg7CQbEjLA66eV7KKsjhAQwI3ZhBPEJZsgIxYh3iBVlHiW_lD2Q5UDqXLy_WMRlzQEabMUCbVx4";
     const bytes = urlBase64ToUint8Array(sample);
     expect(bytes).toBeInstanceOf(Uint8Array);
@@ -11,7 +11,7 @@ describe("urlBase64ToUint8Array", () => {
   });
 
   test("correctly substitutes URL-safe characters back to standard base64", () => {
-   
+
     const bytes = urlBase64ToUint8Array("PA");
     expect(Array.from(bytes)).toEqual([0x3c]);
   });
