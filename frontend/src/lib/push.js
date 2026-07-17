@@ -4,8 +4,7 @@ export function isPushSupported() {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
-// The Push API requires the VAPID key as a raw Uint8Array, but servers hand
-// it out as a URL-safe base64 string — this is the standard conversion.
+
 export function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
