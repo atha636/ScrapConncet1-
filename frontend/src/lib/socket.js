@@ -7,9 +7,7 @@ const SOCKET_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000/api")
 
 let socket = null;
 
-// One shared connection for the whole app, authenticated with the current
-// JWT. Re-used by both the dashboard live-update listeners and the chat
-// feature, instead of every component opening its own socket.
+
 export function getSocket() {
   if (socket) return socket;
 
