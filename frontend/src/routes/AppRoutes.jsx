@@ -26,7 +26,7 @@ export default function AppRoutes() {
 
      
       <Route path="/" element={<Home />} />
-      {/* Old bookmarks/links to /home still work */}
+      
       <Route path="/home" element={<Navigate to="/" replace />} />
 
       <Route path="/login" element={<Login />} />
