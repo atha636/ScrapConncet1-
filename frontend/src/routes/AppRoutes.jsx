@@ -24,7 +24,7 @@ export default function AppRoutes() {
   return (
     <Routes>
 
-      {/* The actual site root — public marketing page, no login required */}
+     
       <Route path="/" element={<Home />} />
       {/* Old bookmarks/links to /home still work */}
       <Route path="/home" element={<Navigate to="/" replace />} />
