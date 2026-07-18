@@ -60,6 +60,7 @@ app.use("/api/pickup", require("./routes/ratingRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/push", require("./routes/pushRoutes"));
+app.use("/api/export", require("./routes/exportRoutes"));
 
 // --- Error handling (must be last) ---
 app.use(notFound);
