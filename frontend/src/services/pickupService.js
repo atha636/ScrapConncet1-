@@ -19,3 +19,5 @@ export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 export const updateStatus = (id, status) => API.patch(`/pickup/${id}/status`, { status });
 
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
+
+export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
