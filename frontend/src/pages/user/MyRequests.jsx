@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { getMyRequests, cancelPickup } from "../../services/pickupService";
+import { getMyRequests, cancelPickup, exportMyRequests } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -9,6 +9,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import { formatPrice } from "../../utils/formatPrice";
+import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 
 const TYPE_LABELS = {
@@ -32,6 +33,7 @@ export default function MyRequests() {
   const [ratePickup, setRatePickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
   const [cancellingId, setCancellingId] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -69,14 +71,34 @@ export default function MyRequests() {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setError("");
+    try {
+      const res = await exportMyRequests();
+      downloadBlob(res.data, `my-pickups-${Date.now()}.csv`);
+    } catch {
+      setError("Couldn't export your requests. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">My requests</h1>
           <p className="text-sm text-inkSoft mt-0.5">Every pickup you've scheduled, tracked here.</p>
         </div>
-        <Link to="/request" className="btn-primary">+ New request</Link>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <button onClick={handleExport} disabled={exporting} className="btn-secondary">
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
+          )}
+          <Link to="/request" className="btn-primary">+ New request</Link>
+        </div>
       </div>
 
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
