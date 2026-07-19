@@ -1,9 +1,4 @@
-/**
- * Promotes an existing user to the "admin" role. There's intentionally no
- * signup flow for admins — register a normal account first, then run:
- *
- *   node scripts/makeAdmin.js you@example.com
- */
+
 require("dotenv").config();
 const mongoose = require("mongoose");
 const User = require("../src/models/User");
