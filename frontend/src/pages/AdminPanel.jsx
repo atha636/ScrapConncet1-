@@ -6,6 +6,8 @@ import {
   deactivateUser,
   activateUser,
   getAllPickups,
+  exportUsersCsv,
+  exportPickupsCsv,
 } from "../services/adminService";
 import Card from "../components/ui/Card";
 import Loader from "../components/common/Loader";
@@ -14,6 +16,7 @@ import ErrorBox from "../components/common/ErrorBox";
 import StatusStamp from "../components/ui/StatusStamp";
 import AdminCharts from "../components/admin/AdminCharts";
 import { formatPrice } from "../utils/formatPrice";
+import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 
 export default function AdminPanel() {
@@ -27,6 +30,8 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
+  const [exportingUsers, setExportingUsers] = useState(false);
+  const [exportingPickups, setExportingPickups] = useState(false);
 
   const loadOverview = useCallback(async () => {
     const res = await getAdminStats();
@@ -80,6 +85,32 @@ export default function AdminPanel() {
   const handleSearch = (e) => {
     e.preventDefault();
     loadUsers(userSearch);
+  };
+
+  const handleExportUsers = async () => {
+    setExportingUsers(true);
+    setError("");
+    try {
+      const res = await exportUsersCsv();
+      downloadBlob(res.data, `scrapconnect-users-${Date.now()}.csv`);
+    } catch {
+      setError("Couldn't export users. Try again.");
+    } finally {
+      setExportingUsers(false);
+    }
+  };
+
+  const handleExportPickups = async () => {
+    setExportingPickups(true);
+    setError("");
+    try {
+      const res = await exportPickupsCsv();
+      downloadBlob(res.data, `scrapconnect-pickups-${Date.now()}.csv`);
+    } catch {
+      setError("Couldn't export pickups. Try again.");
+    } finally {
+      setExportingPickups(false);
+    }
   };
 
   return (
@@ -136,15 +167,20 @@ export default function AdminPanel() {
 
           {tab === "users" && (
             <div>
-              <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                <input
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search by name or email…"
-                  className="field-input"
-                />
-                <button type="submit" className="btn-secondary shrink-0">Search</button>
-              </form>
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[200px]">
+                  <input
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder="Search by name or email…"
+                    className="field-input"
+                  />
+                  <button type="submit" className="btn-secondary shrink-0">Search</button>
+                </form>
+                <button onClick={handleExportUsers} disabled={exportingUsers} className="btn-secondary shrink-0">
+                  {exportingUsers ? "Exporting…" : "Export CSV"}
+                </button>
+              </div>
 
               <div className="space-y-2">
                 {users.length === 0 ? (
@@ -180,25 +216,32 @@ export default function AdminPanel() {
           )}
 
           {tab === "pickups" && (
-            <div className="space-y-2">
-              {pickups.length === 0 ? (
-                <Card className="p-10 text-center text-inkSoft">No pickups on the platform yet.</Card>
-              ) : (
-                pickups.map((p) => (
-                <Card key={p._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="font-medium text-ink capitalize">{p.scrapType}</div>
-                    <div className="text-xs text-inkSoft mt-0.5">
-                      {p.user?.name} → {p.collector?.name || "unassigned"}
+            <div>
+              <div className="flex justify-end mb-4">
+                <button onClick={handleExportPickups} disabled={exportingPickups} className="btn-secondary">
+                  {exportingPickups ? "Exporting…" : "Export CSV"}
+                </button>
+              </div>
+              <div className="space-y-2">
+                {pickups.length === 0 ? (
+                  <Card className="p-10 text-center text-inkSoft">No pickups on the platform yet.</Card>
+                ) : (
+                  pickups.map((p) => (
+                  <Card key={p._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="font-medium text-ink capitalize">{p.scrapType}</div>
+                      <div className="text-xs text-inkSoft mt-0.5">
+                        {p.user?.name} → {p.collector?.name || "unassigned"}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-ink">{formatPrice(p.price)}</span>
-                    <StatusStamp status={p.status} />
-                  </div>
-                </Card>
-                ))
-              )}
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm text-ink">{formatPrice(p.price)}</span>
+                      <StatusStamp status={p.status} />
+                    </div>
+                  </Card>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </>
