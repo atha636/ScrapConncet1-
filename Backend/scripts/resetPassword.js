@@ -1,12 +1,4 @@
-/**
- * Resets a user's password directly in the database. Use this when you're
- * locked out and there's no forgot-password flow yet.
- *
- *   node scripts/resetPassword.js you@example.com NewPassword123
- *
- * New password must be 8+ characters with at least one letter and one number
- * (same rule the app enforces everywhere else).
- */
+
 require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
