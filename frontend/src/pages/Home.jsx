@@ -22,7 +22,7 @@ const STEPS = [
 
 const FEATURES = [
   { title: "No listing fees", text: "Post as many pickups you want, completely free." },
-  { title: "Live tracking", text: "Watch your request move from pending to completed in real time." },
+  { title: "Live tracking", text: "Watch your request move from pending to completed in real time,with live chat." },
   { title: "Built-in chat", text: "Coordinate timing and exact location directly with your collector." },
   { title: "Rated collectors", text: "See ratings from other requesters before you accept an offer." },
 ];
