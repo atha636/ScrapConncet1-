@@ -27,14 +27,12 @@ const io = new Server(server, {
 
 setupSocket(io);
 
-// --- Security & core middleware ---
 app.use(helmet());
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(sanitize);
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// Basic abuse protection on auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -44,7 +42,6 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth", authLimiter);
 
-// Attach io to every request so controllers can emit events
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -52,7 +49,6 @@ app.use((req, res, next) => {
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-// --- Routes ---
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/pickup", require("./routes/pickupRoutes"));
 app.use("/api/pickup", require("./routes/messageRoutes"));
@@ -62,7 +58,6 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/push", require("./routes/pushRoutes"));
 app.use("/api/export", require("./routes/exportRoutes"));
 
-// --- Error handling (must be last) ---
 app.use(notFound);
 app.use(errorHandler);
 

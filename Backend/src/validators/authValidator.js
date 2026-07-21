@@ -1,8 +1,8 @@
 const { z } = require("zod");
 
 // NOTE: role is intentionally NOT accepted here. Registering as "collector"
-// is a separate, explicit action (see collectorSignupSchema) — never a field
-// a client can freely set on a generic register call.
+// is a separate, explicit action — never a field a client can freely set on
+// a generic register call.
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(60),
   email: z.string().trim().toLowerCase().email(),
@@ -22,7 +22,6 @@ const loginSchema = z.object({
 
 const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(60).optional(),
-  // Empty string clears the phone field; omit the key entirely to leave it untouched.
   phone: z.union([z.string().trim().min(7).max(20), z.literal("")]).optional(),
 });
 
@@ -35,4 +34,24 @@ const changePasswordSchema = z.object({
     .regex(/[0-9]/, "New password must contain a number"),
 });
 
-module.exports = { registerSchema, loginSchema, updateProfileSchema, changePasswordSchema };
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters")
+    .regex(/[A-Za-z]/, "New password must contain a letter")
+    .regex(/[0-9]/, "New password must contain a number"),
+});
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+};
