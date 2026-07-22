@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginUser } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
 import { roleHome } from "../../utils/roleHome";
@@ -79,7 +79,12 @@ export default function Login() {
             </div>
 
             <div className="mb-6">
-              <label className="field-label">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="field-label !mb-0">Password</label>
+                <Link to="/forgot-password" className="text-xs text-rust hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
