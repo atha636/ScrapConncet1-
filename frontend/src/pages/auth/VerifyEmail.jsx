@@ -10,15 +10,11 @@ export default function VerifyEmail() {
   const token = searchParams.get("token");
 
   // "verifying" | "success" | "error"
-  const [status, setStatus] = useState("verifying");
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState(token ? "verifying" : "error");
+  const [error, setError] = useState(token ? "" : "This verification link is missing its token.");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setError("This verification link is missing its token.");
-      return;
-    }
+    if (!token) return;
 
     verifyEmail(token)
       .then(() => setStatus("success"))
