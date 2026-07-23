@@ -1,0 +1,33 @@
+{
+  "name": "ScrapConnect — Sell Your Scrap, Get Picked Up Fast",
+  "short_name": "ScrapConnect",
+  "description": "Request a scrap pickup, get matched with a nearby collector, track it live, and get paid — no listing fees, no hassle.",
+  "start_url": "/?source=pwa",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EDE4D3",
+  "theme_color": "#A63D24",
+  "categories": ["business", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

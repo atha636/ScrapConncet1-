@@ -1,6 +1,12 @@
 // Runs independently of any open tab — this is what lets a push notification
 // arrive even if the app isn't open in the browser at all.
 
+// A registered fetch handler (even a pure passthrough) is one of the signals
+// Chrome uses to decide this is a real installable app, not just a page that
+// happens to have a service worker for push. No caching/offline behavior is
+// implemented here yet — every request just goes to the network as normal.
+self.addEventListener("fetch", () => {});
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
