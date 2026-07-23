@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
-    name: Frontend lint & test
+    name: Frontend lint, test & build
     runs-on: ubuntu-latest
 
     defaults:
@@ -35,8 +39,11 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Build
+        run: npm run build
+
   backend:
-    name: Backend install check
+    name: Backend lint & syntax check
     runs-on: ubuntu-latest
 
     defaults:
@@ -56,3 +63,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Syntax check all source files
+        run: find src -name "*.js" -exec node --check {} +
