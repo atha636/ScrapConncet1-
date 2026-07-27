@@ -1,0 +1,112 @@
+const request = require("supertest");
+const jwt = require("jsonwebtoken");
+const createApp = require("../src/app");
+const User = require("../src/models/User");
+const Pickup = require("../src/models/Pickup");
+const { connect, clearDatabase, closeDatabase } = require("./helpers/db");
+
+const app = createApp();
+
+// Roughly real-world distances from a fixed reference point in Chandigarh,
+// so we can assert the API returns "near" before "far" — not just that a
+// distance number exists.
+const CHANDIGARH = { lat: 30.7333, lng: 76.7794 };
+const NEARBY_2KM = { lat: 30.7500, lng: 76.7900 }; // ~2km away
+const FAR_40KM = { lat: 30.9500, lng: 76.8100 }; // ~40km away, outside a 25km radius
+
+let collectorToken;
+
+beforeAll(async () => {
+  await connect();
+});
+
+afterEach(async () => {
+  await clearDatabase();
+});
+
+afterAll(async () => {
+  await closeDatabase();
+});
+
+beforeEach(async () => {
+  const collector = await User.create({
+    name: "Test Collector",
+    email: "collector@example.com",
+    password: "Password123",
+    role: "collector",
+  });
+  collectorToken = jwt.sign({ id: collector._id, role: "collector" }, process.env.JWT_SECRET);
+
+  const requester = await User.create({
+    name: "Test Requester",
+    email: "requester@example.com",
+    password: "Password123",
+    role: "user",
+  });
+
+  await Pickup.create([
+    {
+      user: requester._id,
+      scrapType: "metal",
+      estimatedWeightKg: 5,
+      location: { ...FAR_40KM, address: "Far away" },
+      price: 100,
+      statusHistory: [{ status: "pending", changedBy: requester._id }],
+    },
+    {
+      user: requester._id,
+      scrapType: "plastic",
+      estimatedWeightKg: 3,
+      location: { ...NEARBY_2KM, address: "Just around the corner" },
+      price: 60,
+      statusHistory: [{ status: "pending", changedBy: requester._id }],
+    },
+  ]);
+});
+
+describe("GET /api/pickup/available", () => {
+  test("without coordinates, falls back to newest-first (backward compatible)", async () => {
+    const res = await request(app)
+      .get("/api/pickup/available")
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].distanceKm).toBeUndefined();
+  });
+
+  test("with coordinates, sorts nearest first and includes distanceKm", async () => {
+    const res = await request(app)
+      .get("/api/pickup/available")
+      .query({ lat: CHANDIGARH.lat, lng: CHANDIGARH.lng })
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].scrapType).toBe("plastic"); // the ~2km one
+    expect(res.body.data[0].distanceKm).toBeLessThan(res.body.data[1].distanceKm);
+  });
+
+  test("excludes pickups outside the given radiusKm", async () => {
+    const res = await request(app)
+      .get("/api/pickup/available")
+      .query({ lat: CHANDIGARH.lat, lng: CHANDIGARH.lng, radiusKm: 10 })
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].scrapType).toBe("plastic");
+    expect(res.body.total).toBe(1);
+  });
+
+  test("never returns pickups that are already accepted, even within radius", async () => {
+    await Pickup.updateMany({}, { status: "accepted" });
+
+    const res = await request(app)
+      .get("/api/pickup/available")
+      .query({ lat: CHANDIGARH.lat, lng: CHANDIGARH.lng })
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.body.data).toHaveLength(0);
+  });
+});

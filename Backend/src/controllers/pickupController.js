@@ -52,18 +52,66 @@ exports.getMyRequests = asyncHandler(async (req, res) => {
 });
 
 // GET /api/pickup/available  (collector only)
+// Pass ?lat=&lng= to get pickups sorted by real distance (nearest first),
+// optionally bounded by ?radiusKm=. Without coordinates, falls back to the
+// original newest-first behavior — old clients/tests keep working.
 exports.getAvailable = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
-  const [data, total] = await Promise.all([
-    Pickup.find({ status: "pending" })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("user", "name phone"),
-    Pickup.countDocuments({ status: "pending" }),
+  if (!hasCoords) {
+    const [data, total] = await Promise.all([
+      Pickup.find({ status: "pending" })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("user", "name phone"),
+      Pickup.countDocuments({ status: "pending" }),
+    ]);
+
+    return res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+  }
+
+  const radiusKm = Math.min(100, Math.max(1, parseFloat(req.query.radiusKm) || 25));
+
+  // $geoNear must be the first stage in the pipeline and requires the
+  // 2dsphere index defined on Pickup.geo. It computes distanceField for us
+  // in the same query — no separate pass to calculate distance in JS.
+  const basePipeline = [
+    {
+      $geoNear: {
+        near: { type: "Point", coordinates: [lng, lat] },
+        distanceField: "distanceMeters",
+        maxDistance: radiusKm * 1000,
+        query: { status: "pending" },
+        spherical: true,
+      },
+    },
+  ];
+
+  const [data, totalResult] = await Promise.all([
+    Pickup.aggregate([
+      ...basePipeline,
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+          pipeline: [{ $project: { name: 1, phone: 1 } }],
+        },
+      },
+      { $unwind: "$user" },
+      { $addFields: { distanceKm: { $round: [{ $divide: ["$distanceMeters", 1000] }, 1] } } },
+    ]),
+    Pickup.aggregate([...basePipeline, { $count: "total" }]),
   ]);
 
+  const total = totalResult[0]?.total || 0;
   res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
 });
 
