@@ -6,6 +6,7 @@ import {
   updateStatus,
   SCRAP_TYPES,
 } from "../../services/pickupService";
+import { getWalletSummary, getTransactions } from "../../services/walletService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -39,6 +40,9 @@ export default function CollectorDashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const [wallet, setWallet] = useState(null);
+  const [walletTx, setWalletTx] = useState([]);
+  const [walletLoading, setWalletLoading] = useState(false);
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
 
   // Ask for location as soon as the dashboard loads — collectors are the
@@ -73,6 +77,20 @@ export default function CollectorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Loaded on demand, not with the rest of the dashboard — a collector who
+  // never opens this tab shouldn't pay for the extra request every visit.
+  useEffect(() => {
+    if (tab !== "wallet" || wallet) return;
+    setWalletLoading(true);
+    Promise.all([getWalletSummary(), getTransactions({ limit: 20 })])
+      .then(([summaryRes, txRes]) => {
+        setWallet(summaryRes.data);
+        setWalletTx(txRes.data.data);
+      })
+      .catch(() => setError("Couldn't load your wallet."))
+      .finally(() => setWalletLoading(false));
+  }, [tab, wallet]);
+
   // New request comes in -> add it to the available list live
   useSocket("newPickup", (pickup) => {
     setAvailable((prev) => [pickup, ...prev]);
@@ -105,6 +123,7 @@ export default function CollectorDashboard() {
     try {
       const res = await updateStatus(id, next);
       setMyJobs((prev) => prev.map((p) => (p._id === id ? res.data : p)));
+      if (next === "completed") setWallet(null); // refetch next time the wallet tab is opened
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't update the status.");
     } finally {
@@ -139,6 +158,7 @@ export default function CollectorDashboard() {
           { key: "available", label: `Available (${filteredAvailable.length})` },
           { key: "mine", label: `My jobs (${activeJobs.length})` },
           { key: "history", label: `History (${pastJobs.length})` },
+          { key: "wallet", label: "Wallet" },
         ].map((t) => (
           <button
             key={t.key}
@@ -357,6 +377,73 @@ export default function CollectorDashboard() {
                   </div>
                 </Card>
               ))
+            )
+          )}
+
+          {tab === "wallet" && (
+            walletLoading ? (
+              <CardSkeleton count={2} />
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                  <Card className="p-5">
+                    <div className="text-xs text-inkFaint mb-1">Total earned</div>
+                    <div className="font-display text-xl font-bold text-ink">
+                      {formatPrice(wallet?.allTime.totalEarned)}
+                    </div>
+                    <div className="text-xs text-inkSoft mt-1">
+                      {wallet?.allTime.pickupsCompleted || 0} pickups completed
+                    </div>
+                  </Card>
+                  <Card className="p-5">
+                    <div className="text-xs text-inkFaint mb-1">Last 7 days</div>
+                    <div className="font-display text-xl font-bold text-ink">
+                      {formatPrice(wallet?.last7Days.totalEarned)}
+                    </div>
+                    <div className="text-xs text-inkSoft mt-1">
+                      {wallet?.last7Days.pickupsCompleted || 0} pickups
+                    </div>
+                  </Card>
+                  <Card className="p-5">
+                    <div className="text-xs text-inkFaint mb-1">Last 30 days</div>
+                    <div className="font-display text-xl font-bold text-ink">
+                      {formatPrice(wallet?.last30Days.totalEarned)}
+                    </div>
+                    <div className="text-xs text-inkSoft mt-1">
+                      {wallet?.last30Days.pickupsCompleted || 0} pickups
+                    </div>
+                  </Card>
+                </div>
+
+                {walletTx.length === 0 ? (
+                  <Card className="p-10 text-center text-inkSoft">
+                    No earnings yet — complete a pickup to start building your history.
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {walletTx.map((tx) => (
+                      <Card key={tx._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                        <div>
+                          <div className="font-medium text-ink capitalize">
+                            {tx.pickup?.scrapType || "Pickup"}
+                            {tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}
+                          </div>
+                          <div className="text-xs text-inkFaint mt-0.5">
+                            {new Date(tx.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
+                        </div>
+                        <span className="font-mono font-semibold text-rust">
+                          +{formatPrice(tx.amount)}
+                        </span>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
             )
           )}
         </div>

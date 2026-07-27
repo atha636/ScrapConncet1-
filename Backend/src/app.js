@@ -55,6 +55,7 @@ function createApp() {
   app.use("/api/admin", require("./routes/adminRoutes"));
   app.use("/api/push", require("./routes/pushRoutes"));
   app.use("/api/export", require("./routes/exportRoutes"));
+  app.use("/api/wallet", require("./routes/walletRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

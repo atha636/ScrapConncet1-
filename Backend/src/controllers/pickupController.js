@@ -1,4 +1,5 @@
 const Pickup = require("../models/Pickup");
+const Transaction = require("../models/Transaction");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimatePrice } = require("../utils/pricing");
@@ -205,6 +206,22 @@ exports.updateStatus = asyncHandler(async (req, res) => {
 
   pickup.pushHistory(req.body.status, req.user.id);
   await pickup.save();
+
+  if (req.body.status === "completed") {
+    try {
+      await Transaction.create({
+        collector: pickup.collector,
+        pickup: pickup._id,
+        type: "earning",
+        amount: pickup.price,
+      });
+    } catch (err) {
+      // Unique index on (pickup, type) means a duplicate here is a retried
+      // request for a pickup already credited — not a real error, so the
+      // pickup status update above still stands. Anything else, surface it.
+      if (err.code !== 11000) throw err;
+    }
+  }
 
   req.io.emit("updatePickup", pickup);
 
