@@ -145,6 +145,22 @@ exports.activateUser = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
+// PATCH /api/admin/users/:id/reinstate
+// Lifts a rating-gate auto-suspension. Deliberately separate from
+// activateUser/isActive — this is specifically the rating gate's flag, and
+// is never cleared automatically even if the average later recovers, since
+// a recovered number isn't the same as verified improved behavior.
+exports.reinstateCollector = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) throw new ApiError(404, "User not found");
+  if (!user.collectorSuspended) throw new ApiError(400, "This collector isn't suspended");
+
+  user.collectorSuspended = false;
+  user.collectorSuspendedAt = null;
+  await user.save();
+  res.json(user);
+});
+
 // GET /api/admin/pickups
 exports.getAllPickups = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);

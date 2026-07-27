@@ -7,6 +7,7 @@ const {
   getUsers,
   deactivateUser,
   activateUser,
+  reinstateCollector,
   getAllPickups,
 } = require("../controllers/adminController");
 
@@ -17,6 +18,7 @@ router.get("/analytics", auth, role("admin"), getAnalytics);
 router.get("/users", auth, role("admin"), getUsers);
 router.patch("/users/:id/deactivate", auth, role("admin"), deactivateUser);
 router.patch("/users/:id/activate", auth, role("admin"), activateUser);
+router.patch("/users/:id/reinstate", auth, role("admin"), reinstateCollector);
 router.get("/pickups", auth, role("admin"), getAllPickups);
 
 module.exports = router;

@@ -3,6 +3,7 @@ const Pickup = require("../models/Pickup");
 const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
+const { MIN_RATINGS_FOR_GATE, SUSPENSION_THRESHOLD } = require("../utils/ratingGate");
 
 // GET /api/pickup/:id/rating
 // Returns whatever ratings already exist for this pickup — lets the
@@ -48,6 +49,17 @@ exports.submitRating = asyncHandler(async (req, res) => {
   const newAverage = (target.rating * target.ratingCount + rating.score) / newCount;
   target.rating = Math.round(newAverage * 10) / 10;
   target.ratingCount = newCount;
+
+  if (
+    target.role === "collector" &&
+    !target.collectorSuspended &&
+    newCount >= MIN_RATINGS_FOR_GATE &&
+    target.rating < SUSPENSION_THRESHOLD
+  ) {
+    target.collectorSuspended = true;
+    target.collectorSuspendedAt = new Date();
+  }
+
   await target.save();
 
   res.status(201).json(rating);

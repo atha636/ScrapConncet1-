@@ -5,6 +5,7 @@ import {
   getAdminUsers,
   deactivateUser,
   activateUser,
+  reinstateCollector,
   getAllPickups,
   exportUsersCsv,
   exportPickupsCsv,
@@ -77,6 +78,18 @@ export default function AdminPanel() {
       setUsers((prev) => prev.map((x) => (x._id === u._id ? res.data : x)));
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't update this user.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleReinstate = async (u) => {
+    setActingId(u._id);
+    try {
+      const res = await reinstateCollector(u._id);
+      setUsers((prev) => prev.map((x) => (x._id === u._id ? res.data : x)));
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't reinstate this collector.");
     } finally {
       setActingId(null);
     }
@@ -191,6 +204,9 @@ export default function AdminPanel() {
                     <div>
                       <div className="font-medium text-ink">
                         {u.name} <span className="text-xs text-inkFaint font-mono capitalize">· {u.role}</span>
+                        {u.collectorSuspended && (
+                          <span className="ml-2 text-xs font-mono font-semibold text-danger">Rating-suspended</span>
+                        )}
                       </div>
                       <div className="text-xs text-inkSoft">{u.email}</div>
                     </div>
@@ -198,6 +214,15 @@ export default function AdminPanel() {
                       <span className={`text-xs font-mono font-semibold ${u.isActive ? "text-amber-dark" : "text-danger"}`}>
                         {u.isActive ? "Active" : "Deactivated"}
                       </span>
+                      {u.collectorSuspended && (
+                        <button
+                          onClick={() => handleReinstate(u)}
+                          disabled={actingId === u._id}
+                          className="btn-primary !py-1.5 !px-3 text-xs"
+                        >
+                          {actingId === u._id ? "…" : "Reinstate"}
+                        </button>
+                      )}
                       {u.role !== "admin" && (
                         <button
                           onClick={() => handleToggleActive(u)}

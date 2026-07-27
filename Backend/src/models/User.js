@@ -11,6 +11,16 @@ const userSchema = new mongoose.Schema(
     ratingCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
 
+    // Auto-suspension from the rating gate — distinct from isActive, which
+    // is an admin-only full account deactivation. A rating-suspended
+    // collector can still log in, view history, and chat about existing
+    // jobs; they just can't accept new pickups until an admin reinstates
+    // them. Only ever set automatically by ratingController; only ever
+    // cleared by an admin (see adminController.reinstateCollector) — a
+    // recovered average isn't auto-trusted without human review.
+    collectorSuspended: { type: Boolean, default: false },
+    collectorSuspendedAt: { type: Date, default: null },
+
     // Email verification — soft gate: unverified users can still log in and
     // use the app, but see a reminder banner. Not enforced as a hard block
     // by default (see authController for where that decision lives).

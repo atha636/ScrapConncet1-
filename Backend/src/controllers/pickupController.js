@@ -1,5 +1,6 @@
 const Pickup = require("../models/Pickup");
 const Transaction = require("../models/Transaction");
+const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimatePrice } = require("../utils/pricing");
@@ -136,6 +137,14 @@ exports.getCollectorJobs = asyncHandler(async (req, res) => {
 
 // PATCH /api/pickup/:id/accept  (collector only)
 exports.acceptPickup = asyncHandler(async (req, res) => {
+  const collectorUser = await User.findById(req.user.id);
+  if (collectorUser?.collectorSuspended) {
+    throw new ApiError(
+      403,
+      "Your account is suspended from accepting new pickups due to low ratings. Contact support."
+    );
+  }
+
   const pickup = await Pickup.findById(req.params.id);
   if (!pickup) throw new ApiError(404, "Pickup not found");
   if (pickup.status !== "pending") throw new ApiError(409, "Pickup is no longer available");

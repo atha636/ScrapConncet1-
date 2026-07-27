@@ -19,6 +19,7 @@ import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useGeolocation from "../../hooks/useGeolocation";
+import { useAuth } from "../../context/AuthContext";
 
 const NEXT_ACTION = {
   accepted: { label: "Start pickup", next: "in_progress" },
@@ -27,6 +28,8 @@ const NEXT_ACTION = {
 
 export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
+  const { user } = useAuth();
+  const isSuspended = !!user?.collectorSuspended;
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
@@ -152,6 +155,15 @@ export default function CollectorDashboard() {
     <div>
       <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
       <p className="text-sm text-inkSoft mb-6">Pick up nearby scrap and manage your jobs.</p>
+
+      {isSuspended && (
+        <div className="mb-5">
+          <ErrorBox>
+            Your account is suspended from accepting new pickups due to low ratings.
+            Contact support if you think this is a mistake.
+          </ErrorBox>
+        </div>
+      )}
 
       <div className="flex gap-1 mb-6 border-b border-line">
         {[
@@ -285,7 +297,8 @@ export default function CollectorDashboard() {
                     <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
                     <button
                       onClick={() => handleAccept(item._id)}
-                      disabled={actingId === item._id}
+                      disabled={actingId === item._id || isSuspended}
+                      title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
                       className="btn-primary !py-2 !px-4 text-sm"
                     >
                       {actingId === item._id ? "Accepting…" : "Accept"}
