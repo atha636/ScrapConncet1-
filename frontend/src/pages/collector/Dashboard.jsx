@@ -41,12 +41,25 @@ export default function CollectorDashboard() {
   const [sortBy, setSortBy] = useState("newest");
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
 
+  // Ask for location as soon as the dashboard loads — collectors are the
+  // side of the marketplace this actually matters for, and the UI already
+  // has a graceful fallback (locStatus === "error") if they decline.
+  useEffect(() => { locateMe(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      // With real coordinates, the backend does an actual $geoNear query —
+      // pickups within radiusKm, sorted by real distance, not just "whatever
+      // happened to be in the newest 20 nationally." Without coordinates
+      // (denied/unsupported), falls back to the original newest-first list.
+      const availableParams = myCoords
+        ? { limit: 50, lat: myCoords.lat, lng: myCoords.lng, radiusKm: 50 }
+        : { limit: 20 };
+
       const [a, m] = await Promise.all([
-        getAvailable({ limit: 20 }),
+        getAvailable(availableParams),
         getCollectorJobs({ limit: 20 }),
       ]);
       setAvailable(a.data.data);
@@ -56,7 +69,7 @@ export default function CollectorDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [myCoords]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -106,9 +119,9 @@ export default function CollectorDashboard() {
     .filter((item) => typeFilter === "all" || item.scrapType === typeFilter)
     .filter((item) => !minPrice || item.price >= Number(minPrice))
     .sort((a, b) => {
-      if (sortBy === "distance" && myCoords) {
-        const distA = distanceKm(myCoords.lat, myCoords.lng, a.location.lat, a.location.lng);
-        const distB = distanceKm(myCoords.lat, myCoords.lng, b.location.lat, b.location.lng);
+      if (sortBy === "distance") {
+        const distA = a.distanceKm ?? (myCoords ? distanceKm(myCoords.lat, myCoords.lng, a.location.lat, a.location.lng) : Infinity);
+        const distB = b.distanceKm ?? (myCoords ? distanceKm(myCoords.lat, myCoords.lng, b.location.lat, b.location.lng) : Infinity);
         return distA - distB;
       }
       if (sortBy === "price_high") return b.price - a.price;
@@ -232,9 +245,9 @@ export default function CollectorDashboard() {
                         {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
                       </div>
                       <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5 flex-wrap">
-                        {myCoords && (
+                        {(item.distanceKm !== undefined || myCoords) && (
                           <span className="font-mono font-semibold text-amber-dark">
-                            {formatDistance(distanceKm(myCoords.lat, myCoords.lng, item.location.lat, item.location.lng))} away
+                            {formatDistance(item.distanceKm ?? distanceKm(myCoords.lat, myCoords.lng, item.location.lat, item.location.lng))} away
                           </span>
                         )}
                         <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
