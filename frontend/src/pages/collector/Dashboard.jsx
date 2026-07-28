@@ -141,6 +141,8 @@ export default function CollectorDashboard() {
     .filter((item) => typeFilter === "all" || item.scrapType === typeFilter)
     .filter((item) => !minPrice || item.price >= Number(minPrice))
     .sort((a, b) => {
+      if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+
       if (sortBy === "distance") {
         const distA = a.distanceKm ?? (myCoords ? distanceKm(myCoords.lat, myCoords.lng, a.location.lat, a.location.lng) : Infinity);
         const distB = b.distanceKm ?? (myCoords ? distanceKm(myCoords.lat, myCoords.lng, b.location.lat, b.location.lng) : Infinity);
@@ -273,8 +275,13 @@ export default function CollectorDashboard() {
                       />
                     )}
                     <div>
-                      <div className="font-display font-semibold text-ink capitalize">
+                      <div className="font-display font-semibold text-ink capitalize flex items-center gap-2">
                         {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                        {item.isUrgent && (
+                          <span className="text-[10px] uppercase tracking-wide font-bold bg-danger text-surface px-1.5 py-0.5 rounded-ticket">
+                            Urgent
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5 flex-wrap">
                         {(item.distanceKm !== undefined || myCoords) && (
