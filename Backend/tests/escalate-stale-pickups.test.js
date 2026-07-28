@@ -38,11 +38,12 @@ async function createPendingPickup(ageMinutes) {
     statusHistory: [{ status: "pending", changedBy: requester._id }],
   });
 
-  // updateOne bypasses the pre-save hook (fine — geo isn't relevant here)
-  // and lets us backdate createdAt to simulate a pickup that's been
-  // sitting unaccepted for a while.
+  // Model.updateOne() goes through Mongoose's schema casting, which treats
+  // createdAt as immutable once `timestamps: true` is set — the update
+  // would silently no-op. Going through the raw collection driver bypasses
+  // that guard, which is exactly what we need to simulate an old pickup.
   const backdated = new Date(Date.now() - ageMinutes * 60 * 1000);
-  await Pickup.updateOne({ _id: pickup._id }, { createdAt: backdated });
+  await Pickup.collection.updateOne({ _id: pickup._id }, { $set: { createdAt: backdated } });
 
   return pickup._id;
 }
@@ -111,9 +112,9 @@ describe("escalateStalePickups", () => {
         { status: "accepted", changedBy: collector._id },
       ],
     });
-    await Pickup.updateOne(
+    await Pickup.collection.updateOne(
       { _id: pickup._id },
-      { createdAt: new Date(Date.now() - (STALE_PICKUP_MINUTES + 30) * 60 * 1000) }
+      { $set: { createdAt: new Date(Date.now() - (STALE_PICKUP_MINUTES + 30) * 60 * 1000) } }
     );
 
     const count = await escalateStalePickups(fakeIo());
