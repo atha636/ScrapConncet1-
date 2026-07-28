@@ -29,6 +29,12 @@ const pickupSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
 
+    // Set by the escalateStalePickups cron job (see src/jobs) when a pickup
+    // has sat pending too long — surfaces it higher in the collector feed
+    // instead of it silently going stale with nobody accepting it.
+    isUrgent: { type: Boolean, default: false },
+    urgentAt: { type: Date, default: null },
+
     status: {
       type: String,
       enum: ["pending", "accepted", "in_progress", "completed", "cancelled"],

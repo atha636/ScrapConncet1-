@@ -66,7 +66,7 @@ exports.getAvailable = asyncHandler(async (req, res) => {
   if (!hasCoords) {
     const [data, total] = await Promise.all([
       Pickup.find({ status: "pending" })
-        .sort({ createdAt: -1 })
+        .sort({ isUrgent: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("user", "name phone"),
@@ -96,6 +96,9 @@ exports.getAvailable = asyncHandler(async (req, res) => {
   const [data, totalResult] = await Promise.all([
     Pickup.aggregate([
       ...basePipeline,
+      // $geoNear's implicit sort is by distance — re-sort urgent-first while
+      // keeping distance as the tiebreaker within each group.
+      { $sort: { isUrgent: -1, distanceMeters: 1 } },
       { $skip: skip },
       { $limit: limit },
       {
