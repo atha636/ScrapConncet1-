@@ -115,8 +115,7 @@ export default function CollectorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Loaded on demand, not with the rest of the dashboard — a collector who
-  // never opens this tab shouldn't pay for the extra request every visit.
+  
   useEffect(() => {
     if (tab !== "wallet" || wallet) return;
     setWalletLoading(true);
