@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import {
   getAvailable,
   getCollectorJobs,
@@ -25,6 +26,40 @@ const NEXT_ACTION = {
   accepted: { label: "Start pickup", next: "in_progress" },
   in_progress: { label: "Mark completed", next: "completed" },
 };
+
+const TABS = [
+  { key: "available", label: "Available" },
+  { key: "mine", label: "My jobs" },
+  { key: "history", label: "History" },
+  { key: "wallet", label: "Wallet" },
+];
+
+const listStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+const listItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
+};
+
+// Small dashed-circle icon for empty states — echoes the .stamp dashed
+// border already used for status badges, rather than a random stock icon.
+function EmptyIcon({ children }) {
+  return (
+    <div className="w-11 h-11 mx-auto mb-3 rounded-full border-2 border-dashed border-line flex items-center justify-center text-inkFaint">
+      {children}
+    </div>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5h-4a2 2 0 000 4h4" />
+    </svg>
+  );
+}
 
 export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
@@ -153,345 +188,400 @@ export default function CollectorDashboard() {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+  const counts = { available: filteredAvailable.length, mine: activeJobs.length, history: pastJobs.length };
+
   return (
-    <div>
-      <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
-      <p className="text-sm text-inkSoft mb-6">Pick up nearby scrap and manage your jobs.</p>
+    <MotionConfig reducedMotion="user">
+      <div>
+        <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
+        <p className="text-sm text-inkSoft mb-6">Pick up nearby scrap and manage your jobs.</p>
 
-      {isSuspended && (
-        <div className="mb-5">
-          <ErrorBox>
-            Your account is suspended from accepting new pickups due to low ratings.
-            Contact support if you think this is a mistake.
-          </ErrorBox>
-        </div>
-      )}
+        {isSuspended && (
+          <div className="mb-5">
+            <ErrorBox>
+              Your account is suspended from accepting new pickups due to low ratings.
+              Contact support if you think this is a mistake.
+            </ErrorBox>
+          </div>
+        )}
 
-      <div className="flex gap-1 mb-6 border-b border-line">
-        {[
-          { key: "available", label: `Available (${filteredAvailable.length})` },
-          { key: "mine", label: `My jobs (${activeJobs.length})` },
-          { key: "history", label: `History (${pastJobs.length})` },
-          { key: "wallet", label: "Wallet" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.key ? "border-rust text-rust" : "border-transparent text-inkSoft hover:text-ink"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
-
-      {tab === "available" && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="field-input !w-auto text-sm"
-          >
-            <option value="all">All types</option>
-            {SCRAP_TYPES.map((t) => (
-              <option key={t} value={t} className="capitalize">{t}</option>
-            ))}
-          </select>
-
-          <input
-            type="number"
-            min="0"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            placeholder="Min price ₹"
-            className="field-input !w-32 text-sm"
-          />
-
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              if (e.target.value === "distance" && !myCoords) locateMe();
-            }}
-            className="field-input !w-auto text-sm"
-          >
-            <option value="newest">Newest first</option>
-            <option value="price_high">Price: high to low</option>
-            <option value="price_low">Price: low to high</option>
-            <option value="distance">Nearest first</option>
-          </select>
-
-          {sortBy === "distance" && !myCoords && (
-            <span className="text-xs text-inkFaint self-center flex items-center gap-1.5">
-              {locStatus === "locating" ? (
-                "Finding your location…"
-              ) : locStatus === "error" ? (
-                <span className="text-danger">{locError}</span>
-              ) : (
-                <>
-                  Need your location to sort by distance.
-                  <button onClick={locateMe} className="text-rust font-semibold hover:underline">
-                    Enable
-                  </button>
-                </>
-              )}
-            </span>
-          )}
-
-          {(typeFilter !== "all" || minPrice) && (
+        {/* Tabs, with a sliding underline instead of a per-button static border —
+            the indicator itself animates between positions via layoutId. */}
+        <div className="flex gap-1 mb-6 border-b border-line">
+          {TABS.map((t) => (
             <button
-              onClick={() => { setTypeFilter("all"); setMinPrice(""); }}
-              className="text-xs font-semibold text-rust hover:underline self-center"
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors ${
+                tab === t.key ? "text-rust" : "text-inkSoft hover:text-ink"
+              }`}
             >
-              Clear filters
+              {t.label}{t.key !== "wallet" ? ` (${counts[t.key]})` : ""}
+              {tab === t.key && (
+                <motion.span
+                  layoutId="collector-tab-underline"
+                  className="absolute left-0 right-0 -bottom-px h-[2px] bg-rust"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
             </button>
-          )}
+          ))}
         </div>
-      )}
 
-      {loading ? (
-        <CardSkeleton count={3} withImage />
-      ) : (
-        <div className="space-y-3">
-          {tab === "available" && (
-            filteredAvailable.length === 0 ? (
-              <Card className="p-10 text-center text-inkSoft">
-                {available.length === 0
-                  ? "No pickups available right now — check back soon."
-                  : "No pickups match your filters."}
-              </Card>
-            ) : (
-              filteredAvailable.map((item) => (
-                <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex gap-4">
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.scrapType}
-                        className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
-                      />
-                    )}
-                    <div>
-                      <div className="font-display font-semibold text-ink capitalize flex items-center gap-2">
-                        {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
-                        {item.isUrgent && (
-                          <span className="text-[10px] uppercase tracking-wide font-bold bg-danger text-surface px-1.5 py-0.5 rounded-ticket">
-                            Urgent
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5 flex-wrap">
-                        {(item.distanceKm !== undefined || myCoords) && (
-                          <span className="font-mono font-semibold text-amber-dark">
-                            {formatDistance(item.distanceKm ?? distanceKm(myCoords.lat, myCoords.lng, item.location.lat, item.location.lng))} away
-                          </span>
-                        )}
-                        <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
-                        <button
-                          onClick={() => setMapPickup(item)}
-                          className="text-rust font-semibold hover:underline"
-                        >
-                          View map
-                        </button>
-                      </div>
-                      {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
-                    <button
-                      onClick={() => handleAccept(item._id)}
-                      disabled={actingId === item._id || isSuspended}
-                      title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
-                      className="btn-primary !py-2 !px-4 text-sm"
-                    >
-                      {actingId === item._id ? "Accepting…" : "Accept"}
+        {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
+
+        {tab === "available" && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="field-input !w-auto text-sm"
+            >
+              <option value="all">All types</option>
+              {SCRAP_TYPES.map((t) => (
+                <option key={t} value={t} className="capitalize">{t}</option>
+              ))}
+            </select>
+
+            <input
+              type="number"
+              min="0"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              placeholder="Min price ₹"
+              className="field-input !w-32 text-sm"
+            />
+
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                if (e.target.value === "distance" && !myCoords) locateMe();
+              }}
+              className="field-input !w-auto text-sm"
+            >
+              <option value="newest">Newest first</option>
+              <option value="price_high">Price: high to low</option>
+              <option value="price_low">Price: low to high</option>
+              <option value="distance">Nearest first</option>
+            </select>
+
+            {sortBy === "distance" && !myCoords && (
+              <span className="text-xs text-inkFaint self-center flex items-center gap-1.5">
+                {locStatus === "locating" ? (
+                  "Finding your location…"
+                ) : locStatus === "error" ? (
+                  <span className="text-danger">{locError}</span>
+                ) : (
+                  <>
+                    Need your location to sort by distance.
+                    <button onClick={locateMe} className="text-rust font-semibold hover:underline">
+                      Enable
                     </button>
-                  </div>
-                </Card>
-              ))
-            )
-          )}
+                  </>
+                )}
+              </span>
+            )}
 
-          {tab === "mine" && (
-            activeJobs.length === 0 ? (
-              <Card className="p-10 text-center text-inkSoft">No active jobs — accept a pickup to get started.</Card>
-            ) : (
-              activeJobs.map((item) => {
-                const action = NEXT_ACTION[item.status];
-                return (
-                  <Card key={item._id} className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex gap-4">
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.scrapType}
-                          className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
-                        />
-                      )}
-                      <div>
-                        <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
-                        {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusStamp status={item.status} />
-                      <button
-                        onClick={() => setChatPickup(item)}
-                        className="text-xs font-semibold text-rust hover:underline flex items-center gap-1"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                        </svg>
-                        Chat
-                      </button>
-                      {action && (
-                        <button
-                          onClick={() => handleAdvance(item._id, action.next)}
-                          disabled={actingId === item._id}
-                          className="btn-primary !py-2 !px-4 text-sm"
-                        >
-                          {actingId === item._id ? "Updating…" : action.label}
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })
-            )
-          )}
+            {(typeFilter !== "all" || minPrice) && (
+              <button
+                onClick={() => { setTypeFilter("all"); setMinPrice(""); }}
+                className="text-xs font-semibold text-rust hover:underline self-center"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
 
-          {tab === "history" && (
-            pastJobs.length === 0 ? (
-              <Card className="p-10 text-center text-inkSoft">No completed jobs yet.</Card>
-            ) : (
-              pastJobs.map((item) => (
-                <Card key={item._id} className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex gap-4">
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.scrapType}
-                        className="w-12 h-12 rounded-md object-cover shrink-0 border border-line"
-                      />
-                    )}
-                    <div className="font-medium text-ink capitalize self-center">{item.scrapType}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
-                    <StatusStamp status={item.status} />
-                    {item.status === "completed" && item.user && !ratedIds.has(item._id) && (
-                      <button
-                        onClick={() => setRatePickup(item)}
-                        className="text-xs font-semibold text-amber-dark hover:underline flex items-center gap-1"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                        Rate requester
-                      </button>
-                    )}
-                  </div>
-                </Card>
-              ))
-            )
-          )}
-
-          {tab === "wallet" && (
-            walletLoading ? (
-              <CardSkeleton count={2} />
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                  <Card className="p-5">
-                    <div className="text-xs text-inkFaint mb-1">Total earned</div>
-                    <div className="font-display text-xl font-bold text-ink">
-                      {formatPrice(wallet?.allTime.totalEarned)}
-                    </div>
-                    <div className="text-xs text-inkSoft mt-1">
-                      {wallet?.allTime.pickupsCompleted || 0} pickups completed
-                    </div>
-                  </Card>
-                  <Card className="p-5">
-                    <div className="text-xs text-inkFaint mb-1">Last 7 days</div>
-                    <div className="font-display text-xl font-bold text-ink">
-                      {formatPrice(wallet?.last7Days.totalEarned)}
-                    </div>
-                    <div className="text-xs text-inkSoft mt-1">
-                      {wallet?.last7Days.pickupsCompleted || 0} pickups
-                    </div>
-                  </Card>
-                  <Card className="p-5">
-                    <div className="text-xs text-inkFaint mb-1">Last 30 days</div>
-                    <div className="font-display text-xl font-bold text-ink">
-                      {formatPrice(wallet?.last30Days.totalEarned)}
-                    </div>
-                    <div className="text-xs text-inkSoft mt-1">
-                      {wallet?.last30Days.pickupsCompleted || 0} pickups
-                    </div>
-                  </Card>
-                </div>
-
-                {walletTx.length === 0 ? (
+        {loading ? (
+          <CardSkeleton count={3} withImage />
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              {tab === "available" && (
+                filteredAvailable.length === 0 ? (
                   <Card className="p-10 text-center text-inkSoft">
-                    No earnings yet — complete a pickup to start building your history.
+                    <EmptyIcon>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
+                      </svg>
+                    </EmptyIcon>
+                    {available.length === 0
+                      ? "No pickups available right now — check back soon."
+                      : "No pickups match your filters."}
                   </Card>
                 ) : (
-                  <div className="space-y-2">
-                    {walletTx.map((tx) => (
-                      <Card key={tx._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                        <div>
-                          <div className="font-medium text-ink capitalize">
-                            {tx.pickup?.scrapType || "Pickup"}
-                            {tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}
+                  <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
+                    {filteredAvailable.map((item) => (
+                      <motion.div key={item._id} variants={listItem} layout>
+                        <Card className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]">
+                          <div className="flex gap-4">
+                            {item.image && (
+                              <img
+                                src={item.image}
+                                alt={item.scrapType}
+                                className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                              />
+                            )}
+                            <div>
+                              <div className="font-display font-semibold text-ink capitalize flex items-center gap-2">
+                                {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                                {item.isUrgent && (
+                                  <motion.span
+                                    animate={{ opacity: [1, 0.55, 1] }}
+                                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                                    className="text-[10px] uppercase tracking-wide font-bold bg-danger text-surface px-1.5 py-0.5 rounded-ticket"
+                                  >
+                                    Urgent
+                                  </motion.span>
+                                )}
+                              </div>
+                              <div className="text-xs text-inkFaint mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                {(item.distanceKm !== undefined || myCoords) && (
+                                  <span className="font-mono font-semibold text-amber-dark">
+                                    {formatDistance(item.distanceKm ?? distanceKm(myCoords.lat, myCoords.lng, item.location.lat, item.location.lng))} away
+                                  </span>
+                                )}
+                                <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
+                                <button
+                                  onClick={() => setMapPickup(item)}
+                                  className="text-rust font-semibold hover:underline"
+                                >
+                                  View map
+                                </button>
+                              </div>
+                              {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
+                            </div>
                           </div>
-                          <div className="text-xs text-inkFaint mt-0.5">
-                            {new Date(tx.createdAt).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
+                            <motion.button
+                              whileTap={{ scale: 0.96 }}
+                              onClick={() => handleAccept(item._id)}
+                              disabled={actingId === item._id || isSuspended}
+                              title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
+                              className="btn-primary !py-2 !px-4 text-sm"
+                            >
+                              {actingId === item._id ? "Accepting…" : "Accept"}
+                            </motion.button>
                           </div>
-                        </div>
-                        <span className="font-mono font-semibold text-rust">
-                          +{formatPrice(tx.amount)}
-                        </span>
-                      </Card>
+                        </Card>
+                      </motion.div>
                     ))}
-                  </div>
-                )}
-              </>
-            )
-          )}
-        </div>
-      )}
+                  </motion.div>
+                )
+              )}
 
-      <ChatBox
-        pickupId={chatPickup?._id}
-        open={!!chatPickup}
-        onClose={() => setChatPickup(null)}
-        otherPartyName={chatPickup?.user?.name}
-      />
+              {tab === "mine" && (
+                activeJobs.length === 0 ? (
+                  <Card className="p-10 text-center text-inkSoft">
+                    <EmptyIcon>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
+                        <path d="M9 12l2 2 4-4" />
+                      </svg>
+                    </EmptyIcon>
+                    No active jobs — accept a pickup to get started.
+                  </Card>
+                ) : (
+                  <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
+                    {activeJobs.map((item) => {
+                      const action = NEXT_ACTION[item.status];
+                      return (
+                        <motion.div key={item._id} variants={listItem} layout>
+                          <Card className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex gap-4">
+                              {item.image && (
+                                <img
+                                  src={item.image}
+                                  alt={item.scrapType}
+                                  className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                                />
+                              )}
+                              <div>
+                                <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
+                                {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <StatusStamp status={item.status} />
+                              <button
+                                onClick={() => setChatPickup(item)}
+                                className="text-xs font-semibold text-rust hover:underline flex items-center gap-1"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                </svg>
+                                Chat
+                              </button>
+                              {action && (
+                                <motion.button
+                                  whileTap={{ scale: 0.96 }}
+                                  onClick={() => handleAdvance(item._id, action.next)}
+                                  disabled={actingId === item._id}
+                                  className="btn-primary !py-2 !px-4 text-sm"
+                                >
+                                  {actingId === item._id ? "Updating…" : action.label}
+                                </motion.button>
+                              )}
+                            </div>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )
+              )}
 
-      <RatingModal
-        pickupId={ratePickup?._id}
-        open={!!ratePickup}
-        onClose={() => setRatePickup(null)}
-        otherPartyName={ratePickup?.user?.name}
-        onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
-      />
+              {tab === "history" && (
+                pastJobs.length === 0 ? (
+                  <Card className="p-10 text-center text-inkSoft">
+                    <EmptyIcon>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" />
+                      </svg>
+                    </EmptyIcon>
+                    No completed jobs yet.
+                  </Card>
+                ) : (
+                  <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
+                    {pastJobs.map((item) => (
+                      <motion.div key={item._id} variants={listItem}>
+                        <Card className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex gap-4">
+                            {item.image && (
+                              <img
+                                src={item.image}
+                                alt={item.scrapType}
+                                className="w-12 h-12 rounded-md object-cover shrink-0 border border-line"
+                              />
+                            )}
+                            <div className="font-medium text-ink capitalize self-center">{item.scrapType}</div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
+                            <StatusStamp status={item.status} />
+                            {item.status === "completed" && item.user && !ratedIds.has(item._id) && (
+                              <button
+                                onClick={() => setRatePickup(item)}
+                                className="text-xs font-semibold text-amber-dark hover:underline flex items-center gap-1"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                Rate requester
+                              </button>
+                            )}
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )
+              )}
 
-      <MapModal
-        open={!!mapPickup}
-        onClose={() => setMapPickup(null)}
-        lat={mapPickup?.location?.lat}
-        lng={mapPickup?.location?.lng}
-        address={mapPickup?.location?.address}
-        label={mapPickup?.scrapType}
-      />
-    </div>
+              {tab === "wallet" && (
+                walletLoading ? (
+                  <CardSkeleton count={2} />
+                ) : (
+                  <>
+                    <motion.div
+                      variants={listStagger}
+                      initial="hidden"
+                      animate="show"
+                      className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+                    >
+                      {[
+                        { label: "Total earned", data: wallet?.allTime },
+                        { label: "Last 7 days", data: wallet?.last7Days },
+                        { label: "Last 30 days", data: wallet?.last30Days },
+                      ].map((card) => (
+                        <motion.div key={card.label} variants={listItem}>
+                          <Card className="p-5">
+                            <div className="flex items-center gap-2 text-inkFaint mb-2">
+                              <WalletIcon />
+                              <span className="text-xs">{card.label}</span>
+                            </div>
+                            <div className="font-display text-xl font-bold text-ink">
+                              {formatPrice(card.data?.totalEarned)}
+                            </div>
+                            <div className="text-xs text-inkSoft mt-1">
+                              {card.data?.pickupsCompleted || 0} pickups{card.label === "Total earned" ? " completed" : ""}
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+
+                    {walletTx.length === 0 ? (
+                      <Card className="p-10 text-center text-inkSoft">
+                        <EmptyIcon><WalletIcon /></EmptyIcon>
+                        No earnings yet — complete a pickup to start building your history.
+                      </Card>
+                    ) : (
+                      <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                        {walletTx.map((tx) => (
+                          <motion.div key={tx._id} variants={listItem}>
+                            <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                              <div>
+                                <div className="font-medium text-ink capitalize">
+                                  {tx.pickup?.scrapType || "Pickup"}
+                                  {tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}
+                                </div>
+                                <div className="text-xs text-inkFaint mt-0.5">
+                                  {new Date(tx.createdAt).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </div>
+                              </div>
+                              <span className="font-mono font-semibold text-rust">
+                                +{formatPrice(tx.amount)}
+                              </span>
+                            </Card>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </>
+                )
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        <ChatBox
+          pickupId={chatPickup?._id}
+          open={!!chatPickup}
+          onClose={() => setChatPickup(null)}
+          otherPartyName={chatPickup?.user?.name}
+        />
+
+        <RatingModal
+          pickupId={ratePickup?._id}
+          open={!!ratePickup}
+          onClose={() => setRatePickup(null)}
+          otherPartyName={ratePickup?.user?.name}
+          onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
+        />
+
+        <MapModal
+          open={!!mapPickup}
+          onClose={() => setMapPickup(null)}
+          lat={mapPickup?.location?.lat}
+          lng={mapPickup?.location?.lng}
+          address={mapPickup?.location?.address}
+          label={mapPickup?.scrapType}
+        />
+      </div>
+    </MotionConfig>
   );
 }
