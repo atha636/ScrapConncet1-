@@ -1,9 +1,126 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, MotionConfig } from "framer-motion";
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
+
+// The hero's signature moment: instead of a generic decorative illustration,
+// it's an actual receipt — reusing the same .ticket perforated-edge and
+// .stamp ink-stamp classes every pickup card in the app already uses — that
+// "prints" itself out on load, line by line, ending in a rubber-stamped
+// PAID. It's the app's own visual language (thermal-receipt, not a stock
+// "recycling" icon set), and it dramatizes the actual promise: post scrap,
+// get paid on the spot.
+const RECEIPT_ITEMS = [
+  { label: "Metal · 10kg", amount: 500 },
+  { label: "Plastic · 3kg", amount: 60 },
+  { label: "E-waste · 1kg", amount: 40 },
+];
+const RECEIPT_TOTAL = RECEIPT_ITEMS.reduce((sum, item) => sum + item.amount, 0);
+
+function useCountUp(target, start, duration = 700) {
+  const [value, setValue] = useState(0);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!start) return;
+    if (reduceMotion) {
+      const raf = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(raf);
+    }
+    let raf;
+    const startTime = performance.now();
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      setValue(Math.round(target * (1 - Math.pow(1 - progress, 3)))); // ease-out cubic
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [start, target, duration, reduceMotion]);
+
+  return value;
+}
+
+function ReceiptHero() {
+  const [paperOut, setPaperOut] = useState(false);
+  const [showTotal, setShowTotal] = useState(false);
+  const [showStamp, setShowStamp] = useState(false);
+  const total = useCountUp(RECEIPT_TOTAL, showTotal);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setPaperOut(true), 200);
+    const t2 = setTimeout(() => setShowTotal(true), 200 + 550 + RECEIPT_ITEMS.length * 180);
+    const t3 = setTimeout(() => setShowStamp(true), 200 + 550 + RECEIPT_ITEMS.length * 180 + 750);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center">
+      <div className="relative w-[260px]">
+        {/* Printer housing the paper feeds out of */}
+        <div className="h-4 bg-ink rounded-t-md mx-2 shadow-[0_2px_0_rgba(36,26,18,0.15)]" />
+
+        <motion.div
+          initial={{ clipPath: "inset(0 0 100% 0)" }}
+          animate={paperOut ? { clipPath: "inset(0 0 0% 0)" } : {}}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+          className="ticket -rotate-2 px-5 pt-6 pb-5 font-mono"
+        >
+          <p className="text-center font-display font-bold text-sm text-ink tracking-tight mb-0.5">
+            SCRAPCONNECT
+          </p>
+          <p className="text-center text-[10px] text-inkFaint mb-3">PICKUP RECEIPT</p>
+          <div className="border-t border-dashed border-line mb-2.5" />
+
+          {RECEIPT_ITEMS.map((item, i) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, x: -8 }}
+              animate={paperOut ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.3, delay: 0.55 + i * 0.18 }}
+              className="flex items-center justify-between text-[12px] text-inkSoft mb-1.5"
+            >
+              <span>{item.label}</span>
+              <span className="text-ink">₹{item.amount}</span>
+            </motion.div>
+          ))}
+
+          <div className="border-t border-dashed border-line my-2.5" />
+
+          <div className="flex items-center justify-between text-xs font-semibold text-ink mb-4">
+            <span>TOTAL</span>
+            <span>₹{total}</span>
+          </div>
+
+          <div className="flex justify-center h-8">
+            {showStamp && (
+              <motion.span
+                initial={{ opacity: 0, scale: 1.6, rotate: -18 }}
+                animate={{ opacity: 1, scale: 1, rotate: -8 }}
+                transition={{ duration: 0.35, ease: "backOut" }}
+                className="stamp stamp-completed"
+              >
+                Paid ✓
+              </motion.span>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Torn edge at the bottom of the receipt */}
+        <svg viewBox="0 0 260 12" className="w-full -mt-px" preserveAspectRatio="none">
+          <path
+            d="M0,0 L10,10 L20,0 L30,10 L40,0 L50,10 L60,0 L70,10 L80,0 L90,10 L100,0 L110,10 L120,0 L130,10 L140,0 L150,10 L160,0 L170,10 L180,0 L190,10 L200,0 L210,10 L220,0 L230,10 L240,0 L250,10 L260,0 L260,0 L0,0 Z"
+            fill="#FAF5EA"
+            stroke="#D8C9AE"
+            strokeWidth="1"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 const STEPS = [
   {
@@ -193,44 +310,7 @@ export default function Home() {
             </motion.div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
-            className="flex items-center justify-center"
-          >
-            <svg width="320" height="260" viewBox="0 0 320 260" fill="none">
-              <circle cx="160" cy="130" r="120" fill="#A63D24" fillOpacity="0.06" />
-              <line x1="30" y1="220" x2="290" y2="220" stroke="#D8C9AE" strokeWidth="2" />
-
-              {/* Weighing scale */}
-              <g transform="translate(50, 130)">
-                <rect x="0" y="60" width="14" height="20" rx="2" fill="#A63D24" />
-                <rect x="-10" y="78" width="34" height="6" rx="2" fill="#A63D24" />
-                <line x1="7" y1="60" x2="7" y2="10" stroke="#A63D24" strokeWidth="3" />
-                <line x1="-25" y1="10" x2="39" y2="10" stroke="#A63D24" strokeWidth="3" />
-                <circle cx="-25" cy="30" r="16" fill="none" stroke="#A63D24" strokeWidth="3" />
-                <circle cx="39" cy="22" r="16" fill="none" stroke="#A63D24" strokeWidth="3" />
-                <path d="M-25 10 L-25 22" stroke="#A63D24" strokeWidth="2" />
-                <path d="M39 10 L39 22" stroke="#A63D24" strokeWidth="2" />
-              </g>
-
-              {/* Recycling arrows */}
-              <g transform="translate(170, 60)">
-                <path d="M20 0 A20 20 0 0 1 38 15 L32 13 M38 15 L34 22" stroke="#C4841E" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M20 40 A20 20 0 0 1 2 25 L8 27 M2 25 L6 18" stroke="#C4841E" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M0 20 A20 20 0 0 1 15 1 L14 8 M15 1 L22 4" stroke="#C4841E" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-
-              {/* Truck */}
-              <g transform="translate(190, 150)">
-                <rect x="0" y="0" width="55" height="30" rx="3" fill="#241A12" />
-                <path d="M55 10 h18 l12 12 v8 h-30 z" fill="#241A12" fillOpacity="0.75" />
-                <circle cx="16" cy="34" r="8" fill="#A63D24" stroke="#FAF5EA" strokeWidth="2.5" />
-                <circle cx="70" cy="34" r="8" fill="#A63D24" stroke="#FAF5EA" strokeWidth="2.5" />
-              </g>
-            </svg>
-          </motion.div>
+          <ReceiptHero />
         </section>
 
         {/* Supported materials */}
