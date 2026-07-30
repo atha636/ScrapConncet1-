@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createPickup, SCRAP_TYPES } from "../../services/pickupService";
 import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
@@ -14,6 +15,15 @@ const TYPE_LABELS = {
   "e-waste": "E-waste",
   glass: "Glass",
   other: "Other",
+};
+
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 };
 
 export default function RequestPickup() {
@@ -74,126 +84,202 @@ export default function RequestPickup() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="font-display text-2xl font-bold text-ink mb-1">Request a pickup</h1>
-      <p className="text-sm text-inkSoft mb-6">Fill in the details and a collector nearby will take it from here.</p>
+    <MotionConfig reducedMotion="user">
+      <div className="max-w-2xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <h1 className="font-display text-2xl font-bold text-ink mb-1">Request a pickup</h1>
+          <p className="text-sm text-inkSoft mb-6">Fill in the details and a collector nearby will take it from here.</p>
+        </motion.div>
 
-      <Card className="p-6 sm:p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && <ErrorBox>{error}</ErrorBox>}
-
-          {/* Scrap type */}
-          <div>
-            <label className="field-label">Scrap type</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {SCRAP_TYPES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setScrapType(t)}
-                  className={`py-2.5 rounded-ticket text-sm font-medium border-1.5 transition-all ${
-                    scrapType === t
-                      ? "border-rust bg-rust/[0.07] text-rust -translate-y-0.5"
-                      : "border-line text-inkSoft bg-surfaceRaised"
-                  }`}
-                  style={{ borderWidth: "1.5px" }}
+        <Card className="p-6 sm:p-8">
+          <motion.form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="show"
+          >
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  {TYPE_LABELS[t]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Weight */}
-          <div>
-            <label className="field-label">Estimated weight (kg) — optional</label>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              placeholder="e.g. 5"
-              className="field-input"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
-          </div>
-
-          {/* Location */}
-          <div>
-            <label className="field-label">Pickup location</label>
-            {coords ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 px-4 py-3 rounded-ticket border-1.5 border-amber/50 bg-amber/[0.06]" style={{ borderWidth: "1.5px" }}>
-                <div className="flex items-center gap-2 text-sm text-ink min-w-0">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4841E" strokeWidth="2" className="shrink-0">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                  </svg>
-                  <span className="truncate">Location captured ({coords.lat.toFixed(4)}, {coords.lng.toFixed(4)})</span>
-                </div>
-                <button type="button" onClick={locate} className="text-xs font-semibold text-rust hover:underline shrink-0 self-start sm:self-auto">
-                  Refresh
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={locate}
-                disabled={locStatus === "locating"}
-                className="btn-secondary w-full justify-center"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                </svg>
-                {locStatus === "locating" ? "Getting your location…" : "Share my location"}
-              </button>
-            )}
-            {locError && <p className="text-xs text-danger mt-2">{locError}</p>}
-
-            <input
-              type="text"
-              placeholder="Landmark / address (optional)"
-              className="field-input mt-3"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </div>
-
-          {/* Image */}
-          <div>
-            <label className="field-label">Photo (optional)</label>
-            <label
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files?.[0]); }}
-              className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-ticket py-8 cursor-pointer transition-colors ${
-                dragging ? "border-rust bg-rust/[0.05]" : "border-line bg-surfaceRaised"
-              }`}
-            >
-              {preview ? (
-                <div className="relative">
-                  <img src={preview} alt="Scrap preview" className="h-28 rounded-md object-cover" />
-                  {compressing && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-ink/40 rounded-md">
-                      <span className="text-xs font-medium text-surface">Optimizing photo…</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9C8A73" strokeWidth="1.8">
-                    <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-                  </svg>
-                  <span className="text-sm text-inkFaint">Drag a photo here, or click to browse</span>
-                </>
+                  <ErrorBox>{error}</ErrorBox>
+                </motion.div>
               )}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
-            </label>
-          </div>
+            </AnimatePresence>
 
-          <button type="submit" className="btn-primary w-full" disabled={submitting || compressing}>
-            {submitting ? "Submitting…" : compressing ? "Optimizing photo…" : "Submit request"}
-          </button>
-        </form>
-      </Card>
-    </div>
+            {/* Scrap type */}
+            <motion.div variants={fadeUp}>
+              <label className="field-label">Scrap type</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {SCRAP_TYPES.map((t) => (
+                  <motion.button
+                    key={t}
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setScrapType(t)}
+                    className={`relative py-2.5 rounded-ticket text-sm font-medium border-1.5 transition-colors ${
+                      scrapType === t
+                        ? "border-rust text-rust"
+                        : "border-line text-inkSoft bg-surfaceRaised"
+                    }`}
+                    style={{ borderWidth: "1.5px" }}
+                  >
+                    {scrapType === t && (
+                      <motion.span
+                        layoutId="scrap-type-highlight"
+                        className="absolute inset-0 rounded-ticket bg-rust/[0.07]"
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <span className="relative">{TYPE_LABELS[t]}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Weight */}
+            <motion.div variants={fadeUp}>
+              <label className="field-label">Estimated weight (kg) — optional</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="e.g. 5"
+                className="field-input"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+              />
+            </motion.div>
+
+            {/* Location */}
+            <motion.div variants={fadeUp}>
+              <label className="field-label">Pickup location</label>
+              <AnimatePresence mode="wait">
+                {coords ? (
+                  <motion.div
+                    key="captured"
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 px-4 py-3 rounded-ticket border-1.5 border-amber/50 bg-amber/[0.06]"
+                    style={{ borderWidth: "1.5px" }}
+                  >
+                    <div className="flex items-center gap-2 text-sm text-ink min-w-0">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4841E" strokeWidth="2" className="shrink-0">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                      </svg>
+                      <span className="truncate">Location captured ({coords.lat.toFixed(4)}, {coords.lng.toFixed(4)})</span>
+                    </div>
+                    <button type="button" onClick={locate} className="text-xs font-semibold text-rust hover:underline shrink-0 self-start sm:self-auto">
+                      Refresh
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    key="prompt"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    onClick={locate}
+                    disabled={locStatus === "locating"}
+                    className="btn-secondary w-full justify-center"
+                  >
+                    <motion.svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      animate={locStatus === "locating" ? { y: [0, -3, 0] } : {}}
+                      transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                    </motion.svg>
+                    {locStatus === "locating" ? "Getting your location…" : "Share my location"}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              {locError && <p className="text-xs text-danger mt-2">{locError}</p>}
+
+              <input
+                type="text"
+                placeholder="Landmark / address (optional)"
+                className="field-input mt-3"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </motion.div>
+
+            {/* Image */}
+            <motion.div variants={fadeUp}>
+              <label className="field-label">Photo (optional)</label>
+              <motion.label
+                animate={dragging ? { scale: 1.015 } : { scale: 1 }}
+                transition={{ duration: 0.15 }}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files?.[0]); }}
+                className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-ticket py-8 cursor-pointer transition-colors ${
+                  dragging ? "border-rust bg-rust/[0.05]" : "border-line bg-surfaceRaised"
+                }`}
+              >
+                <AnimatePresence mode="wait">
+                  {preview ? (
+                    <motion.div
+                      key="preview"
+                      initial={{ opacity: 0, scale: 0.92 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.25 }}
+                      className="relative"
+                    >
+                      <img src={preview} alt="Scrap preview" className="h-28 rounded-md object-cover" />
+                      {compressing && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-ink/40 rounded-md">
+                          <span className="text-xs font-medium text-surface">Optimizing photo…</span>
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="placeholder"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9C8A73" strokeWidth="1.8">
+                        <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+                      </svg>
+                      <span className="text-sm text-inkFaint">Drag a photo here, or click to browse</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+              </motion.label>
+            </motion.div>
+
+            <motion.button
+              variants={fadeUp}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              className="btn-primary w-full flex items-center justify-center gap-2"
+              disabled={submitting || compressing}
+            >
+              {(submitting || compressing) && (
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.7, repeat: Infinity, ease: "linear" }}
+                  className="w-3.5 h-3.5 border-2 border-surface/40 border-t-surface rounded-full"
+                />
+              )}
+              {submitting ? "Submitting…" : compressing ? "Optimizing photo…" : "Submit request"}
+            </motion.button>
+          </motion.form>
+        </Card>
+      </div>
+    </MotionConfig>
   );
 }

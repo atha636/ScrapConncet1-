@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, MotionConfig, useReducedMotion } from "framer-motion";
+import { motion, MotionConfig } from "framer-motion";
 import useDocumentMeta from "../hooks/useDocumentMeta";
+import useCountUp from "../hooks/useCountUp";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
 
@@ -18,30 +19,6 @@ const RECEIPT_ITEMS = [
   { label: "E-waste · 1kg", amount: 40 },
 ];
 const RECEIPT_TOTAL = RECEIPT_ITEMS.reduce((sum, item) => sum + item.amount, 0);
-
-function useCountUp(target, start, duration = 700) {
-  const [value, setValue] = useState(0);
-  const reduceMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (!start) return;
-    if (reduceMotion) {
-      const raf = requestAnimationFrame(() => setValue(target));
-      return () => cancelAnimationFrame(raf);
-    }
-    let raf;
-    const startTime = performance.now();
-    const tick = (now) => {
-      const progress = Math.min(1, (now - startTime) / duration);
-      setValue(Math.round(target * (1 - Math.pow(1 - progress, 3)))); // ease-out cubic
-      if (progress < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [start, target, duration, reduceMotion]);
-
-  return value;
-}
 
 function ReceiptHero() {
   const [paperOut, setPaperOut] = useState(false);
