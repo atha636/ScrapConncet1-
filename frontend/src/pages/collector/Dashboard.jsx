@@ -16,6 +16,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import MapModal from "../../components/map/MapModal";
+import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -75,6 +76,7 @@ export default function CollectorDashboard() {
   const [ratePickup, setRatePickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
   const [mapPickup, setMapPickup] = useState(null);
+  const [detailsPickup, setDetailsPickup] = useState(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -115,7 +117,8 @@ export default function CollectorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  
+  // Loaded on demand, not with the rest of the dashboard — a collector who
+  // never opens this tab shouldn't pay for the extra request every visit.
   useEffect(() => {
     if (tab !== "wallet" || wallet) return;
     setWalletLoading(true);
@@ -148,8 +151,10 @@ export default function CollectorDashboard() {
       const res = await acceptPickup(id);
       setAvailable((prev) => prev.filter((p) => p._id !== id));
       setMyJobs((prev) => [res.data, ...prev]);
+      return true;
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't accept this pickup — it may already be taken.");
+      return false;
     } finally {
       setActingId(null);
     }
@@ -320,7 +325,10 @@ export default function CollectorDashboard() {
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
                     {filteredAvailable.map((item) => (
                       <motion.div key={item._id} variants={listItem} layout>
-                        <Card className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]">
+                        <Card
+                          onClick={() => setDetailsPickup(item)}
+                          className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
+                        >
                           <div className="flex gap-4">
                             {item.image && (
                               <img
@@ -350,7 +358,7 @@ export default function CollectorDashboard() {
                                 )}
                                 <span>{item.location?.address || `${item.location.lat.toFixed(3)}, ${item.location.lng.toFixed(3)}`}</span>
                                 <button
-                                  onClick={() => setMapPickup(item)}
+                                  onClick={(e) => { e.stopPropagation(); setMapPickup(item); }}
                                   className="text-rust font-semibold hover:underline"
                                 >
                                   View map
@@ -363,7 +371,7 @@ export default function CollectorDashboard() {
                             <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
                             <motion.button
                               whileTap={{ scale: 0.96 }}
-                              onClick={() => handleAccept(item._id)}
+                              onClick={(e) => { e.stopPropagation(); handleAccept(item._id); }}
                               disabled={actingId === item._id || isSuspended}
                               title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
                               className="btn-primary !py-2 !px-4 text-sm"
@@ -579,6 +587,19 @@ export default function CollectorDashboard() {
           lng={mapPickup?.location?.lng}
           address={mapPickup?.location?.address}
           label={mapPickup?.scrapType}
+        />
+
+        <PickupDetailModal
+          pickup={detailsPickup}
+          open={!!detailsPickup}
+          onClose={() => setDetailsPickup(null)}
+          onViewMap={() => { setMapPickup(detailsPickup); setDetailsPickup(null); }}
+          onAccept={async () => {
+            const ok = await handleAccept(detailsPickup._id);
+            if (ok) setDetailsPickup(null);
+          }}
+          accepting={actingId === detailsPickup?._id}
+          isSuspended={isSuspended}
         />
       </div>
     </MotionConfig>
