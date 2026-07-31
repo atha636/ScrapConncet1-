@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -29,6 +30,15 @@ const STATUS_COLORS = {
   "In progress": COLORS.rust,
   Completed: "#4A3B28",
   Cancelled: COLORS.danger,
+};
+
+const listStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 };
 
 function shortDate(iso) {
@@ -63,108 +73,116 @@ export default function AdminCharts({ series, stats }) {
     : [];
 
   return (
-    <div className="space-y-6">
+    <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-6">
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Pickups over time */}
-        <Card className="p-5">
-          <h3 className="font-display font-semibold text-ink mb-4">Pickups posted — last 30 days</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={series} margin={{ left: -20, right: 10, top: 5, bottom: 0 }}>
-              <defs>
-                <linearGradient id="pickupsFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={COLORS.rust} stopOpacity={0.25} />
-                  <stop offset="100%" stopColor={COLORS.rust} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={shortDate}
-                tick={{ fontSize: 11, fill: COLORS.inkSoft }}
-                interval={5}
-                axisLine={{ stroke: COLORS.line }}
-                tickLine={false}
-              />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11, fill: COLORS.inkSoft }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<ChartTooltip formatter={(v) => `${v} pickup${v === 1 ? "" : "s"}`} />}
-                labelFormatter={shortDate}
-              />
-              <Area
-                type="monotone"
-                dataKey="pickups"
-                stroke={COLORS.rust}
-                strokeWidth={2}
-                fill="url(#pickupsFill)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
+        <motion.div variants={fadeUp}>
+          <Card className="p-5">
+            <h3 className="font-display font-semibold text-ink mb-4">Pickups posted — last 30 days</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={series} margin={{ left: -20, right: 10, top: 5, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="pickupsFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.rust} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={COLORS.rust} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={shortDate}
+                  tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                  interval={5}
+                  axisLine={{ stroke: COLORS.line }}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  content={<ChartTooltip formatter={(v) => `${v} pickup${v === 1 ? "" : "s"}`} />}
+                  labelFormatter={shortDate}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="pickups"
+                  stroke={COLORS.rust}
+                  strokeWidth={2}
+                  fill="url(#pickupsFill)"
+                  animationDuration={700}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </motion.div>
 
         {/* Revenue over time */}
-        <Card className="p-5">
-          <h3 className="font-display font-semibold text-ink mb-4">Revenue completed — last 30 days</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={series} margin={{ left: -20, right: 10, top: 5, bottom: 0 }}>
-              <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={shortDate}
-                tick={{ fontSize: 11, fill: COLORS.inkSoft }}
-                interval={5}
-                axisLine={{ stroke: COLORS.line }}
-                tickLine={false}
-              />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11, fill: COLORS.inkSoft }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<ChartTooltip formatter={formatPrice} />} labelFormatter={shortDate} />
-              <Bar dataKey="revenue" fill={COLORS.amber} radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+        <motion.div variants={fadeUp}>
+          <Card className="p-5">
+            <h3 className="font-display font-semibold text-ink mb-4">Revenue completed — last 30 days</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={series} margin={{ left: -20, right: 10, top: 5, bottom: 0 }}>
+                <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={shortDate}
+                  tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                  interval={5}
+                  axisLine={{ stroke: COLORS.line }}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<ChartTooltip formatter={formatPrice} />} labelFormatter={shortDate} />
+                <Bar dataKey="revenue" fill={COLORS.amber} radius={[3, 3, 0, 0]} animationDuration={700} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Status breakdown */}
-      <Card className="p-5">
-        <h3 className="font-display font-semibold text-ink mb-4">Pickup status breakdown</h3>
-        {pieData.length === 0 ? (
-          <p className="text-sm text-inkFaint text-center py-10">No pickups yet to break down.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-              >
-                {pieData.map((entry) => (
-                  <Cell key={entry.name} fill={STATUS_COLORS[entry.name]} />
-                ))}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                wrapperStyle={{ fontSize: 12, color: COLORS.inkSoft }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </Card>
-    </div>
+      <motion.div variants={fadeUp}>
+        <Card className="p-5">
+          <h3 className="font-display font-semibold text-ink mb-4">Pickup status breakdown</h3>
+          {pieData.length === 0 ? (
+            <p className="text-sm text-inkFaint text-center py-10">No pickups yet to break down.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  animationDuration={700}
+                >
+                  {pieData.map((entry) => (
+                    <Cell key={entry.name} fill={STATUS_COLORS[entry.name]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  wrapperStyle={{ fontSize: 12, color: COLORS.inkSoft }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }
