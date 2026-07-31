@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   getAdminStats,
   getAdminAnalytics,
@@ -19,6 +20,32 @@ import AdminCharts from "../components/admin/AdminCharts";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
+import useCountUp from "../hooks/useCountUp";
+
+const TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "analytics", label: "Analytics" },
+  { key: "users", label: "Users" },
+  { key: "pickups", label: "All pickups" },
+];
+
+const listStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+};
+const listItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: "easeOut" } },
+};
+
+// Ticks up on load — same easing as the dashboard stat cards and the
+// homepage receipt hero, so numbers arriving across the app read as one
+// consistent language rather than three different implementations.
+function StatValue({ value, isMoney }) {
+  const numeric = isMoney ? Number(String(value).replace(/[^\d.-]/g, "")) : value;
+  const animated = useCountUp(numeric || 0, true, 600);
+  return <>{isMoney ? formatPrice(animated) : animated}</>;
+}
 
 export default function AdminPanel() {
   useDocumentMeta({ title: "Admin Panel", noindex: true });
@@ -27,6 +54,7 @@ export default function AdminPanel() {
   const [series, setSeries] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
+  const [searching, setSearching] = useState(false);
   const [pickups, setPickups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,9 +123,21 @@ export default function AdminPanel() {
     }
   };
 
-  const handleSearch = (e) => {
+  // BUG FIX: this previously called loadUsers(userSearch) directly with no
+  // loading state and no error handling — a failed search request just
+  // silently did nothing (an unhandled promise rejection), leaving stale
+  // results on screen with zero feedback that anything went wrong.
+  const handleSearch = async (e) => {
     e.preventDefault();
-    loadUsers(userSearch);
+    setSearching(true);
+    setError("");
+    try {
+      await loadUsers(userSearch);
+    } catch {
+      setError("Couldn't search users. Try again.");
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleExportUsers = async () => {
@@ -132,144 +172,186 @@ export default function AdminPanel() {
       <p className="text-sm text-inkSoft mb-6">Platform-wide oversight — users, pickups, and stats.</p>
 
       <div className="flex gap-1 mb-6 border-b border-line">
-        {[
-          { key: "overview", label: "Overview" },
-          { key: "analytics", label: "Analytics" },
-          { key: "users", label: "Users" },
-          { key: "pickups", label: "All pickups" },
-        ].map((t) => (
+        {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.key ? "border-rust text-rust" : "border-transparent text-inkSoft hover:text-ink"
+            className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors ${
+              tab === t.key ? "text-rust" : "text-inkSoft hover:text-ink"
             }`}
           >
             {t.label}
+            {tab === t.key && (
+              <motion.span
+                layoutId="admin-tab-underline"
+                className="absolute left-0 right-0 -bottom-px h-[2px] bg-rust"
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              />
+            )}
           </button>
         ))}
       </div>
 
-      {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-5 overflow-hidden"
+          >
+            <ErrorBox>{error}</ErrorBox>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         tab === "overview" || tab === "analytics" ? <Loader /> : <CardSkeleton count={4} />
       ) : (
-        <>
-          {tab === "overview" && stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Requesters", value: stats.totalUsers },
-                { label: "Collectors", value: stats.totalCollectors },
-                { label: "Total pickups", value: stats.totalPickups },
-                { label: "Pending", value: stats.pendingCount },
-                { label: "In progress", value: stats.activeCount },
-                { label: "Completed", value: stats.completedCount },
-                { label: "Cancelled", value: stats.cancelledCount },
-                { label: "Value moved", value: formatPrice(stats.totalValueMoved) },
-              ].map((s) => (
-                <Card key={s.label} className="p-4">
-                  <div className="text-xs text-inkFaint uppercase tracking-wide font-mono mb-1">{s.label}</div>
-                  <div className="font-display text-xl font-bold text-ink">{s.value}</div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {tab === "analytics" && <AdminCharts series={series} stats={stats} />}
-
-          {tab === "users" && (
-            <div>
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[200px]">
-                  <input
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    placeholder="Search by name or email…"
-                    className="field-input"
-                  />
-                  <button type="submit" className="btn-secondary shrink-0">Search</button>
-                </form>
-                <button onClick={handleExportUsers} disabled={exportingUsers} className="btn-secondary shrink-0">
-                  {exportingUsers ? "Exporting…" : "Export CSV"}
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {users.length === 0 ? (
-                  <Card className="p-10 text-center text-inkSoft">No users match your search.</Card>
-                ) : (
-                  users.map((u) => (
-                  <Card key={u._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="font-medium text-ink">
-                        {u.name} <span className="text-xs text-inkFaint font-mono capitalize">· {u.role}</span>
-                        {u.collectorSuspended && (
-                          <span className="ml-2 text-xs font-mono font-semibold text-danger">Rating-suspended</span>
-                        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            {tab === "overview" && stats && (
+              <motion.div
+                variants={listStagger}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+              >
+                {[
+                  { label: "Requesters", value: stats.totalUsers },
+                  { label: "Collectors", value: stats.totalCollectors },
+                  { label: "Total pickups", value: stats.totalPickups },
+                  { label: "Pending", value: stats.pendingCount },
+                  { label: "In progress", value: stats.activeCount },
+                  { label: "Completed", value: stats.completedCount },
+                  { label: "Cancelled", value: stats.cancelledCount },
+                  { label: "Value moved", value: stats.totalValueMoved, isMoney: true },
+                ].map((s) => (
+                  <motion.div key={s.label} variants={listItem}>
+                    <Card className="p-4 transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]">
+                      <div className="text-xs text-inkFaint uppercase tracking-wide font-mono mb-1">{s.label}</div>
+                      <div className="font-display text-xl font-bold text-ink">
+                        <StatValue value={s.value} isMoney={s.isMoney} />
                       </div>
-                      <div className="text-xs text-inkSoft">{u.email}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-mono font-semibold ${u.isActive ? "text-amber-dark" : "text-danger"}`}>
-                        {u.isActive ? "Active" : "Deactivated"}
-                      </span>
-                      {u.collectorSuspended && (
-                        <button
-                          onClick={() => handleReinstate(u)}
-                          disabled={actingId === u._id}
-                          className="btn-primary !py-1.5 !px-3 text-xs"
-                        >
-                          {actingId === u._id ? "…" : "Reinstate"}
-                        </button>
-                      )}
-                      {u.role !== "admin" && (
-                        <button
-                          onClick={() => handleToggleActive(u)}
-                          disabled={actingId === u._id}
-                          className={u.isActive ? "btn-secondary !py-1.5 !px-3 text-xs" : "btn-primary !py-1.5 !px-3 text-xs"}
-                        >
-                          {actingId === u._id ? "…" : u.isActive ? "Deactivate" : "Activate"}
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-                  ))
+                    </Card>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+
+            {tab === "analytics" && <AdminCharts series={series} stats={stats} />}
+
+            {tab === "users" && (
+              <div>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[200px]">
+                    <input
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Search by name or email…"
+                      className="field-input"
+                    />
+                    <motion.button whileTap={{ scale: 0.96 }} type="submit" disabled={searching} className="btn-secondary shrink-0">
+                      {searching ? "Searching…" : "Search"}
+                    </motion.button>
+                  </form>
+                  <motion.button whileTap={{ scale: 0.96 }} onClick={handleExportUsers} disabled={exportingUsers} className="btn-secondary shrink-0">
+                    {exportingUsers ? "Exporting…" : "Export CSV"}
+                  </motion.button>
+                </div>
+
+                {searching ? (
+                  <CardSkeleton count={3} />
+                ) : (
+                  <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                    {users.length === 0 ? (
+                      <Card className="p-10 text-center text-inkSoft">No users match your search.</Card>
+                    ) : (
+                      users.map((u) => (
+                        <motion.div key={u._id} variants={listItem} layout>
+                          <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                            <div>
+                              <div className="font-medium text-ink">
+                                {u.name} <span className="text-xs text-inkFaint font-mono capitalize">· {u.role}</span>
+                                {u.collectorSuspended && (
+                                  <span className="ml-2 text-xs font-mono font-semibold text-danger">Rating-suspended</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-inkSoft">{u.email}</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`text-xs font-mono font-semibold ${u.isActive ? "text-amber-dark" : "text-danger"}`}>
+                                {u.isActive ? "Active" : "Deactivated"}
+                              </span>
+                              {u.collectorSuspended && (
+                                <motion.button
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleReinstate(u)}
+                                  disabled={actingId === u._id}
+                                  className="btn-primary !py-1.5 !px-3 text-xs"
+                                >
+                                  {actingId === u._id ? "…" : "Reinstate"}
+                                </motion.button>
+                              )}
+                              {u.role !== "admin" && (
+                                <motion.button
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleToggleActive(u)}
+                                  disabled={actingId === u._id}
+                                  className={u.isActive ? "btn-secondary !py-1.5 !px-3 text-xs" : "btn-primary !py-1.5 !px-3 text-xs"}
+                                >
+                                  {actingId === u._id ? "…" : u.isActive ? "Deactivate" : "Activate"}
+                                </motion.button>
+                              )}
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))
+                    )}
+                  </motion.div>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {tab === "pickups" && (
-            <div>
-              <div className="flex justify-end mb-4">
-                <button onClick={handleExportPickups} disabled={exportingPickups} className="btn-secondary">
-                  {exportingPickups ? "Exporting…" : "Export CSV"}
-                </button>
+            {tab === "pickups" && (
+              <div>
+                <div className="flex justify-end mb-4">
+                  <motion.button whileTap={{ scale: 0.96 }} onClick={handleExportPickups} disabled={exportingPickups} className="btn-secondary">
+                    {exportingPickups ? "Exporting…" : "Export CSV"}
+                  </motion.button>
+                </div>
+                <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                  {pickups.length === 0 ? (
+                    <Card className="p-10 text-center text-inkSoft">No pickups on the platform yet.</Card>
+                  ) : (
+                    pickups.map((p) => (
+                      <motion.div key={p._id} variants={listItem}>
+                        <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                          <div>
+                            <div className="font-medium text-ink capitalize">{p.scrapType}</div>
+                            <div className="text-xs text-inkSoft mt-0.5">
+                              {p.user?.name} → {p.collector?.name || "unassigned"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-sm text-ink">{formatPrice(p.price)}</span>
+                            <StatusStamp status={p.status} />
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
+                </motion.div>
               </div>
-              <div className="space-y-2">
-                {pickups.length === 0 ? (
-                  <Card className="p-10 text-center text-inkSoft">No pickups on the platform yet.</Card>
-                ) : (
-                  pickups.map((p) => (
-                  <Card key={p._id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="font-medium text-ink capitalize">{p.scrapType}</div>
-                      <div className="text-xs text-inkSoft mt-0.5">
-                        {p.user?.name} → {p.collector?.name || "unassigned"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-sm text-ink">{formatPrice(p.price)}</span>
-                      <StatusStamp status={p.status} />
-                    </div>
-                  </Card>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
     </div>
   );
