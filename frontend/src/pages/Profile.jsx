@@ -1,10 +1,42 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { updateProfile, changePassword } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import Card from "../components/ui/Card";
 import ErrorBox from "../components/common/ErrorBox";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { isPushSupported, getPushStatus, enablePush, disablePush } from "../lib/push";
+
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+// Height-animated success/error banners so they don't just pop in and yank
+// the form layout — same pattern used on the request-pickup form.
+function InlineBanner({ children, tone = "success" }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2 }}
+      className="overflow-hidden"
+    >
+      {tone === "success" ? (
+        <div className="text-sm text-amber-dark bg-amber/10 border border-amber/30 rounded-md px-3 py-2.5">
+          {children}
+        </div>
+      ) : (
+        <ErrorBox>{children}</ErrorBox>
+      )}
+    </motion.div>
+  );
+}
 
 export default function Profile() {
   useDocumentMeta({ title: "Profile", noindex: true });
@@ -99,136 +131,151 @@ export default function Profile() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="show"
+      className="max-w-2xl mx-auto space-y-6"
+    >
+      <motion.div variants={fadeUp}>
         <h1 className="font-display text-2xl font-bold text-ink mb-1">Profile</h1>
         <p className="text-sm text-inkSoft">Manage your account details.</p>
-      </div>
+      </motion.div>
 
       {/* Profile info */}
-      <Card className="p-6 sm:p-8">
-        <h2 className="font-display font-semibold text-ink mb-5">Account details</h2>
-        <form onSubmit={handleProfileSubmit} className="space-y-4">
-          {profileError && <ErrorBox>{profileError}</ErrorBox>}
-          {profileSuccess && (
-            <div className="text-sm text-amber-dark bg-amber/10 border border-amber/30 rounded-md px-3 py-2.5">
-              Profile updated.
+      <motion.div variants={fadeUp}>
+        <Card className="p-6 sm:p-8">
+          <h2 className="font-display font-semibold text-ink mb-5">Account details</h2>
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
+            <AnimatePresence>
+              {profileError && <InlineBanner tone="error">{profileError}</InlineBanner>}
+              {profileSuccess && <InlineBanner>Profile updated.</InlineBanner>}
+            </AnimatePresence>
+
+            <div>
+              <label className="field-label">Full name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="field-input"
+                placeholder="Your name"
+              />
             </div>
-          )}
 
-          <div>
-            <label className="field-label">Full name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="field-input"
-              placeholder="Your name"
-            />
-          </div>
+            <div>
+              <label className="field-label">Email</label>
+              <input value={user?.email || ""} disabled className="field-input opacity-60 cursor-not-allowed" />
+              <p className="text-xs text-inkFaint mt-1.5">Email can't be changed.</p>
+            </div>
 
-          <div>
-            <label className="field-label">Email</label>
-            <input value={user?.email || ""} disabled className="field-input opacity-60 cursor-not-allowed" />
-            <p className="text-xs text-inkFaint mt-1.5">Email can't be changed.</p>
-          </div>
+            <div>
+              <label className="field-label">Phone</label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="field-input"
+                placeholder="10-digit number"
+              />
+            </div>
 
-          <div>
-            <label className="field-label">Phone</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="field-input"
-              placeholder="10-digit number"
-            />
-          </div>
+            <div>
+              <label className="field-label">Role</label>
+              <input
+                value={user?.role === "collector" ? "Collector" : "Requester"}
+                disabled
+                className="field-input opacity-60 cursor-not-allowed capitalize"
+              />
+            </div>
 
-          <div>
-            <label className="field-label">Role</label>
-            <input
-              value={user?.role === "collector" ? "Collector" : "Requester"}
-              disabled
-              className="field-input opacity-60 cursor-not-allowed capitalize"
-            />
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={savingProfile}>
-            {savingProfile ? "Saving…" : "Save changes"}
-          </button>
-        </form>
-      </Card>
+            <motion.button whileTap={{ scale: 0.98 }} type="submit" className="btn-primary" disabled={savingProfile}>
+              {savingProfile ? "Saving…" : "Save changes"}
+            </motion.button>
+          </form>
+        </Card>
+      </motion.div>
 
       {/* Push notifications */}
-      <Card className="p-6 sm:p-8">
-        <h2 className="font-display font-semibold text-ink mb-1.5">Push notifications</h2>
-        <p className="text-sm text-inkSoft mb-5">
-          Get notified on this device even when ScrapConnect isn't open — pickup updates, new
-          messages, and offers accepted.
-        </p>
-
-        {pushError && <div className="mb-4"><ErrorBox>{pushError}</ErrorBox></div>}
-
-        {pushState.loading ? (
-          <p className="text-sm text-inkFaint">Checking status…</p>
-        ) : !pushState.supported ? (
-          <p className="text-sm text-inkFaint">Not supported in this browser.</p>
-        ) : pushState.denied ? (
-          <p className="text-sm text-inkFaint">
-            Notifications are blocked for this site in your browser settings. Enable them there, then refresh this page.
+      <motion.div variants={fadeUp}>
+        <Card className="p-6 sm:p-8">
+          <h2 className="font-display font-semibold text-ink mb-1.5">Push notifications</h2>
+          <p className="text-sm text-inkSoft mb-5">
+            Get notified on this device even when ScrapConnect isn't open — pickup updates, new
+            messages, and offers accepted.
           </p>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm font-medium text-ink">
-              {pushState.subscribed ? "Enabled on this device" : "Currently off"}
-            </span>
-            <button
-              onClick={handleTogglePush}
-              disabled={pushBusy}
-              className={pushState.subscribed ? "btn-secondary" : "btn-primary"}
-            >
-              {pushBusy ? "Working…" : pushState.subscribed ? "Turn off" : "Turn on"}
-            </button>
-          </div>
-        )}
-      </Card>
 
-      {/* Password change */}
-      <Card className="p-6 sm:p-8">
-        <h2 className="font-display font-semibold text-ink mb-5">Change password</h2>
-        <form onSubmit={handlePasswordSubmit} className="space-y-4">
-          {passwordError && <ErrorBox>{passwordError}</ErrorBox>}
-          {passwordSuccess && (
-            <div className="text-sm text-amber-dark bg-amber/10 border border-amber/30 rounded-md px-3 py-2.5">
-              Password changed successfully.
+          <AnimatePresence>
+            {pushError && <div className="mb-4"><InlineBanner tone="error">{pushError}</InlineBanner></div>}
+          </AnimatePresence>
+
+          {pushState.loading ? (
+            <p className="text-sm text-inkFaint">Checking status…</p>
+          ) : !pushState.supported ? (
+            <p className="text-sm text-inkFaint">Not supported in this browser.</p>
+          ) : pushState.denied ? (
+            <p className="text-sm text-inkFaint">
+              Notifications are blocked for this site in your browser settings. Enable them there, then refresh this page.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-ink flex items-center gap-2">
+                <motion.span
+                  animate={{ backgroundColor: pushState.subscribed ? "#A63D24" : "#D8C9AE" }}
+                  transition={{ duration: 0.2 }}
+                  className="w-2 h-2 rounded-full"
+                />
+                {pushState.subscribed ? "Enabled on this device" : "Currently off"}
+              </span>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={handleTogglePush}
+                disabled={pushBusy}
+                className={pushState.subscribed ? "btn-secondary" : "btn-primary"}
+              >
+                {pushBusy ? "Working…" : pushState.subscribed ? "Turn off" : "Turn on"}
+              </motion.button>
             </div>
           )}
+        </Card>
+      </motion.div>
 
-          <div>
-            <label className="field-label">Current password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="field-input"
-              placeholder="Enter your current password"
-            />
-          </div>
+      {/* Password change */}
+      <motion.div variants={fadeUp}>
+        <Card className="p-6 sm:p-8">
+          <h2 className="font-display font-semibold text-ink mb-5">Change password</h2>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <AnimatePresence>
+              {passwordError && <InlineBanner tone="error">{passwordError}</InlineBanner>}
+              {passwordSuccess && <InlineBanner>Password changed successfully.</InlineBanner>}
+            </AnimatePresence>
 
-          <div>
-            <label className="field-label">New password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="field-input"
-              placeholder="Min. 8 characters, 1 letter, 1 number"
-            />
-          </div>
+            <div>
+              <label className="field-label">Current password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="field-input"
+                placeholder="Enter your current password"
+              />
+            </div>
 
-          <button type="submit" className="btn-primary" disabled={savingPassword}>
-            {savingPassword ? "Updating…" : "Change password"}
-          </button>
-        </form>
-      </Card>
-    </div>
+            <div>
+              <label className="field-label">New password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="field-input"
+                placeholder="Min. 8 characters, 1 letter, 1 number"
+              />
+            </div>
+
+            <motion.button whileTap={{ scale: 0.98 }} type="submit" className="btn-primary" disabled={savingPassword}>
+              {savingPassword ? "Updating…" : "Change password"}
+            </motion.button>
+          </form>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }
