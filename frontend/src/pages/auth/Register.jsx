@@ -325,6 +325,31 @@ export default function Register() {
                   </button>
                 </p>
               </form>
+
+              {/* Fills the empty space below the card with real product facts —
+                  and on mobile, where the illustrated side panel is hidden
+                  entirely, this is the only supporting content a visitor sees. */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.25 }}
+                className="grid grid-cols-3 gap-3 mt-8"
+              >
+                {[
+                  { label: "No listing fees", icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /> },
+                  { label: "Live tracking", icon: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></> },
+                  { label: "Rated collectors", icon: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /> },
+                ].map((f) => (
+                  <div key={f.label} className="flex flex-col items-center text-center gap-1.5">
+                    <div className="w-8 h-8 rounded-full bg-rust/10 text-rust flex items-center justify-center">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        {f.icon}
+                      </svg>
+                    </div>
+                    <span className="text-[11px] text-inkSoft leading-tight">{f.label}</span>
+                  </div>
+                ))}
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
