@@ -111,7 +111,7 @@ export default function Register() {
           {viewKey === "choose" && (
             <motion.div key="choose" variants={slideVariants} initial="hidden" animate="show" exit="exit" className="w-full max-w-lg">
               <div className="flex flex-col items-center mb-10">
-                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
+                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg]" />
                 <h1 className="font-display text-2xl font-bold text-ink tracking-tight">How will you use ScrapConnect?</h1>
                 <p className="text-sm text-inkSoft mt-1">You can always tell us more on the next step.</p>
               </div>
@@ -172,7 +172,7 @@ export default function Register() {
           {viewKey === "form" && (
             <motion.div key="form" variants={slideVariants} initial="hidden" animate="show" exit="exit" className="w-full max-w-md">
               <div className="flex flex-col items-center mb-6">
-                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
+                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg]" />
                 <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Create your account</h1>
                 <p className="text-sm text-inkSoft mt-1">Join ScrapConnect</p>
               </div>

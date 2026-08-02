@@ -36,7 +36,7 @@ export default function ForgotPassword() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="flex flex-col items-center mb-8">
-            <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
+            <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg]" />
             <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Reset your password</h1>
             <p className="text-sm text-inkSoft mt-1 text-center">
               Enter your email and we'll send you a reset link.
