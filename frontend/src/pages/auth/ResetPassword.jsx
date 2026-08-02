@@ -44,12 +44,7 @@ export default function ResetPassword() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-ticket bg-rust flex items-center justify-center mb-4 rotate-[-3deg] lg:hidden">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2">
-                <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>
-            </div>
+            <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
             <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Set a new password</h1>
           </div>
 
