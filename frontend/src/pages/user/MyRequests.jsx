@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { getMyRequests, cancelPickup, exportMyRequests } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
@@ -238,23 +238,19 @@ export default function MyRequests() {
         onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
       />
 
-      <AnimatePresence>
-        {detailsPickup && (
-          <RequestDetailModal
-            pickup={detailsPickup}
-            open={!!detailsPickup}
-            onClose={() => setDetailsPickup(null)}
-            onChat={() => { setChatPickup(detailsPickup); setDetailsPickup(null); }}
-            onRate={() => { setRatePickup(detailsPickup); setDetailsPickup(null); }}
-            onCancel={async () => {
-              const ok = await handleCancel(detailsPickup);
-              if (ok) setDetailsPickup(null);
-            }}
-            cancelling={cancellingId === detailsPickup._id}
-            alreadyRated={ratedIds.has(detailsPickup._id)}
-          />
-        )}
-      </AnimatePresence>
+      <RequestDetailModal
+        pickup={detailsPickup}
+        open={!!detailsPickup}
+        onClose={() => setDetailsPickup(null)}
+        onChat={() => { setChatPickup(detailsPickup); setDetailsPickup(null); }}
+        onRate={() => { setRatePickup(detailsPickup); setDetailsPickup(null); }}
+        onCancel={async () => {
+          const ok = await handleCancel(detailsPickup);
+          if (ok) setDetailsPickup(null);
+        }}
+        cancelling={cancellingId === detailsPickup?._id}
+        alreadyRated={ratedIds.has(detailsPickup?._id)}
+      />
     </div>
   );
 }

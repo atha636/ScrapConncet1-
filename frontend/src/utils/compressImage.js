@@ -40,7 +40,7 @@ export function compressImage(file, { maxDimension = 1280, quality = 0.8 } = {})
           resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
         },
         "image/jpeg",
-        quality
+        quality 
       );
     };
 

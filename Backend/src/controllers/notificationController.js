@@ -12,7 +12,15 @@ exports.getNotifications = asyncHandler(async (req, res) => {
     Notification.find({ recipient: req.user.id })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .populate({
+        path: "pickup",
+        select: "scrapType user collector",
+        populate: [
+          { path: "user", select: "name" },
+          { path: "collector", select: "name" },
+        ],
+      }),
     Notification.countDocuments({ recipient: req.user.id }),
     Notification.countDocuments({ recipient: req.user.id, read: false }),
   ]);
