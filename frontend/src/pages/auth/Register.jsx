@@ -111,12 +111,7 @@ export default function Register() {
           {viewKey === "choose" && (
             <motion.div key="choose" variants={slideVariants} initial="hidden" animate="show" exit="exit" className="w-full max-w-lg">
               <div className="flex flex-col items-center mb-10">
-                <div className="w-14 h-14 rounded-ticket bg-rust flex items-center justify-center mb-4 rotate-[-3deg] lg:hidden">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2">
-                    <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                </div>
+                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
                 <h1 className="font-display text-2xl font-bold text-ink tracking-tight">How will you use ScrapConnect?</h1>
                 <p className="text-sm text-inkSoft mt-1">You can always tell us more on the next step.</p>
               </div>
@@ -177,12 +172,7 @@ export default function Register() {
           {viewKey === "form" && (
             <motion.div key="form" variants={slideVariants} initial="hidden" animate="show" exit="exit" className="w-full max-w-md">
               <div className="flex flex-col items-center mb-6">
-                <div className="w-14 h-14 rounded-ticket bg-rust flex items-center justify-center mb-4 rotate-[-3deg] lg:hidden">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2">
-                    <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                </div>
+                <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg] lg:hidden" />
                 <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Create your account</h1>
                 <p className="text-sm text-inkSoft mt-1">Join ScrapConnect</p>
               </div>
