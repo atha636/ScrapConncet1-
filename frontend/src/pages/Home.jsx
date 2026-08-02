@@ -239,12 +239,7 @@ export default function Home() {
         >
           <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-md bg-rust flex items-center justify-center rotate-[-3deg]">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FAF5EA" strokeWidth="2.3">
-                  <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-              </div>
+              <img src="/logo-mark.png" alt="" className="w-8 h-8 rounded-md rotate-[-3deg]" />
               <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
             </Link>
             <div className="flex items-center gap-3">
