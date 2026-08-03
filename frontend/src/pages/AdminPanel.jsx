@@ -7,6 +7,9 @@ import {
   deactivateUser,
   activateUser,
   reinstateCollector,
+  getPayoutRequests,
+  approvePayout,
+  rejectPayout,
   getAllPickups,
   exportUsersCsv,
   exportPickupsCsv,
@@ -26,6 +29,7 @@ const TABS = [
   { key: "overview", label: "Overview" },
   { key: "analytics", label: "Analytics" },
   { key: "users", label: "Users" },
+  { key: "payouts", label: "Payouts" },
   { key: "pickups", label: "All pickups" },
 ];
 
@@ -56,6 +60,8 @@ export default function AdminPanel() {
   const [userSearch, setUserSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const [pickups, setPickups] = useState([]);
+  const [payouts, setPayouts] = useState([]);
+  const [payoutFilter, setPayoutFilter] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
@@ -78,6 +84,11 @@ export default function AdminPanel() {
     setUsers(res.data.data);
   }, []);
 
+  const loadPayouts = useCallback(async (status = payoutFilter) => {
+    const res = await getPayoutRequests({ limit: 30, status: status || undefined });
+    setPayouts(res.data.data);
+  }, [payoutFilter]);
+
   const loadPickups = useCallback(async () => {
     const res = await getAllPickups({ limit: 30 });
     setPickups(res.data.data);
@@ -93,11 +104,13 @@ export default function AdminPanel() {
         ? loadAnalytics
         : tab === "users"
         ? () => loadUsers()
+        : tab === "payouts"
+        ? () => loadPayouts()
         : loadPickups;
     load()
       .catch(() => setError("Couldn't load this section. Try refreshing."))
       .finally(() => setLoading(false));
-  }, [tab, loadOverview, loadAnalytics, loadUsers, loadPickups]);
+  }, [tab, loadOverview, loadAnalytics, loadUsers, loadPayouts, loadPickups]);
 
   const handleToggleActive = async (u) => {
     setActingId(u._id);
@@ -118,6 +131,33 @@ export default function AdminPanel() {
       setUsers((prev) => prev.map((x) => (x._id === u._id ? res.data : x)));
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't reinstate this collector.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleApprovePayout = async (p) => {
+    setActingId(p._id);
+    setError("");
+    try {
+      const res = await approvePayout(p._id);
+      setPayouts((prev) => (payoutFilter ? prev.filter((x) => x._id !== p._id) : prev.map((x) => (x._id === p._id ? res.data : x))));
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't approve this payout.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleRejectPayout = async (p) => {
+    if (!window.confirm(`Reject the ₹${p.amount} payout request from ${p.collector?.name}?`)) return;
+    setActingId(p._id);
+    setError("");
+    try {
+      const res = await rejectPayout(p._id);
+      setPayouts((prev) => (payoutFilter ? prev.filter((x) => x._id !== p._id) : prev.map((x) => (x._id === p._id ? res.data : x))));
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't reject this payout.");
     } finally {
       setActingId(null);
     }
@@ -316,6 +356,75 @@ export default function AdminPanel() {
                     )}
                   </motion.div>
                 )}
+              </div>
+            )}
+
+            {tab === "payouts" && (
+              <div>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <select
+                    value={payoutFilter}
+                    onChange={(e) => setPayoutFilter(e.target.value)}
+                    className="field-input !w-auto text-sm"
+                  >
+                    <option value="pending">Pending review</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="">All</option>
+                  </select>
+                </div>
+
+                <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                  {payouts.length === 0 ? (
+                    <Card className="p-10 text-center text-inkSoft">No payout requests here.</Card>
+                  ) : (
+                    payouts.map((p) => (
+                      <motion.div key={p._id} variants={listItem} layout>
+                        <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                          <div>
+                            <div className="font-mono font-semibold text-ink text-base">{formatPrice(p.amount)}</div>
+                            <div className="text-xs text-inkSoft mt-0.5">
+                              {p.collector?.name} <span className="text-inkFaint">· {p.collector?.email}</span>
+                            </div>
+                            <div className="text-xs text-inkFaint mt-0.5 font-mono">
+                              Requested {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              {p.processedBy?.name && ` · ${p.status} by ${p.processedBy.name}`}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`stamp ${
+                                p.status === "approved" ? "stamp-completed" : p.status === "rejected" ? "stamp-cancelled" : "stamp-pending"
+                              }`}
+                            >
+                              {p.status === "approved" ? "Paid out" : p.status === "rejected" ? "Rejected" : "Pending review"}
+                            </span>
+                            {p.status === "pending" && (
+                              <>
+                                <motion.button
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleRejectPayout(p)}
+                                  disabled={actingId === p._id}
+                                  className="text-xs font-semibold text-danger hover:underline"
+                                >
+                                  Reject
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleApprovePayout(p)}
+                                  disabled={actingId === p._id}
+                                  className="btn-primary !py-1.5 !px-3 text-xs"
+                                >
+                                  {actingId === p._id ? "…" : "Approve"}
+                                </motion.button>
+                              </>
+                            )}
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
+                </motion.div>
               </div>
             )}
 

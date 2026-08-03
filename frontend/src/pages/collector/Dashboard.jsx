@@ -7,7 +7,7 @@ import {
   updateStatus,
   SCRAP_TYPES,
 } from "../../services/pickupService";
-import { getWalletSummary, getTransactions } from "../../services/walletService";
+import { getWalletSummary, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -83,6 +83,10 @@ export default function CollectorDashboard() {
   const [wallet, setWallet] = useState(null);
   const [walletTx, setWalletTx] = useState([]);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [myPayouts, setMyPayouts] = useState([]);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [payoutError, setPayoutError] = useState("");
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
 
   // Ask for location as soon as the dashboard loads — collectors are the
@@ -122,14 +126,31 @@ export default function CollectorDashboard() {
   useEffect(() => {
     if (tab !== "wallet" || wallet) return;
     setWalletLoading(true);
-    Promise.all([getWalletSummary(), getTransactions({ limit: 20 })])
-      .then(([summaryRes, txRes]) => {
+    Promise.all([getWalletSummary(), getTransactions({ limit: 20 }), getMyPayouts()])
+      .then(([summaryRes, txRes, payoutsRes]) => {
         setWallet(summaryRes.data);
         setWalletTx(txRes.data.data);
+        setMyPayouts(payoutsRes.data);
       })
       .catch(() => setError("Couldn't load your wallet."))
       .finally(() => setWalletLoading(false));
   }, [tab, wallet]);
+
+  const handleRequestPayout = async (e) => {
+    e.preventDefault();
+    setPayoutError("");
+    setPayoutSubmitting(true);
+    try {
+      const res = await requestPayout(Number(payoutAmount));
+      setMyPayouts((prev) => [res.data, ...prev]);
+      setWallet(null); // refetch — available balance now has this reserved
+      setPayoutAmount("");
+    } catch (err) {
+      setPayoutError(err.response?.data?.message || "Couldn't submit that request.");
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
 
   // New request comes in -> add it to the available list live
   useSocket("newPickup", (pickup) => {
@@ -503,8 +524,25 @@ export default function CollectorDashboard() {
                       variants={listStagger}
                       initial="hidden"
                       animate="show"
-                      className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+                      className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4"
                     >
+                      <motion.div variants={listItem}>
+                        <Card className="p-5 border-rust/30">
+                          <div className="flex items-center gap-2 text-inkFaint mb-2">
+                            <WalletIcon />
+                            <span className="text-xs">Available to withdraw</span>
+                          </div>
+                          <div className="font-display text-xl font-bold text-rust">
+                            {formatPrice(wallet?.balance?.available)}
+                          </div>
+                          {wallet?.balance?.totalPending > 0 && (
+                            <div className="text-xs text-amber-dark mt-1">
+                              {formatPrice(wallet.balance.totalPending)} pending review
+                            </div>
+                          )}
+                        </Card>
+                      </motion.div>
+
                       {[
                         { label: "Total earned", data: wallet?.allTime },
                         { label: "Last 7 days", data: wallet?.last7Days },
@@ -527,6 +565,71 @@ export default function CollectorDashboard() {
                       ))}
                     </motion.div>
 
+                    {/* Request payout */}
+                    <Card className="p-5 mb-6">
+                      <h3 className="font-display font-semibold text-ink text-sm mb-3">Request a payout</h3>
+                      {payoutError && <div className="mb-3"><ErrorBox>{payoutError}</ErrorBox></div>}
+                      <form onSubmit={handleRequestPayout} className="flex flex-wrap items-end gap-3">
+                        <div className="flex-1 min-w-[160px]">
+                          <label className="field-label">Amount (₹)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={payoutAmount}
+                            onChange={(e) => setPayoutAmount(e.target.value)}
+                            placeholder={`Min. ${formatPrice(100).replace("₹", "")}`}
+                            className="field-input"
+                          />
+                        </div>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          type="submit"
+                          disabled={payoutSubmitting || !payoutAmount || myPayouts.some((p) => p.status === "pending")}
+                          className="btn-primary !py-2.5"
+                        >
+                          {payoutSubmitting ? "Submitting…" : "Request payout"}
+                        </motion.button>
+                      </form>
+                      {myPayouts.some((p) => p.status === "pending") && (
+                        <p className="text-xs text-inkFaint mt-2">
+                          You already have a payout request pending review.
+                        </p>
+                      )}
+                    </Card>
+
+                    {myPayouts.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="font-display font-semibold text-ink text-sm mb-3">Payout history</h3>
+                        <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                          {myPayouts.map((p) => (
+                            <motion.div key={p._id} variants={listItem}>
+                              <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                                <div>
+                                  <div className="font-mono font-semibold text-ink">{formatPrice(p.amount)}</div>
+                                  <div className="text-xs text-inkFaint mt-0.5">
+                                    {new Date(p.createdAt).toLocaleDateString("en-IN", {
+                                      day: "numeric", month: "short", year: "numeric",
+                                    })}
+                                  </div>
+                                </div>
+                                <span
+                                  className={`stamp ${
+                                    p.status === "approved"
+                                      ? "stamp-completed"
+                                      : p.status === "rejected"
+                                      ? "stamp-cancelled"
+                                      : "stamp-pending"
+                                  }`}
+                                >
+                                  {p.status === "approved" ? "Paid out" : p.status === "rejected" ? "Rejected" : "Pending review"}
+                                </span>
+                              </Card>
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      </div>
+                    )}
+
                     {walletTx.length === 0 ? (
                       <Card className="p-10 text-center text-inkSoft">
                         <EmptyIcon><WalletIcon /></EmptyIcon>
@@ -539,8 +642,9 @@ export default function CollectorDashboard() {
                             <Card className="p-4 flex items-center justify-between gap-4 flex-wrap">
                               <div>
                                 <div className="font-medium text-ink capitalize">
-                                  {tx.pickup?.scrapType || "Pickup"}
-                                  {tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}
+                                  {tx.type === "payout"
+                                    ? "Payout"
+                                    : `${tx.pickup?.scrapType || "Pickup"}${tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}`}
                                 </div>
                                 <div className="text-xs text-inkFaint mt-0.5">
                                   {new Date(tx.createdAt).toLocaleDateString("en-IN", {
@@ -550,8 +654,8 @@ export default function CollectorDashboard() {
                                   })}
                                 </div>
                               </div>
-                              <span className="font-mono font-semibold text-rust">
-                                +{formatPrice(tx.amount)}
+                              <span className={`font-mono font-semibold ${tx.type === "payout" ? "text-inkSoft" : "text-rust"}`}>
+                                {tx.type === "payout" ? "−" : "+"}{formatPrice(tx.amount)}
                               </span>
                             </Card>
                           </motion.div>
