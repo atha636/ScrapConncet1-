@@ -195,7 +195,7 @@ exports.approvePayout = asyncHandler(async (req, res) => {
   if (!request) throw new ApiError(404, "Payout request not found");
   if (request.status !== "pending") throw new ApiError(400, "This request has already been processed");
 
-  const { available } = await getAvailableBalance(request.collector);
+  const { available } = await getAvailableBalance(request.collector, request._id);
   if (request.amount > available) {
     throw new ApiError(400, "This collector's balance no longer covers this request");
   }
@@ -231,7 +231,7 @@ exports.rejectPayout = asyncHandler(async (req, res) => {
   request.status = "rejected";
   request.processedAt = new Date();
   request.processedBy = req.user.id;
-  if (req.body.note) request.adminNote = req.body.note;
+  if (req.body?.note) request.adminNote = req.body.note;
   await request.save();
 
   res.json(request);

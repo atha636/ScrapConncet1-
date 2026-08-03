@@ -10,8 +10,17 @@ const PayoutRequest = require("../models/PayoutRequest");
 // available = all-time earnings - already paid out - currently pending
 // requests (pending amounts are reserved so two simultaneous requests can't
 // both draw against the same money before either is approved).
-async function getAvailableBalance(collectorId) {
+//
+// excludeRequestId: pass the PayoutRequest currently being approved so its
+// own reservation isn't subtracted from itself — otherwise this function
+// would always report the amount as unavailable at the exact moment it's
+// being approved, since the request is still "pending" until the approval
+// finishes.
+async function getAvailableBalance(collectorId, excludeRequestId = null) {
   const id = new mongoose.Types.ObjectId(collectorId);
+
+  const pendingMatch = { collector: id, status: "pending" };
+  if (excludeRequestId) pendingMatch._id = { $ne: excludeRequestId };
 
   const [earningsAgg, payoutsAgg, pendingAgg] = await Promise.all([
     Transaction.aggregate([
@@ -23,7 +32,7 @@ async function getAvailableBalance(collectorId) {
       { $group: { _id: null, sum: { $sum: "$amount" } } },
     ]),
     PayoutRequest.aggregate([
-      { $match: { collector: id, status: "pending" } },
+      { $match: pendingMatch },
       { $group: { _id: null, sum: { $sum: "$amount" } } },
     ]),
   ]);
