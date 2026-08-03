@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
+const PayoutRequest = require("../models/PayoutRequest");
+const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
+const { getAvailableBalance } = require("../utils/walletBalance");
+const { MIN_PAYOUT_AMOUNT } = require("../utils/payoutRules");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -13,21 +17,28 @@ exports.getSummary = asyncHandler(async (req, res) => {
   const startOfWeek = new Date(now.getTime() - 7 * DAY_MS);
   const startOfMonth = new Date(now.getTime() - 30 * DAY_MS);
 
-  const [totals] = await Transaction.aggregate([
-    { $match: { collector: collectorId } },
-    {
-      $facet: {
-        allTime: [{ $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } }],
-        last7Days: [
-          { $match: { createdAt: { $gte: startOfWeek } } },
-          { $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } },
-        ],
-        last30Days: [
-          { $match: { createdAt: { $gte: startOfMonth } } },
-          { $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } },
-        ],
+  const [totals, balance] = await Promise.all([
+    Transaction.aggregate([
+      // Scoped to "earning" only — this summary is "how much have you
+      // earned," not a raw sum of every ledger entry. A payout entry mixed
+      // into these buckets would silently inflate the earned total instead
+      // of representing money that left.
+      { $match: { collector: collectorId, type: "earning" } },
+      {
+        $facet: {
+          allTime: [{ $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } }],
+          last7Days: [
+            { $match: { createdAt: { $gte: startOfWeek } } },
+            { $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } },
+          ],
+          last30Days: [
+            { $match: { createdAt: { $gte: startOfMonth } } },
+            { $group: { _id: null, sum: { $sum: "$amount" }, count: { $sum: 1 } } },
+          ],
+        },
       },
-    },
+    ]),
+    getAvailableBalance(req.user.id),
   ]);
 
   const pick = (bucket) => ({
@@ -36,9 +47,10 @@ exports.getSummary = asyncHandler(async (req, res) => {
   });
 
   res.json({
-    allTime: pick(totals.allTime),
-    last7Days: pick(totals.last7Days),
-    last30Days: pick(totals.last30Days),
+    allTime: pick(totals[0].allTime),
+    last7Days: pick(totals[0].last7Days),
+    last30Days: pick(totals[0].last30Days),
+    balance,
   });
 });
 
@@ -58,4 +70,37 @@ exports.getTransactions = asyncHandler(async (req, res) => {
   ]);
 
   res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+});
+
+// POST /api/wallet/payout  (collector only)
+exports.requestPayout = asyncHandler(async (req, res) => {
+  const amount = Number(req.body.amount);
+
+  if (!Number.isFinite(amount) || amount < MIN_PAYOUT_AMOUNT) {
+    throw new ApiError(400, `Minimum payout amount is ₹${MIN_PAYOUT_AMOUNT}`);
+  }
+
+  // One pending request at a time — otherwise a collector could fire off
+  // several requests summing to more than their actual balance before any
+  // of them get reviewed, since "pending" amounts are only reserved against
+  // the balance individually, not checked against each other cumulatively
+  // beyond this guard.
+  const existingPending = await PayoutRequest.findOne({ collector: req.user.id, status: "pending" });
+  if (existingPending) {
+    throw new ApiError(409, "You already have a pending payout request.");
+  }
+
+  const { available } = await getAvailableBalance(req.user.id);
+  if (amount > available) {
+    throw new ApiError(400, `You can withdraw up to ₹${available} right now.`);
+  }
+
+  const request = await PayoutRequest.create({ collector: req.user.id, amount });
+  res.status(201).json(request);
+});
+
+// GET /api/wallet/payouts  (collector only) — the requesting collector's own history
+exports.getMyPayouts = asyncHandler(async (req, res) => {
+  const requests = await PayoutRequest.find({ collector: req.user.id }).sort({ createdAt: -1 }).limit(50);
+  res.json(requests);
 });

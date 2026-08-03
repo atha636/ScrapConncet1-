@@ -8,6 +8,9 @@ const {
   deactivateUser,
   activateUser,
   reinstateCollector,
+  getPayoutRequests,
+  approvePayout,
+  rejectPayout,
   getAllPickups,
 } = require("../controllers/adminController");
 
@@ -19,6 +22,9 @@ router.get("/users", auth, role("admin"), getUsers);
 router.patch("/users/:id/deactivate", auth, role("admin"), deactivateUser);
 router.patch("/users/:id/activate", auth, role("admin"), activateUser);
 router.patch("/users/:id/reinstate", auth, role("admin"), reinstateCollector);
+router.get("/payouts", auth, role("admin"), getPayoutRequests);
+router.patch("/payouts/:id/approve", auth, role("admin"), approvePayout);
+router.patch("/payouts/:id/reject", auth, role("admin"), rejectPayout);
 router.get("/pickups", auth, role("admin"), getAllPickups);
 
 module.exports = router;

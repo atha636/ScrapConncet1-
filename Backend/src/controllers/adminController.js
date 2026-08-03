@@ -1,7 +1,10 @@
 const User = require("../models/User");
 const Pickup = require("../models/Pickup");
+const Transaction = require("../models/Transaction");
+const PayoutRequest = require("../models/PayoutRequest");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
+const { getAvailableBalance } = require("../utils/walletBalance");
 
 const paginate = (query, defaultLimit = 20) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -159,6 +162,79 @@ exports.reinstateCollector = asyncHandler(async (req, res) => {
   user.collectorSuspendedAt = null;
   await user.save();
   res.json(user);
+});
+
+// GET /api/admin/payouts
+exports.getPayoutRequests = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = paginate(req.query);
+  const filter = {};
+  if (req.query.status) filter.status = req.query.status;
+
+  const [data, total] = await Promise.all([
+    PayoutRequest.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("collector", "name email")
+      .populate("processedBy", "name"),
+    PayoutRequest.countDocuments(filter),
+  ]);
+
+  res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+});
+
+// PATCH /api/admin/payouts/:id/approve
+// Creates the actual ledger debit — a pending request has no Transaction
+// yet, only this step produces one. Re-checks the balance at approval time
+// (not just at request time), since a collector's available balance could
+// have moved since they asked. The unique index on Transaction.payoutRequest
+// makes this safe to retry: a second approve attempt on an already-approved
+// request hits that constraint and fails cleanly instead of double-debiting.
+exports.approvePayout = asyncHandler(async (req, res) => {
+  const request = await PayoutRequest.findById(req.params.id);
+  if (!request) throw new ApiError(404, "Payout request not found");
+  if (request.status !== "pending") throw new ApiError(400, "This request has already been processed");
+
+  const { available } = await getAvailableBalance(request.collector);
+  if (request.amount > available) {
+    throw new ApiError(400, "This collector's balance no longer covers this request");
+  }
+
+  try {
+    await Transaction.create({
+      collector: request.collector,
+      type: "payout",
+      amount: request.amount,
+      payoutRequest: request._id,
+    });
+  } catch (err) {
+    if (err.code === 11000) throw new ApiError(409, "This request was already approved");
+    throw err;
+  }
+
+  request.status = "approved";
+  request.processedAt = new Date();
+  request.processedBy = req.user.id;
+  await request.save();
+
+  res.json(request);
+});
+
+// PATCH /api/admin/payouts/:id/reject
+// No ledger entry is created or reversed — a rejected request never touched
+// the Transaction collection in the first place, so there's nothing to undo.
+exports.rejectPayout = asyncHandler(async (req, res) => {
+  const request = await PayoutRequest.findById(req.params.id);
+  if (!request) throw new ApiError(404, "Payout request not found");
+  if (request.status !== "pending") throw new ApiError(400, "This request has already been processed");
+
+  request.status = "rejected";
+  request.processedAt = new Date();
+  request.processedBy = req.user.id;
+  if (req.body.note) request.adminNote = req.body.note;
+  await request.save();
+
+  res.json(request);
 });
 
 // GET /api/admin/pickups
