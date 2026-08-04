@@ -7,7 +7,8 @@ import {
   updateStatus,
   SCRAP_TYPES,
 } from "../../services/pickupService";
-import { getWalletSummary, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
+import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
+import EarningsChart from "../../components/wallet/EarningsChart";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -81,8 +82,12 @@ export default function CollectorDashboard() {
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [wallet, setWallet] = useState(null);
+  const [earningsTrend, setEarningsTrend] = useState(null);
   const [walletTx, setWalletTx] = useState([]);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [txPage, setTxPage] = useState(1);
+  const [txTotalPages, setTxTotalPages] = useState(1);
+  const [loadingMoreTx, setLoadingMoreTx] = useState(false);
   const [myPayouts, setMyPayouts] = useState([]);
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
@@ -126,15 +131,32 @@ export default function CollectorDashboard() {
   useEffect(() => {
     if (tab !== "wallet" || wallet) return;
     setWalletLoading(true);
-    Promise.all([getWalletSummary(), getTransactions({ limit: 20 }), getMyPayouts()])
-      .then(([summaryRes, txRes, payoutsRes]) => {
+    Promise.all([getWalletSummary(), getEarningsTrend(), getTransactions({ limit: 20, page: 1 }), getMyPayouts()])
+      .then(([summaryRes, trendRes, txRes, payoutsRes]) => {
         setWallet(summaryRes.data);
+        setEarningsTrend(trendRes.data.series);
         setWalletTx(txRes.data.data);
+        setTxPage(txRes.data.page);
+        setTxTotalPages(txRes.data.totalPages);
         setMyPayouts(payoutsRes.data);
       })
       .catch(() => setError("Couldn't load your wallet."))
       .finally(() => setWalletLoading(false));
   }, [tab, wallet]);
+
+  const handleLoadMoreTransactions = async () => {
+    setLoadingMoreTx(true);
+    try {
+      const res = await getTransactions({ limit: 20, page: txPage + 1 });
+      setWalletTx((prev) => [...prev, ...res.data.data]);
+      setTxPage(res.data.page);
+      setTxTotalPages(res.data.totalPages);
+    } catch {
+      setError("Couldn't load more transactions.");
+    } finally {
+      setLoadingMoreTx(false);
+    }
+  };
 
   const handleRequestPayout = async (e) => {
     e.preventDefault();
@@ -565,6 +587,12 @@ export default function CollectorDashboard() {
                       ))}
                     </motion.div>
 
+                    {earningsTrend && (
+                      <div className="mb-6">
+                        <EarningsChart series={earningsTrend} />
+                      </div>
+                    )}
+
                     {/* Request payout */}
                     <Card className="p-5 mb-6">
                       <h3 className="font-display font-semibold text-ink text-sm mb-3">Request a payout</h3>
@@ -661,6 +689,19 @@ export default function CollectorDashboard() {
                           </motion.div>
                         ))}
                       </motion.div>
+                    )}
+
+                    {txPage < txTotalPages && (
+                      <div className="flex justify-center mt-4">
+                        <motion.button
+                          whileTap={{ scale: 0.96 }}
+                          onClick={handleLoadMoreTransactions}
+                          disabled={loadingMoreTx}
+                          className="btn-secondary text-sm"
+                        >
+                          {loadingMoreTx ? "Loading…" : "Load more"}
+                        </motion.button>
+                      </div>
                     )}
                   </>
                 )
