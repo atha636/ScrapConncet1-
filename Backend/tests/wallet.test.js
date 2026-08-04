@@ -143,4 +143,80 @@ describe("GET /api/wallet/transactions", () => {
     expect(res.body.data[0].amount).toBe(250);
     expect(res.body.data[0].pickup.scrapType).toBe("metal");
   });
+
+  test("paginates when there are more transactions than the page limit", async () => {
+    // Complete 3 separate pickups so there are 3 distinct earning entries
+    for (let i = 0; i < 3; i++) {
+      const p = await Pickup.create({
+        user: requester._id,
+        collector: collector._id,
+        scrapType: "metal",
+        estimatedWeightKg: 1,
+        location: { lat: 30.7, lng: 76.7, address: "Test" },
+        price: 100,
+        status: "in_progress",
+        statusHistory: [{ status: "in_progress", changedBy: collector._id }],
+      });
+      await request(app)
+        .patch(`/api/pickup/${p._id}/status`)
+        .set("Authorization", `Bearer ${collectorToken}`)
+        .send({ status: "completed" });
+    }
+
+    const page1 = await request(app)
+      .get("/api/wallet/transactions")
+      .query({ limit: 2, page: 1 })
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(page1.body.data).toHaveLength(2);
+    expect(page1.body.total).toBe(3);
+    expect(page1.body.totalPages).toBe(2);
+
+    const page2 = await request(app)
+      .get("/api/wallet/transactions")
+      .query({ limit: 2, page: 2 })
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(page2.body.data).toHaveLength(1);
+    // No overlap between pages
+    const page1Ids = page1.body.data.map((t) => t._id);
+    const page2Ids = page2.body.data.map((t) => t._id);
+    expect(page1Ids.some((id) => page2Ids.includes(id))).toBe(false);
+  });
+});
+
+describe("GET /api/wallet/trend", () => {
+  test("reports today's earning in the 30-day series", async () => {
+    await complete();
+
+    const res = await request(app)
+      .get("/api/wallet/trend")
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.series).toHaveLength(30);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const todayEntry = res.body.series.find((d) => d.date === today);
+    expect(todayEntry.earned).toBe(250);
+    expect(todayEntry.count).toBe(1);
+  });
+
+  test("days with no earnings show as zero, not missing", async () => {
+    const res = await request(app)
+      .get("/api/wallet/trend")
+      .set("Authorization", `Bearer ${collectorToken}`);
+
+    expect(res.body.series).toHaveLength(30);
+    expect(res.body.series.every((d) => d.earned === 0)).toBe(true);
+  });
+
+  test("only a collector can access their earnings trend", async () => {
+    const requesterToken = jwt.sign({ id: requester._id, role: "user" }, process.env.JWT_SECRET);
+    const res = await request(app)
+      .get("/api/wallet/trend")
+      .set("Authorization", `Bearer ${requesterToken}`);
+
+    expect(res.status).toBe(403);
+  });
 });

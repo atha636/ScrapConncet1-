@@ -54,6 +54,46 @@ exports.getSummary = asyncHandler(async (req, res) => {
   });
 });
 
+// GET /api/wallet/trend  (collector only)
+// Daily earnings for the last 30 days — same day-filling pattern as the
+// admin analytics series, so a quiet day shows as a real dip to zero
+// instead of just vanishing from the chart.
+exports.getEarningsTrend = asyncHandler(async (req, res) => {
+  const days = 30;
+  const since = new Date();
+  since.setDate(since.getDate() - (days - 1));
+  since.setHours(0, 0, 0, 0);
+
+  const collectorId = new mongoose.Types.ObjectId(req.user.id);
+
+  const earningsAgg = await Transaction.aggregate([
+    { $match: { collector: collectorId, type: "earning", createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        earned: { $sum: "$amount" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const byDay = Object.fromEntries(earningsAgg.map((d) => [d._id, d]));
+
+  const series = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    series.push({
+      date: key,
+      earned: byDay[key]?.earned || 0,
+      count: byDay[key]?.count || 0,
+    });
+  }
+
+  res.json({ series });
+});
+
 // GET /api/wallet/transactions  (collector only)
 exports.getTransactions = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
