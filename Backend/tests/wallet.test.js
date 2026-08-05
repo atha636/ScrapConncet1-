@@ -90,7 +90,6 @@ describe("Completing a pickup credits the collector's ledger", () => {
       .patch(`/api/pickup/${pickup._id}/status`)
       .set("Authorization", `Bearer ${collectorToken}`)
       .send({ status: "cancelled" });
-
     const transactions = await Transaction.find({ collector: collector._id });
     expect(transactions).toHaveLength(0);
   });
