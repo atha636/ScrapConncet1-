@@ -9,10 +9,7 @@ const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
-// A no-op stand-in for the Socket.io server. server.js overwrites this via
-// app.set("io", io) once it creates the real one. Tests (and any other
-// context that imports this app without going through server.js) still get
-// a safe req.io that won't throw if a controller calls req.io.emit(...).
+
 const noopIo = {
   emit: () => {},
   to: () => ({ emit: () => {} }),
