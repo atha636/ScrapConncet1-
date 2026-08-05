@@ -15,8 +15,8 @@ const mongoose = require("mongoose");
 const transactionSchema = new mongoose.Schema(
   {
     collector: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    pickup: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup", default: null },
-    payoutRequest: { type: mongoose.Schema.Types.ObjectId, ref: "PayoutRequest", default: null },
+    pickup: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup" },
+    payoutRequest: { type: mongoose.Schema.Types.ObjectId, ref: "PayoutRequest" },
     type: { type: String, enum: ["earning", "payout"], default: "earning" },
     amount: { type: Number, required: true, min: 0 },
   },
