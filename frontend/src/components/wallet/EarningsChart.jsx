@@ -2,9 +2,6 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import Card from "../ui/Card";
 import { formatPrice } from "../../utils/formatPrice";
 
-// Same palette and tooltip treatment as AdminCharts, so a collector's own
-// earnings chart reads as the same visual language as the admin analytics
-// charts elsewhere in the app, not a different component's idea of a chart.
 const COLORS = {
   rust: "#A63D24",
   inkSoft: "#6B5A47",
