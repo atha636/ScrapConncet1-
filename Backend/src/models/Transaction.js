@@ -14,8 +14,7 @@ const transactionSchema = new mongoose.Schema(
 transactionSchema.index({ collector: 1, createdAt: -1 });
 transactionSchema.index({ pickup: 1, type: 1 }, { unique: true, sparse: true });
 
-// One ledger entry per payout request — the idempotency guard that makes
-// approvePayout safe to retry without ever double-debiting the same request.
+
 transactionSchema.index({ payoutRequest: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Transaction", transactionSchema);
