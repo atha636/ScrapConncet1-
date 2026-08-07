@@ -16,6 +16,7 @@ import ErrorBox from "../../components/common/ErrorBox";
 import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
+import { getRatings } from "../../services/ratingService";
 import MapModal from "../../components/map/MapModal";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import { formatPrice } from "../../utils/formatPrice";
@@ -218,6 +219,40 @@ export default function CollectorDashboard() {
 
   const activeJobs = myJobs.filter((j) => ["accepted", "in_progress"].includes(j.status));
   const pastJobs = myJobs.filter((j) => ["completed", "cancelled"].includes(j.status));
+
+  // myJobs doesn't tell us whether *this* collector already rated a completed
+  // pickup — that only lives in the Rating collection. Check each completed
+  // job once jobs load so "Rate requester" doesn't show for ones already rated.
+  useEffect(() => {
+    const toCheck = myJobs.filter((j) => j.status === "completed" && j.user);
+    if (toCheck.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      toCheck.map((j) =>
+        getRatings(j._id)
+          .then((res) => ({ id: j._id, ratings: res.data }))
+          .catch(() => ({ id: j._id, ratings: [] }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const myId = user?._id;
+      setRatedIds((prev) => {
+        const next = new Set(prev);
+        results.forEach(({ id, ratings }) => {
+          if (ratings.some((r) => String(r.fromUser?._id || r.fromUser) === String(myId))) {
+            next.add(id);
+          }
+        });
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myJobs, user?._id]);
 
   const filteredAvailable = available
     .filter((item) => typeFilter === "all" || item.scrapType === typeFilter)
@@ -528,6 +563,14 @@ export default function CollectorDashboard() {
                                 </svg>
                                 Rate requester
                               </button>
+                            )}
+                            {item.status === "completed" && item.user && ratedIds.has(item._id) && (
+                              <span className="text-xs font-semibold text-ink/50 flex items-center gap-1">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                Already rated
+                              </span>
                             )}
                           </div>
                         </Card>
