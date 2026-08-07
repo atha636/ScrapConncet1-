@@ -13,6 +13,8 @@ import RequestDetailModal from "../../components/pickup/RequestDetailModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
+import { getRatings } from "../../services/ratingService";
+import { useAuth } from "../../context/AuthContext";
 
 const TYPE_LABELS = {
   metal: "Metal",
@@ -34,6 +36,7 @@ const listItem = {
 
 export default function MyRequests() {
   useDocumentMeta({ title: "My Requests", noindex: true });
+  const { user } = useAuth();
 
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
@@ -63,6 +66,40 @@ export default function MyRequests() {
   }, []);
 
   useEffect(() => { load(1); }, [load]);
+
+  // items doesn't tell us whether *this* requester already rated a completed
+  // pickup's collector — that only lives in the Rating collection. Check each
+  // completed item once loaded so "Rate collector" doesn't show for ones already rated.
+  useEffect(() => {
+    const toCheck = items.filter((j) => j.status === "completed" && j.collector);
+    if (toCheck.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      toCheck.map((j) =>
+        getRatings(j._id)
+          .then((res) => ({ id: j._id, ratings: res.data }))
+          .catch(() => ({ id: j._id, ratings: [] }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const myId = user?._id;
+      setRatedIds((prev) => {
+        const next = new Set(prev);
+        results.forEach(({ id, ratings }) => {
+          if (ratings.some((r) => String(r.fromUser?._id || r.fromUser) === String(myId))) {
+            next.add(id);
+          }
+        });
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, user?._id]);
 
   // Live-refresh when a collector accepts / updates one of this user's pickups
   useSocket("updatePickup", (updated) => {
@@ -194,6 +231,14 @@ export default function MyRequests() {
                         </svg>
                         Rate collector
                       </button>
+                    )}
+                    {item.status === "completed" && item.collector && ratedIds.has(item._id) && (
+                      <span className="text-xs font-semibold text-ink/50 flex items-center gap-1">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        Already rated
+                      </span>
                     )}
                   </div>
                 </Card>
