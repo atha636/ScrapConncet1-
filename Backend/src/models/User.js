@@ -15,9 +15,7 @@ const userSchema = new mongoose.Schema(
     collectorSuspended: { type: Boolean, default: false },
     collectorSuspendedAt: { type: Date, default: null },
 
-    // Email verification — soft gate: unverified users can still log in and
-    // use the app, but see a reminder banner. Not enforced as a hard block
-    // by default (see authController for where that decision lives).
+    
     isVerified: { type: Boolean, default: false },
     verificationTokenHash: { type: String, select: false, default: null },
     verificationTokenExpires: { type: Date, select: false, default: null },
