@@ -17,6 +17,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import { getRatings } from "../../services/ratingService";
+import { hasUserRated } from "../../utils/ratings";
 import MapModal from "../../components/map/MapModal";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import { formatPrice } from "../../utils/formatPrice";
@@ -240,7 +241,7 @@ export default function CollectorDashboard() {
       setRatedIds((prev) => {
         const next = new Set(prev);
         results.forEach(({ id, ratings }) => {
-          if (ratings.some((r) => String(r.fromUser?._id || r.fromUser) === String(myId))) {
+          if (hasUserRated(ratings, myId)) {
             next.add(id);
           }
         });
@@ -251,7 +252,6 @@ export default function CollectorDashboard() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myJobs, user?._id]);
 
   const filteredAvailable = available
