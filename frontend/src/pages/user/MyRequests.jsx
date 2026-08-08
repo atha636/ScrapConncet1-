@@ -15,6 +15,7 @@ import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import { getRatings } from "../../services/ratingService";
 import { useAuth } from "../../context/AuthContext";
+import { hasUserRated } from "../../utils/ratings";
 
 const TYPE_LABELS = {
   metal: "Metal",
@@ -87,7 +88,7 @@ export default function MyRequests() {
       setRatedIds((prev) => {
         const next = new Set(prev);
         results.forEach(({ id, ratings }) => {
-          if (ratings.some((r) => String(r.fromUser?._id || r.fromUser) === String(myId))) {
+          if (hasUserRated(ratings, myId)) {
             next.add(id);
           }
         });
@@ -98,7 +99,6 @@ export default function MyRequests() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, user?._id]);
 
   // Live-refresh when a collector accepts / updates one of this user's pickups
