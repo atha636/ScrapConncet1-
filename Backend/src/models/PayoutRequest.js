@@ -24,4 +24,16 @@ const payoutRequestSchema = new mongoose.Schema(
 payoutRequestSchema.index({ collector: 1, createdAt: -1 });
 payoutRequestSchema.index({ status: 1, createdAt: -1 });
 
+// Enforces "one pending request at a time" atomically at the DB level —
+// the controller's findOne-then-create check alone has a race window where
+// two rapid submissions (e.g. a double-tapped button) could both pass the
+// check before either creates its document. A partial unique index only
+// applies to documents matching the filter, so a collector can freely have
+// many approved/rejected requests in their history — just never two
+// pending ones at once.
+payoutRequestSchema.index(
+  { collector: 1 },
+  { unique: true, partialFilterExpression: { status: "pending" } }
+);
+
 module.exports = mongoose.model("PayoutRequest", payoutRequestSchema);

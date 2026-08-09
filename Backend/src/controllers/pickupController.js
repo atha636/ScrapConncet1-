@@ -148,13 +148,26 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
     );
   }
 
-  const pickup = await Pickup.findById(req.params.id);
-  if (!pickup) throw new ApiError(404, "Pickup not found");
-  if (pickup.status !== "pending") throw new ApiError(409, "Pickup is no longer available");
+  // Atomic find-and-update, scoped to status: "pending" in the filter itself
+  // — not a separate read-then-write. Two collectors tapping "Accept" on the
+  // same pickup at the same moment can no longer both pass a status check
+  // and then both save; only one findOneAndUpdate can match and flip the
+  // status in a single atomic op, so the loser reliably gets null back
+  // instead of silently overwriting the winner's collector assignment.
+  const pickup = await Pickup.findOneAndUpdate(
+    { _id: req.params.id, status: "pending" },
+    {
+      $set: { collector: req.user.id, status: "accepted" },
+      $push: { statusHistory: { status: "accepted", changedBy: req.user.id } },
+    },
+    { new: true }
+  );
 
-  pickup.collector = req.user.id;
-  pickup.pushHistory("accepted", req.user.id);
-  await pickup.save();
+  if (!pickup) {
+    const exists = await Pickup.exists({ _id: req.params.id });
+    throw new ApiError(exists ? 409 : 404, exists ? "Pickup is no longer available" : "Pickup not found");
+  }
+
   await pickup.populate("collector", "name");
 
   req.io.emit("updatePickup", pickup);

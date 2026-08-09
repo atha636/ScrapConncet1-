@@ -124,7 +124,9 @@ exports.requestPayout = asyncHandler(async (req, res) => {
   // several requests summing to more than their actual balance before any
   // of them get reviewed, since "pending" amounts are only reserved against
   // the balance individually, not checked against each other cumulatively
-  // beyond this guard.
+  // beyond this guard. This check is a fast-path for the common case; the
+  // partial unique index on PayoutRequest is what actually guarantees it
+  // even if two requests race past this check at the same instant.
   const existingPending = await PayoutRequest.findOne({ collector: req.user.id, status: "pending" });
   if (existingPending) {
     throw new ApiError(409, "You already have a pending payout request.");
@@ -135,8 +137,13 @@ exports.requestPayout = asyncHandler(async (req, res) => {
     throw new ApiError(400, `You can withdraw up to ₹${available} right now.`);
   }
 
-  const request = await PayoutRequest.create({ collector: req.user.id, amount });
-  res.status(201).json(request);
+  try {
+    const request = await PayoutRequest.create({ collector: req.user.id, amount });
+    res.status(201).json(request);
+  } catch (err) {
+    if (err.code === 11000) throw new ApiError(409, "You already have a pending payout request.");
+    throw err;
+  }
 });
 
 // GET /api/wallet/payouts  (collector only) — the requesting collector's own history

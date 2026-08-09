@@ -187,18 +187,32 @@ exports.getPayoutRequests = asyncHandler(async (req, res) => {
 // Creates the actual ledger debit — a pending request has no Transaction
 // yet, only this step produces one. Re-checks the balance at approval time
 // (not just at request time), since a collector's available balance could
-// have moved since they asked. The unique index on Transaction.payoutRequest
-// makes this safe to retry: a second approve attempt on an already-approved
-// request hits that constraint and fails cleanly instead of double-debiting.
+// have moved since they asked.
+//
+// The pending -> approved transition itself is atomic (findOneAndUpdate
+// scoped to status: "pending"), and only the caller that wins it goes on to
+// create the Transaction. This is what stops a reject fired at the same
+// instant from flipping an already-approved request back to "rejected" —
+// reject's own atomic transition (see rejectPayout) can only succeed while
+// status is still "pending", so once approve wins here, reject's update
+// simply matches nothing and fails cleanly with 409 instead of silently
+// overwriting a request that already has a real ledger entry.
 exports.approvePayout = asyncHandler(async (req, res) => {
-  const request = await PayoutRequest.findById(req.params.id);
-  if (!request) throw new ApiError(404, "Payout request not found");
-  if (request.status !== "pending") throw new ApiError(400, "This request has already been processed");
+  const existing = await PayoutRequest.findById(req.params.id);
+  if (!existing) throw new ApiError(404, "Payout request not found");
+  if (existing.status !== "pending") throw new ApiError(400, "This request has already been processed");
 
-  const { available } = await getAvailableBalance(request.collector, request._id);
-  if (request.amount > available) {
+  const { available } = await getAvailableBalance(existing.collector, existing._id);
+  if (existing.amount > available) {
     throw new ApiError(400, "This collector's balance no longer covers this request");
   }
+
+  const request = await PayoutRequest.findOneAndUpdate(
+    { _id: existing._id, status: "pending" },
+    { $set: { status: "approved", processedAt: new Date(), processedBy: req.user.id } },
+    { new: true }
+  );
+  if (!request) throw new ApiError(409, "This request was already processed");
 
   try {
     await Transaction.create({
@@ -208,14 +222,11 @@ exports.approvePayout = asyncHandler(async (req, res) => {
       payoutRequest: request._id,
     });
   } catch (err) {
-    if (err.code === 11000) throw new ApiError(409, "This request was already approved");
-    throw err;
+    // Unique index on (payoutRequest) means a duplicate here is a retried
+    // approve attempt on a request this same call already approved and
+    // debited — not a real error.
+    if (err.code !== 11000) throw err;
   }
-
-  request.status = "approved";
-  request.processedAt = new Date();
-  request.processedBy = req.user.id;
-  await request.save();
 
   res.json(request);
 });
@@ -223,16 +234,26 @@ exports.approvePayout = asyncHandler(async (req, res) => {
 // PATCH /api/admin/payouts/:id/reject
 // No ledger entry is created or reversed — a rejected request never touched
 // the Transaction collection in the first place, so there's nothing to undo.
+// The status transition is atomic and scoped to status: "pending" so a
+// reject racing an approve for the same request can't win after the
+// approve already created a ledger entry — see approvePayout above.
 exports.rejectPayout = asyncHandler(async (req, res) => {
-  const request = await PayoutRequest.findById(req.params.id);
-  if (!request) throw new ApiError(404, "Payout request not found");
-  if (request.status !== "pending") throw new ApiError(400, "This request has already been processed");
+  const update = { status: "rejected", processedAt: new Date(), processedBy: req.user.id };
+  if (req.body?.note) update.adminNote = req.body.note;
 
-  request.status = "rejected";
-  request.processedAt = new Date();
-  request.processedBy = req.user.id;
-  if (req.body?.note) request.adminNote = req.body.note;
-  await request.save();
+  const request = await PayoutRequest.findOneAndUpdate(
+    { _id: req.params.id, status: "pending" },
+    { $set: update },
+    { new: true }
+  );
+
+  if (!request) {
+    const exists = await PayoutRequest.exists({ _id: req.params.id });
+    throw new ApiError(
+      exists ? 400 : 404,
+      exists ? "This request has already been processed" : "Payout request not found"
+    );
+  }
 
   res.json(request);
 });
