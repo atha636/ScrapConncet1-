@@ -9,6 +9,7 @@ const createApp = require("./app");
 const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
+const { buildCorsOriginCheck } = require("./config/cors");
 
 connectDB();
 
@@ -18,7 +19,7 @@ const server = http.createServer(app);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
 const io = new Server(server, {
-  cors: { origin: CLIENT_ORIGIN },
+  cors: { origin: buildCorsOriginCheck(CLIENT_ORIGIN) },
 });
 app.set("io", io);
 

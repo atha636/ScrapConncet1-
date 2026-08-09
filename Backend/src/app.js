@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 
 const sanitize = require("./middleware/sanitize");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const { buildCorsOriginCheck } = require("./config/cors");
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
@@ -20,7 +21,7 @@ function createApp() {
   app.set("io", noopIo);
 
   app.use(helmet());
-  app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+  app.use(cors({ origin: buildCorsOriginCheck(CLIENT_ORIGIN), credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(sanitize);
 
