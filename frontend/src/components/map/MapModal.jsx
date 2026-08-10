@@ -17,9 +17,9 @@ export default function MapModal({ open, onClose, lat, lng, label, address }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.97 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="ticket w-full max-w-md overflow-hidden"
+            className="ticket w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col"
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-surfaceRaised">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-surfaceRaised shrink-0">
               <div>
                 <div className="font-display font-semibold text-ink text-sm">Pickup location</div>
                 {address && <div className="text-xs text-inkFaint mt-0.5">{address}</div>}
@@ -37,7 +37,9 @@ export default function MapModal({ open, onClose, lat, lng, label, address }) {
                 </svg>
               </motion.button>
             </div>
-            <PickupMap lat={lat} lng={lng} label={label} height={320} />
+            <div className="overflow-y-auto">
+              <PickupMap lat={lat} lng={lng} label={label} height={280} />
+            </div>
           </motion.div>
         </motion.div>
       )}
