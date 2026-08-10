@@ -211,12 +211,12 @@ export default function AdminPanel() {
       <h1 className="font-display text-2xl font-bold text-ink mb-1">Admin panel</h1>
       <p className="text-sm text-inkSoft mb-6">Platform-wide oversight — users, pickups, and stats.</p>
 
-      <div className="flex gap-1 mb-6 border-b border-line">
+      <div className="flex gap-1 mb-6 border-b border-line overflow-x-auto scrollbar-hide">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors ${
+            className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors shrink-0 whitespace-nowrap ${
               tab === t.key ? "text-rust" : "text-inkSoft hover:text-ink"
             }`}
           >
