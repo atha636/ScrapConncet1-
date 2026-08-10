@@ -289,12 +289,12 @@ export default function CollectorDashboard() {
 
         {/* Tabs, with a sliding underline instead of a per-button static border —
             the indicator itself animates between positions via layoutId. */}
-        <div className="flex gap-1 mb-6 border-b border-line">
+        <div className="flex gap-1 mb-6 border-b border-line overflow-x-auto scrollbar-hide">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors ${
+              className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors shrink-0 whitespace-nowrap ${
                 tab === t.key ? "text-rust" : "text-inkSoft hover:text-ink"
               }`}
             >

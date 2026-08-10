@@ -169,3 +169,16 @@ h1, h2, h3, h4, .font-display {
 }
 .btn-secondary:hover:not(:disabled) { border-color: #A63D24; background: rgba(166, 61, 36, 0.05); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- Horizontally-scrollable tab bars on narrow screens ---------- */
+/* Tab bars (dashboard tabs, admin tabs) scroll instead of wrapping or
+   overflowing the viewport on small screens — the scrollbar itself is
+   hidden since a swipeable row of tabs reads as a native mobile pattern,
+   not a broken layout with a visible scrollbar. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
