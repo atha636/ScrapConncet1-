@@ -118,7 +118,11 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-secondary !py-2 !px-3.5 text-xs">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLogout}
+            className="hidden sm:inline-flex btn-secondary !py-2 !px-3.5 text-xs"
+          >
             Log out
           </motion.button>
 
@@ -181,6 +185,15 @@ export default function Navbar() {
               >
                 Profile
               </Link>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleLogout();
+                }}
+                className="text-left px-3 py-2.5 rounded-md text-sm font-medium text-inkSoft"
+              >
+                Log out
+              </button>
             </div>
           </motion.div>
         )}
