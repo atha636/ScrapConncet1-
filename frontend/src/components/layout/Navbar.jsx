@@ -39,10 +39,7 @@ export default function Navbar() {
     navigate("/login");
   };
 
-  // Single click -> public landing page. Three clicks within the window ->
-  // hidden admin portal. There's no visible link to /admin-login anywhere
-  // else in the app on purpose. (Logic unchanged — only the visual wrapper
-  // around this button was touched.)
+  
   const handleLogoClick = (e) => {
     e.preventDefault();
     clickCount.current += 1;
