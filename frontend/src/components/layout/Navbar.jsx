@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import NotificationBell from "./NotificationBell";
+import ConfirmModal from "../common/ConfirmModal";
 
 const HOME_LINK = { to: "/", label: "Home" };
 
@@ -22,6 +23,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const clickCount = useRef(0);
   const clickTimer = useRef(null);
 
@@ -34,12 +36,16 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
+    setConfirmLogoutOpen(false);
     logout();
     navigate("/login");
   };
 
-  
+  // Single click -> public landing page. Three clicks within the window ->
+  // hidden admin portal. There's no visible link to /admin-login anywhere
+  // else in the app on purpose. (Logic unchanged — only the visual wrapper
+  // around this button was touched.)
   const handleLogoClick = (e) => {
     e.preventDefault();
     clickCount.current += 1;
@@ -117,7 +123,7 @@ export default function Navbar() {
 
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleLogout}
+            onClick={() => setConfirmLogoutOpen(true)}
             className="hidden sm:inline-flex btn-secondary !py-2 !px-3.5 text-xs"
           >
             Log out
@@ -185,7 +191,7 @@ export default function Navbar() {
               <button
                 onClick={() => {
                   setMenuOpen(false);
-                  handleLogout();
+                  setConfirmLogoutOpen(true);
                 }}
                 className="text-left px-3 py-2.5 rounded-md text-sm font-medium text-inkSoft"
               >
@@ -195,6 +201,16 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        open={confirmLogoutOpen}
+        title="Log out?"
+        message="You'll need to sign in again to access your account."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setConfirmLogoutOpen(false)}
+      />
     </nav>
   );
 }
