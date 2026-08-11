@@ -135,7 +135,8 @@ export default function NotificationBell() {
               exit={{ opacity: 0, scale: 0.95, y: -6 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
               style={{ transformOrigin: "top right" }}
-              className="absolute right-0 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] bg-surfaceRaised
+              className="fixed inset-x-4 top-[4.25rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2
+                         w-auto sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] bg-surfaceRaised
                          border border-line rounded-lg shadow-[0_8px_24px_rgba(36,26,18,0.14)]
                          overflow-hidden z-50"
             >
