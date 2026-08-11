@@ -4,7 +4,7 @@ import Navbar from "./components/layout/Navbar";
 import { useAuth } from "./context/AuthContext";
 
 
-const STANDALONE_ROUTES = ["/", "/login", "/register", "/admin-login"];
+const STANDALONE_ROUTES = ["/", "/about", "/login", "/register", "/admin-login"];
 
 export default function App() {
   const { user } = useAuth();

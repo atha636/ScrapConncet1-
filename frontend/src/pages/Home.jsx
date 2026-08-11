@@ -420,6 +420,7 @@ export default function Home() {
           <div className="max-w-6xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-inkFaint">
             <span>© {new Date().getFullYear()} ScrapConnect</span>
             <div className="flex gap-5">
+              <Link to="/about" className="hover:text-rust">About us</Link>
               {user ? (
                 <Link to={roleHome(user.role)} className="hover:text-rust">Dashboard</Link>
               ) : (

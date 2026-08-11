@@ -6,16 +6,18 @@ import NotificationBell from "./NotificationBell";
 import ConfirmModal from "../common/ConfirmModal";
 
 const HOME_LINK = { to: "/", label: "Home" };
+const ABOUT_LINK = { to: "/about", label: "About us" };
 
 const USER_LINKS = [
   HOME_LINK,
   { to: "/dashboard", label: "Dashboard" },
   { to: "/request", label: "Request pickup" },
   { to: "/my-requests", label: "My requests" },
+  ABOUT_LINK,
 ];
 
-const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "Collector" }];
-const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "Admin" }];
+const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "Collector" }, ABOUT_LINK];
+const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "Admin" }, ABOUT_LINK];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
