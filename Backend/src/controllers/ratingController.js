@@ -42,25 +42,48 @@ exports.submitRating = asyncHandler(async (req, res) => {
     comment: req.body.comment,
   });
 
-  // Recompute the target user's running average rather than storing a full
-  // history read — cheap to update incrementally on every new rating.
+  // Recompute the target user's average/count from the Rating collection
+  // itself, rather than the previous read-modify-write on the User document
+  // (target.rating * target.ratingCount + score, then save()). That
+  // approach has no atomicity at all: two ratings landing for the same
+  // collector at nearly the same moment (very plausible for a busy
+  // collector — two different requesters' pickups completing close
+  // together) would both read the same starting rating/ratingCount, and
+  // whichever save() finishes last would silently overwrite the other's
+  // contribution — the Rating document itself would still exist correctly,
+  // but the collector's average/count would permanently understate it,
+  // with nothing to ever self-correct the drift.
+  //
+  // Aggregating straight from Rating on every submission is inherently
+  // self-healing instead: even if two submissions race on the final User
+  // write, each one computes its numbers fresh from every Rating document
+  // that exists in the DB at that instant, so the small window where the
+  // very latest write might be momentarily overwritten resolves itself the
+  // next time anyone is rated — it can never drift further and further from
+  // reality the way the incremental version could.
   const target = await User.findById(toUser);
-  const newCount = target.ratingCount + 1;
-  const newAverage = (target.rating * target.ratingCount + rating.score) / newCount;
-  target.rating = Math.round(newAverage * 10) / 10;
-  target.ratingCount = newCount;
+
+  const [agg] = await Rating.aggregate([
+    { $match: { toUser: target._id } },
+    { $group: { _id: null, avg: { $avg: "$score" }, count: { $sum: 1 } } },
+  ]);
+
+  const newCount = agg?.count || 0;
+  const newAverage = agg ? Math.round(agg.avg * 10) / 10 : 0;
+
+  const update = { rating: newAverage, ratingCount: newCount };
 
   if (
     target.role === "collector" &&
     !target.collectorSuspended &&
     newCount >= MIN_RATINGS_FOR_GATE &&
-    target.rating < SUSPENSION_THRESHOLD
+    newAverage < SUSPENSION_THRESHOLD
   ) {
-    target.collectorSuspended = true;
-    target.collectorSuspendedAt = new Date();
+    update.collectorSuspended = true;
+    update.collectorSuspendedAt = new Date();
   }
 
-  await target.save();
+  await User.findByIdAndUpdate(toUser, { $set: update });
 
   res.status(201).json(rating);
 });
