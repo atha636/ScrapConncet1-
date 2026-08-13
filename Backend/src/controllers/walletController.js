@@ -58,11 +58,21 @@ exports.getSummary = asyncHandler(async (req, res) => {
 // Daily earnings for the last 30 days — same day-filling pattern as the
 // admin analytics series, so a quiet day shows as a real dip to zero
 // instead of just vanishing from the chart.
+//
+// Everything here uses UTC date methods (getUTCDate/setUTCDate/setUTCHours),
+// not the local-time equivalents. MongoDB's $dateToString defaults to UTC,
+// so building the day keys with local-time arithmetic and only converting
+// to UTC at the very end (via toISOString) silently shifts every date by a
+// day on any machine not running in UTC — e.g. IST (UTC+5:30): local
+// midnight is 18:30 UTC the *previous* day, so "today" in local terms would
+// never match the real UTC-today bucket the aggregation groups by. Staying
+// in UTC throughout means the series lines up with the aggregation and with
+// what toISOString() produces, regardless of the server's local timezone.
 exports.getEarningsTrend = asyncHandler(async (req, res) => {
   const days = 30;
   const since = new Date();
-  since.setDate(since.getDate() - (days - 1));
-  since.setHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+  since.setUTCHours(0, 0, 0, 0);
 
   const collectorId = new mongoose.Types.ObjectId(req.user.id);
 
@@ -82,7 +92,7 @@ exports.getEarningsTrend = asyncHandler(async (req, res) => {
   const series = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(since);
-    d.setDate(d.getDate() + i);
+    d.setUTCDate(d.getUTCDate() + i);
     const key = d.toISOString().slice(0, 10);
     series.push({
       date: key,
