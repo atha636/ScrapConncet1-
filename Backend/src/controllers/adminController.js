@@ -62,11 +62,16 @@ exports.getStats = asyncHandler(async (req, res) => {
 // Time-series data for charts — daily pickup volume and daily revenue over
 // the last 30 days. Missing days (no activity) are backfilled with zero
 // rather than left out, so the chart doesn't silently skip gaps.
+//
+// UTC date methods throughout (see getEarningsTrend in walletController for
+// the full explanation) — mixing local-time Date arithmetic with a
+// UTC-formatted key silently shifts every bucket by a day on any machine
+// not running in UTC, since MongoDB's $dateToString defaults to UTC.
 exports.getAnalytics = asyncHandler(async (req, res) => {
   const days = 30;
   const since = new Date();
-  since.setDate(since.getDate() - (days - 1));
-  since.setHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+  since.setUTCHours(0, 0, 0, 0);
 
   const [pickupsAgg, revenueAgg] = await Promise.all([
     Pickup.aggregate([
@@ -105,7 +110,7 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
   const series = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(since);
-    d.setDate(d.getDate() + i);
+    d.setUTCDate(d.getUTCDate() + i);
     const key = d.toISOString().slice(0, 10);
     series.push({
       date: key,
