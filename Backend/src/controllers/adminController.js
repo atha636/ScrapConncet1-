@@ -12,6 +12,15 @@ const paginate = (query, defaultLimit = 20) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 
+// A search term is free text, not a regex the caller intends to write — so
+// characters that are regex-special (., +, *, ?, etc.) need escaping before
+// going into `new RegExp()`. Without this, searching for a Gmail-alias-style
+// email like "foo+test@gmail.com" silently matches the wrong things (the
+// `+` is read as "one or more of the preceding character", not a literal
+// plus), and a search starting with a bare quantifier like "+foo" throws
+// "Invalid regular expression" instead of just finding no results.
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // GET /api/admin/stats
 exports.getStats = asyncHandler(async (req, res) => {
   const [
@@ -115,7 +124,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
 
   if (req.query.role) filter.role = req.query.role;
   if (req.query.search) {
-    const re = new RegExp(req.query.search.trim(), "i");
+    const re = new RegExp(escapeRegex(req.query.search.trim()), "i");
     filter.$or = [{ name: re }, { email: re }];
   }
 
