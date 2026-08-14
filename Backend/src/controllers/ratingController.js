@@ -44,25 +44,6 @@ exports.submitRating = asyncHandler(async (req, res) => {
 
   // Recompute the target user's average/count from the Rating collection
   // itself, rather than the previous read-modify-write on the User document
-  // (target.rating * target.ratingCount + score, then save()). That
-  // approach has no atomicity at all: two ratings landing for the same
-  // collector at nearly the same moment (very plausible for a busy
-  // collector — two different requesters' pickups completing close
-  // together) would both read the same starting rating/ratingCount, and
-  // whichever save() finishes last would silently overwrite the other's
-  // contribution — the Rating document itself would still exist correctly,
-  // but the collector's average/count would permanently understate it,
-  // with nothing to ever self-correct the drift.
-  //
-  // Aggregating straight from Rating on every submission is inherently
-  // self-healing instead: even if two submissions race on the final User
-  // write, each one computes its numbers fresh from every Rating document
-  // that exists in the DB at that instant, so the small window where the
-  // very latest write might be momentarily overwritten resolves itself the
-  // next time anyone is rated — it can never drift further and further from
-  // reality the way the incremental version could.
-  const target = await User.findById(toUser);
-
   const [agg] = await Rating.aggregate([
     { $match: { toUser: target._id } },
     { $group: { _id: null, avg: { $avg: "$score" }, count: { $sum: 1 } } },
