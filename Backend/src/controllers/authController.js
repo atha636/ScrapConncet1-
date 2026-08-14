@@ -86,9 +86,18 @@ exports.changePassword = asyncHandler(async (req, res) => {
   if (!isMatch) throw new ApiError(401, "Current password is incorrect");
 
   user.password = await bcrypt.hash(newPassword, 12);
+  // Revokes every other token issued for this account (see middleware/auth.js)
+  // — otherwise a token obtained before this change, by anyone, stays valid
+  // under the old password's session until it naturally expires.
+  user.sessionVersion = (user.sessionVersion || 0) + 1;
   await user.save();
 
-  res.json({ success: true });
+  // This request's own token is now invalid too (it was signed with the old
+  // sessionVersion) — issue a fresh one so the current session keeps
+  // working instead of getting silently logged out immediately after a
+  // successful change.
+  const token = generateToken(user);
+  res.json({ success: true, token });
 });
 
 // GET /api/auth/verify-email?token=...
@@ -167,6 +176,10 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   user.password = await bcrypt.hash(newPassword, 12);
   user.resetTokenHash = null;
   user.resetTokenExpires = null;
+  // Same reasoning as changePassword — revoke whatever session(s) exist
+  // under the old password. No fresh token is issued here since the
+  // frontend redirects to /login after a successful reset anyway.
+  user.sessionVersion = (user.sessionVersion || 0) + 1;
   await user.save();
 
   res.json({ success: true });
