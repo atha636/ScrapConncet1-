@@ -23,6 +23,13 @@ const userSchema = new mongoose.Schema(
     // Password reset
     resetTokenHash: { type: String, select: false, default: null },
     resetTokenExpires: { type: Date, select: false, default: null },
+
+    // Bumped on password change/reset so previously issued JWTs stop being
+    // accepted (see middleware/auth.js) — without this, changing your
+    // password doesn't revoke a token someone else obtained, since JWTs are
+    // otherwise valid until they naturally expire regardless of what
+    // happens to the account afterward.
+    sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -34,6 +41,7 @@ userSchema.set("toJSON", {
     delete ret.verificationTokenExpires;
     delete ret.resetTokenHash;
     delete ret.resetTokenExpires;
+    delete ret.sessionVersion;
     delete ret.__v;
     return ret;
   },
