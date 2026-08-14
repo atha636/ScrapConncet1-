@@ -10,6 +10,20 @@ const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
 const { buildCorsOriginCheck } = require("./config/cors");
+const { hasCloudinaryConfig } = require("./config/cloudinary");
+
+// Fail fast in production rather than silently falling back to whatever
+// local/default storage multer-storage-cloudinary would otherwise use.
+// A misconfigured Cloudinary env var should be caught at deploy time, not
+// discovered later as a mysterious upload failure (or worse, images
+// quietly landing somewhere unintended) once real users start uploading.
+if (process.env.NODE_ENV === "production" && !hasCloudinaryConfig) {
+  console.error(
+    "❌ Refusing to start in production without Cloudinary configured " +
+      "(CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)."
+  );
+  process.exit(1);
+}
 
 connectDB();
 

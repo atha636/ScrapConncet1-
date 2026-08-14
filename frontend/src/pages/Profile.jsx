@@ -117,7 +117,14 @@ export default function Profile() {
 
     setSavingPassword(true);
     try {
-      await changePassword({ currentPassword, newPassword });
+      const res = await changePassword({ currentPassword, newPassword });
+      // The backend revokes the old session as part of changing the
+      // password (see authController.changePassword) and issues a fresh
+      // token in the response — swap it in so this tab keeps working
+      // instead of the very next request silently failing as "logged out".
+      if (res.data?.token) {
+        login(res.data.token, user);
+      }
       setPasswordSuccess(true);
       setCurrentPassword("");
       setNewPassword("");

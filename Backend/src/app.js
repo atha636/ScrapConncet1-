@@ -20,6 +20,18 @@ function createApp() {
   const app = express();
   app.set("io", noopIo);
 
+  // Railway (and most PaaS hosts) sit the app behind a single reverse
+  // proxy, so incoming requests arrive with the real client IP in
+  // X-Forwarded-For rather than as the actual TCP peer. Without this,
+  // express-rate-limit keys every request off the proxy's own IP instead
+  // of the real client — meaning the whole limiter effectively becomes one
+  // shared bucket for all traffic, not per-visitor. `1` means "trust
+  // exactly one hop", matching a single reverse proxy — not a wildcard
+  // trust of arbitrary forwarded headers.
+  if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  }
+
   app.use(helmet());
   app.use(cors({ origin: buildCorsOriginCheck(CLIENT_ORIGIN), credentials: true }));
   app.use(express.json({ limit: "1mb" }));
@@ -28,6 +40,21 @@ function createApp() {
   if (process.env.NODE_ENV !== "test") {
     app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
   }
+
+  // General ceiling across the whole API, on top of the stricter authLimiter
+  // below — auth previously had the only rate limit in the app, leaving
+  // every other endpoint (pickup creation, messages, etc.) with no abuse
+  // protection at all. This is deliberately generous (routine use should
+  // never come close to it) — it's a backstop against scripted hammering,
+  // not a throttle on normal usage.
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: "Too many requests, please slow down" },
+  });
+  app.use("/api", apiLimiter);
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
