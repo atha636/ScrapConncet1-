@@ -39,7 +39,7 @@ beforeEach(async () => {
 });
 
 function token(user) {
-  return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
+  return jwt.sign({ id: user._id, role: user.role, sessionVersion: user.sessionVersion || 0 }, process.env.JWT_SECRET);
 }
 
 // Creates a completed pickup between a fresh requester and the shared

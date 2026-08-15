@@ -24,7 +24,7 @@ afterAll(async () => {
 });
 
 function token(user) {
-  return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
+  return jwt.sign({ id: user._id, role: user.role, sessionVersion: user.sessionVersion || 0 }, process.env.JWT_SECRET);
 }
 
 // Credits the collector with `amount` by completing a pickup, exactly the

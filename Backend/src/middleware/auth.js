@@ -38,7 +38,16 @@ module.exports = asyncHandler(async (req, res, next) => {
   // though it hasn't expired yet — this is what makes a password change
   // actually revoke any other session using the old password, rather than
   // leaving it valid until it naturally expires up to 7 days later.
-  if (decoded.sessionVersion !== user.sessionVersion) {
+  //
+  // A token with no sessionVersion claim at all (rather than one that's
+  // simply behind) is treated as version 0, not as an automatic mismatch —
+  // 0 is the schema default every account starts at, so this doesn't weaken
+  // the actual invalidation guarantee: once a real password change bumps a
+  // user to sessionVersion 1+, a claim-less token still correctly fails the
+  // check below. This only changes how a token with an *absent* claim is
+  // read, not whether a stale version number is still rejected.
+  const tokenSessionVersion = decoded.sessionVersion ?? 0;
+  if (tokenSessionVersion !== user.sessionVersion) {
     return next(new ApiError(401, "Session expired, please log in again"));
   }
 

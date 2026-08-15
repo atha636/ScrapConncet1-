@@ -35,7 +35,10 @@ beforeEach(async () => {
     password: "Password123",
     role: "collector",
   });
-  collectorToken = jwt.sign({ id: collector._id, role: "collector" }, process.env.JWT_SECRET);
+  collectorToken = jwt.sign(
+    { id: collector._id, role: "collector", sessionVersion: 0 },
+    process.env.JWT_SECRET
+  );
 
   const requester = await User.create({
     name: "Test Requester",

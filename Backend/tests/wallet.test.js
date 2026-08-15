@@ -29,7 +29,10 @@ beforeEach(async () => {
     password: "Password123",
     role: "collector",
   });
-  collectorToken = jwt.sign({ id: collector._id, role: "collector" }, process.env.JWT_SECRET);
+  collectorToken = jwt.sign(
+    { id: collector._id, role: "collector", sessionVersion: 0 },
+    process.env.JWT_SECRET
+  );
 
   requester = await User.create({
     name: "Test Requester",
@@ -119,7 +122,10 @@ describe("GET /api/wallet/summary", () => {
   });
 
   test("a non-collector cannot access another collector's wallet", async () => {
-    const requesterToken = jwt.sign({ id: requester._id, role: "user" }, process.env.JWT_SECRET);
+    const requesterToken = jwt.sign(
+      { id: requester._id, role: "user", sessionVersion: 0 },
+      process.env.JWT_SECRET
+    );
 
     const res = await request(app)
       .get("/api/wallet/summary")
@@ -211,7 +217,10 @@ describe("GET /api/wallet/trend", () => {
   });
 
   test("only a collector can access their earnings trend", async () => {
-    const requesterToken = jwt.sign({ id: requester._id, role: "user" }, process.env.JWT_SECRET);
+    const requesterToken = jwt.sign(
+      { id: requester._id, role: "user", sessionVersion: 0 },
+      process.env.JWT_SECRET
+    );
     const res = await request(app)
       .get("/api/wallet/trend")
       .set("Authorization", `Bearer ${requesterToken}`);
