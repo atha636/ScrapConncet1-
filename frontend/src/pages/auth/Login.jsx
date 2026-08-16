@@ -5,6 +5,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate, Navigate, Link } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
+import { hasGoogleAuth } from "../../utils/googleAuthConfig";
 import { roleHome } from "../../utils/roleHome";
 
 export default function Login() {
@@ -162,6 +164,18 @@ export default function Login() {
               )}
               {loading ? "Signing in…" : "Sign in"}
             </motion.button>
+
+            {hasGoogleAuth && (
+              <>
+                <div className="flex items-center gap-3 my-5">
+                  <div className="h-px flex-1 bg-line" />
+                  <span className="text-[11px] text-inkFaint uppercase tracking-wide">or</span>
+                  <div className="h-px flex-1 bg-line" />
+                </div>
+
+                <GoogleSignInButton onError={setError} />
+              </>
+            )}
 
             <p className="text-center text-sm text-inkSoft mt-6">
               Don't have an account?{" "}

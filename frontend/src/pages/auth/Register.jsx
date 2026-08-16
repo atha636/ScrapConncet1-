@@ -4,6 +4,8 @@ import { registerUser } from "../../services/authService";
 import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
+import { hasGoogleAuth } from "../../utils/googleAuthConfig";
 import { useAuth } from "../../context/AuthContext";
 import { roleHome } from "../../utils/roleHome";
 
@@ -307,6 +309,18 @@ export default function Register() {
                   )}
                   {loading ? "Creating account…" : "Create account"}
                 </motion.button>
+
+                {hasGoogleAuth && (
+                  <>
+                    <div className="flex items-center gap-3 my-5">
+                      <div className="h-px flex-1 bg-line" />
+                      <span className="text-[11px] text-inkFaint uppercase tracking-wide">or</span>
+                      <div className="h-px flex-1 bg-line" />
+                    </div>
+
+                    <GoogleSignInButton wantsToBeCollector={form.wantsToBeCollector} onError={setError} />
+                  </>
+                )}
 
                 <p className="text-center text-sm text-inkSoft mt-6">
                   Already have an account?{" "}
