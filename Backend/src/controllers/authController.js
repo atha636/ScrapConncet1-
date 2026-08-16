@@ -5,6 +5,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const generateToken = require("../utils/generateToken");
 const { generateToken: generateSecureToken, hashToken } = require("../utils/token");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/sendEmail");
+const { googleClient, hasGoogleConfig } = require("../config/googleAuth");
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const RESET_TTL_MS = 60 * 60 * 1000; // 1h
@@ -46,11 +47,85 @@ exports.login = asyncHandler(async (req, res) => {
 
   if (!user.isActive) throw new ApiError(403, "This account has been deactivated");
 
+  // A Google-only account has no password to compare against — bcrypt.compare
+  // against a missing hash would throw, and even if it didn't, there's no
+  // password this person could type to satisfy this endpoint. Point them at
+  // the flow that actually works for their account instead of a confusing
+  // "invalid password" for a password that was never set.
+  if (!user.password) {
+    throw new ApiError(401, "This account uses Google sign-in — use \"Continue with Google\" instead");
+  }
+
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new ApiError(401, "Invalid email or password");
 
   const token = generateToken(user);
   user.password = undefined;
+  res.json({ token, user });
+});
+
+// POST /api/auth/google
+// Accepts a Google ID token (the "credential" from Google's Sign In With
+// Google button/prompt) obtained on the frontend, verifies it directly
+// against Google's public keys (never trusting anything the client claims
+// about the token's contents), then either logs in an existing
+// Google-linked account, links Google to an existing password account with
+// the same email, or creates a brand new account.
+exports.googleAuth = asyncHandler(async (req, res) => {
+  if (!hasGoogleConfig) {
+    throw new ApiError(503, "Google sign-in is not configured on this server");
+  }
+
+  const { credential, wantsToBeCollector } = req.body;
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    throw new ApiError(401, "Invalid Google sign-in — please try again");
+  }
+
+  // Google verifies the account's email ownership itself before issuing a
+  // token, but a rare unverified-email edge case (e.g. some Workspace
+  // configurations) shouldn't silently grant access to whatever inbox that
+  // address belongs to.
+  if (!payload.email_verified) {
+    throw new ApiError(401, "Your Google account's email isn't verified");
+  }
+
+  let user = await User.findOne({ googleId: payload.sub });
+
+  if (!user) {
+    // No account linked to this specific Google identity yet — check for an
+    // existing password-based account with the same email and link Google
+    // to it, rather than creating a confusing second account for the same
+    // person. Email match alone is a reasonable trust signal here because
+    // Google has already verified this address belongs to whoever is
+    // signing in right now.
+    user = await User.findOne({ email: payload.email });
+
+    if (user) {
+      user.googleId = payload.sub;
+      if (!user.isVerified) user.isVerified = true;
+      await user.save();
+    } else {
+      user = await User.create({
+        name: payload.name || payload.email.split("@")[0],
+        email: payload.email,
+        googleId: payload.sub,
+        role: wantsToBeCollector ? "collector" : "user",
+        isVerified: true, // Google already verified this email address
+      });
+    }
+  }
+
+  if (!user.isActive) throw new ApiError(403, "This account has been deactivated");
+
+  const token = generateToken(user);
   res.json({ token, user });
 });
 

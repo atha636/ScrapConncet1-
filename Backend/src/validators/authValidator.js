@@ -20,6 +20,11 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const googleAuthSchema = z.object({
+  credential: z.string().min(1, "Google credential is required"),
+  wantsToBeCollector: z.boolean().optional().default(false),
+});
+
 const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(60).optional(),
   phone: z.union([z.string().trim().min(7).max(20), z.literal("")]).optional(),
@@ -50,6 +55,7 @@ const resetPasswordSchema = z.object({
 module.exports = {
   registerSchema,
   loginSchema,
+  googleAuthSchema,
   updateProfileSchema,
   changePasswordSchema,
   forgotPasswordSchema,

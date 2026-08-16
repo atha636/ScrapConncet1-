@@ -4,7 +4,21 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 60 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, minlength: 8, select: false },
+    // Not required for a Google-authenticated account — there's no password
+    // to check, sign-in happens entirely through Google's own verification.
+    password: {
+      type: String,
+      required: function () {
+        return !this.googleId;
+      },
+      minlength: 8,
+      select: false,
+    },
+    // Google's stable per-account identifier ("sub" claim) — used to find
+    // an existing Google-linked account on repeat sign-in. sparse so that
+    // password-only accounts (which never set this) don't collide on the
+    // unique index.
+    googleId: { type: String, unique: true, sparse: true, select: false },
     role: { type: String, enum: ["user", "collector", "admin"], default: "user" },
     phone: { type: String, trim: true },
     rating: { type: Number, default: 0 },
@@ -37,6 +51,7 @@ const userSchema = new mongoose.Schema(
 userSchema.set("toJSON", {
   transform: (_doc, ret) => {
     delete ret.password;
+    delete ret.googleId;
     delete ret.verificationTokenHash;
     delete ret.verificationTokenExpires;
     delete ret.resetTokenHash;
