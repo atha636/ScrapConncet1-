@@ -2,6 +2,7 @@ const router = require("express").Router();
 const {
   register,
   login,
+  googleAuth,
   me,
   updateProfile,
   changePassword,
@@ -15,6 +16,7 @@ const auth = require("../middleware/auth");
 const {
   registerSchema,
   loginSchema,
+  googleAuthSchema,
   updateProfileSchema,
   changePasswordSchema,
   forgotPasswordSchema,
@@ -23,6 +25,7 @@ const {
 
 router.post("/register", validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
+router.post("/google", validate(googleAuthSchema), googleAuth);
 router.get("/me", auth, me);
 router.patch("/me", auth, validate(updateProfileSchema), updateProfile);
 router.patch("/change-password", auth, validate(changePasswordSchema), changePassword);
