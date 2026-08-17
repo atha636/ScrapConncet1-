@@ -91,7 +91,7 @@ export default function Register() {
     <div className="min-h-screen flex">
       <AuthSidePanel variant="register" />
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12 overflow-hidden">
+      <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-hidden">
         <AnimatePresence mode="wait">
           {viewKey === "success" && (
             <motion.div key="success" variants={slideVariants} initial="hidden" animate="show" exit="exit" className="text-center">
@@ -212,7 +212,7 @@ export default function Register() {
                 <span className="text-xs font-semibold text-rust shrink-0">Change</span>
               </button>
 
-              <form onSubmit={handleRegister} className="ticket p-8 pt-7">
+              <form onSubmit={handleRegister} className="ticket p-7 pt-6">
                 <AnimatePresence>
                   {error && (
                     <motion.div
@@ -312,7 +312,7 @@ export default function Register() {
 
                 {hasGoogleAuth && (
                   <>
-                    <div className="flex items-center gap-3 my-5">
+                    <div className="flex items-center gap-3 my-4">
                       <div className="h-px flex-1 bg-line" />
                       <span className="text-[11px] text-inkFaint uppercase tracking-wide">or</span>
                       <div className="h-px flex-1 bg-line" />
@@ -322,7 +322,7 @@ export default function Register() {
                   </>
                 )}
 
-                <p className="text-center text-sm text-inkSoft mt-6">
+                <p className="text-center text-sm text-inkSoft mt-5">
                   Already have an account?{" "}
                   <button type="button" onClick={() => navigate("/login")} className="text-rust font-semibold hover:underline">
                     Sign in
@@ -337,7 +337,7 @@ export default function Register() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.25 }}
-                className="grid grid-cols-3 gap-3 mt-8"
+                className="grid grid-cols-3 gap-3 mt-6"
               >
                 {[
                   { label: "No listing fees", icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /> },
