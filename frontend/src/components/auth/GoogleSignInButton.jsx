@@ -40,7 +40,8 @@ export default function GoogleSignInButton({ wantsToBeCollector = false, onError
           onSuccess={handleSuccess}
           onError={() => onError?.("Google sign-in failed. Please try again.")}
           theme="outline"
-          shape="pill"
+          shape="rectangular"
+          size="large"
           width="100%"
           text="continue_with"
         />
