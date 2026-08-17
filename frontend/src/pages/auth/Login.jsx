@@ -44,16 +44,16 @@ export default function Login() {
     <div className="min-h-screen flex">
       <AuthSidePanel />
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
         <div className="w-full max-w-md">
           {/* Mark */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-col items-center mb-8"
+            className="flex flex-col items-center mb-6"
           >
-            <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-4 rotate-[-3deg]" />
+            <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-3 rotate-[-3deg]" />
             <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Welcome back</h1>
             <p className="text-sm text-inkSoft mt-1">Sign in to your account</p>
           </motion.div>
@@ -64,7 +64,7 @@ export default function Login() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.08, ease: "easeOut" }}
-            className="ticket p-8 pt-9"
+            className="ticket p-7 pt-8"
           >
             <AnimatePresence>
               {error && (
@@ -167,7 +167,7 @@ export default function Login() {
 
             {hasGoogleAuth && (
               <>
-                <div className="flex items-center gap-3 my-5">
+                <div className="flex items-center gap-3 my-4">
                   <div className="h-px flex-1 bg-line" />
                   <span className="text-[11px] text-inkFaint uppercase tracking-wide">or</span>
                   <div className="h-px flex-1 bg-line" />
@@ -177,7 +177,7 @@ export default function Login() {
               </>
             )}
 
-            <p className="text-center text-sm text-inkSoft mt-6">
+            <p className="text-center text-sm text-inkSoft mt-5">
               Don't have an account?{" "}
               <button
                 type="button"
@@ -196,7 +196,7 @@ export default function Login() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.25 }}
-            className="grid grid-cols-3 gap-3 mt-8"
+            className="grid grid-cols-3 gap-3 mt-6"
           >
             {[
               { label: "No listing fees", icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /> },
