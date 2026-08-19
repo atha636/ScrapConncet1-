@@ -1,9 +1,5 @@
 /**
- * Resizes and re-encodes an image file in the browser before upload.
- * Phone-camera photos and screenshots easily run several MB — sending that
- * straight to the server means a slow upload AND a slow Cloudinary
- * transform on the other end. Shrinking to a sane max dimension + JPEG
- * quality here cuts both, often turning a multi-MB file into ~100-300KB.
+
  *
  * @param {File} file
  * @param {{ maxDimension?: number, quality?: number }} [opts]
