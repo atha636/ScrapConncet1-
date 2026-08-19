@@ -1,17 +1,21 @@
 User-agent: *
-Allow: /home
+Allow: /
+Allow: /about
 Allow: /login
 Allow: /register
 
-# Everything past this point is a per-user authenticated view — no public
-# content to index, and indexing it would leak nothing but empty shells and make ie allow to local page 
-# (client-side auth redirects before any real content renders anyway).
-Disallow: /
+# Everything else is a per-user authenticated view — no public content to
+# index (client-side auth redirects before any real content renders
+# anyway), so there's nothing worth a crawler's time there.
+Disallow: /dashboard
 Disallow: /request
 Disallow: /my-requests
 Disallow: /collector
 Disallow: /admin
 Disallow: /admin-login
 Disallow: /profile
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
 
-Sitemap: still be ____
+Sitemap: https://scrap-conncet1.vercel.app/sitemap.xml
