@@ -76,7 +76,7 @@ exports.googleAuth = asyncHandler(async (req, res) => {
     throw new ApiError(503, "Google sign-in is not configured on this server");
   }
 
-  const { credential, wantsToBeCollector } = req.body;
+  const { credential, wantsToBeCollector, roleChosen } = req.body;
 
   let payload;
   try {
@@ -112,6 +112,17 @@ exports.googleAuth = asyncHandler(async (req, res) => {
       user.googleId = payload.sub;
       if (!user.isVerified) user.isVerified = true;
       await user.save();
+    } else if (!roleChosen) {
+      // A genuinely new person, and the caller hasn't told us their role
+      // yet — this is the Login page's first attempt, which has no way to
+      // know in advance whether this Google account is new. Rather than
+      // silently defaulting everyone who signs in from Login to
+      // "requester", tell the frontend to ask, and don't create anything
+      // yet. The frontend resubmits with roleChosen: true once the person
+      // picks — see GoogleSignInButton.jsx. (Register already knows the
+      // role up front and always sends roleChosen: true on the first
+      // call, so it never hits this branch.)
+      return res.json({ needsRole: true });
     } else {
       user = await User.create({
         name: payload.name || payload.email.split("@")[0],

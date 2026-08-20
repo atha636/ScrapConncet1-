@@ -23,6 +23,13 @@ const loginSchema = z.object({
 const googleAuthSchema = z.object({
   credential: z.string().min(1, "Google credential is required"),
   wantsToBeCollector: z.boolean().optional().default(false),
+  // True once the frontend has actually collected a role choice for this
+  // sign-in — Register always knows the role up front and sends this as
+  // true immediately. Login doesn't know whether the Google account is
+  // brand new, so it sends false on the first call; if the backend
+  // determines it needs a role (see authController.googleAuth), the
+  // frontend asks the person and resubmits with this set to true.
+  roleChosen: z.boolean().optional().default(false),
 });
 
 const updateProfileSchema = z.object({
