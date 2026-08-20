@@ -173,7 +173,7 @@ export default function Login() {
                   <div className="h-px flex-1 bg-line" />
                 </div>
 
-                <GoogleSignInButton onError={setError} />
+                <GoogleSignInButton roleChosen={false} onError={setError} />
               </>
             )}
 
