@@ -11,18 +11,13 @@ vi.mock("../../lib/socket", () => ({
 
 vi.mock("../../utils/googleAuthConfig", () => ({ hasGoogleAuth: true }));
 
-// jsdom doesn't implement ResizeObserver — GoogleSignInButton uses it to
-// measure its wrapper's width for Google's button (which only accepts a
-// fixed pixel width, not a percentage).
+
 globalThis.ResizeObserver = class {
   observe() {}
   unobserve() {}
   disconnect() {}
 };
 
-// jsdom's getBoundingClientRect always returns 0 for every dimension —
-// stand in a realistic width so the button actually renders in tests,
-// matching what a real browser layout would report.
 Element.prototype.getBoundingClientRect = () => ({
   width: 400,
   height: 40,
