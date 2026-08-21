@@ -7,30 +7,14 @@ import { roleHome } from "../../utils/roleHome";
 import { hasGoogleAuth } from "../../utils/googleAuthConfig";
 import GoogleRoleModal from "./GoogleRoleModal";
 
-// Renders nothing if Google sign-in isn't configured (see main.jsx) — the
-// rest of the auth pages work exactly as before with plain email/password,
-// this is additive.
-//
-// roleChosen=true (Register): the role is already known from the page's own
-// requester/collector choice, so the credential is submitted once and done.
-// roleChosen=false (Login, the default): Login has no way to know in
-// advance whether this Google account is brand new, so it can't collect a
-// role up front the way Register does. It submits without one first; if
-// the backend reports the account needs a role (a genuinely new sign-up),
-// this shows a picker and resubmits — a returning user's normal sign-in
-// never sees that extra step at all.
+
 export default function GoogleSignInButton({ wantsToBeCollector = false, roleChosen = true, onError }) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [pendingCredential, setPendingCredential] = useState(null);
 
-  // Google's button only accepts a fixed pixel width, not a percentage —
-  // passing "100%" is silently invalid and logs a console warning (Google
-  // falls back to a default width instead of actually filling the
-  // container). Measuring the wrapper and passing a real pixel number is
-  // the only way to get a button that visually matches the rest of the
-  // form's full-width inputs/buttons across different screen sizes.
+
   const wrapperRef = useRef(null);
   const [buttonWidth, setButtonWidth] = useState(null);
 
