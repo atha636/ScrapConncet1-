@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { googleAuth } from "../../services/authService";
@@ -24,6 +24,25 @@ export default function GoogleSignInButton({ wantsToBeCollector = false, roleCho
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [pendingCredential, setPendingCredential] = useState(null);
+
+  // Google's button only accepts a fixed pixel width, not a percentage —
+  // passing "100%" is silently invalid and logs a console warning (Google
+  // falls back to a default width instead of actually filling the
+  // container). Measuring the wrapper and passing a real pixel number is
+  // the only way to get a button that visually matches the rest of the
+  // form's full-width inputs/buttons across different screen sizes.
+  const wrapperRef = useRef(null);
+  const [buttonWidth, setButtonWidth] = useState(null);
+
+  useLayoutEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const update = () => setButtonWidth(Math.round(el.getBoundingClientRect().width));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   if (!hasGoogleAuth) return null;
 
@@ -69,16 +88,18 @@ export default function GoogleSignInButton({ wantsToBeCollector = false, roleCho
 
   return (
     <div className="relative">
-      <div className={loading ? "opacity-50 pointer-events-none" : ""}>
-        <GoogleLogin
-          onSuccess={handleSuccess}
-          onError={() => onError?.("Google sign-in failed. Please try again.")}
-          theme="outline"
-          shape="rectangular"
-          size="large"
-          width="100%"
-          text="continue_with"
-        />
+      <div ref={wrapperRef} className={loading ? "opacity-50 pointer-events-none" : ""}>
+        {buttonWidth !== null && (
+          <GoogleLogin
+            onSuccess={handleSuccess}
+            onError={() => onError?.("Google sign-in failed. Please try again.")}
+            theme="outline"
+            shape="rectangular"
+            size="large"
+            width={buttonWidth}
+            text="continue_with"
+          />
+        )}
       </div>
 
       <GoogleRoleModal
