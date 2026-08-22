@@ -16,11 +16,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || "test-jwt-secret";
 process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION || "7.0.14";
 
 async function connect() {
-  // A single retry covers the rare genuinely-transient case (a brief
-  // network blip on first-ever binary download, a momentarily-busy CI
-  // runner) without masking a real, consistently-failing setup — if it
-  // fails twice in a row, that's a real problem worth seeing, not
-  // something to keep silently retrying.
+
   try {
     mongod = await MongoMemoryServer.create();
   } catch (err) {
