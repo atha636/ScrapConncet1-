@@ -8,9 +8,15 @@ const { MIN_RATINGS_FOR_GATE, SUSPENSION_THRESHOLD } = require("../src/utils/rat
 
 const app = createApp();
 
+// Starting an in-memory MongoDB (and, on a cold cache, downloading its
+// binary) can legitimately take longer than Jest's default 20s hook
+// timeout on a slow connection or a loaded CI runner — bumping this
+// specific hook avoids that showing up as a flaky, unrelated-looking
+// failure. Retry logic for genuine transient failures lives in
+// connect() itself (see tests/helpers/db.js).
 beforeAll(async () => {
   await connect();
-});
+}, 60000);
 
 afterEach(async () => {
   await clearDatabase();

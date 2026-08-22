@@ -12,8 +12,30 @@ let mongod;
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-jwt-secret";
 
+// Without this, mongodb-memory-server does a network call on *every single*
+// connect() to resolve "latest compatible MongoDB version" — even when the
+// binary itself is already cached locally. Six test files each calling
+// connect() independently means six of those lookups per full run; any one
+// being slow, rate-limited, or briefly unreachable fails that whole file
+// with what looks like a random, unrelated timeout. Pinning a specific
+// version skips the lookup entirely once that version's binary is cached,
+// which is the single biggest source of "the tests sometimes just fail"
+// for this library. Respects an existing MONGOMS_VERSION (e.g. set by CI)
+// rather than overriding it.
+process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION || "7.0.14";
+
 async function connect() {
-  mongod = await MongoMemoryServer.create();
+  // A single retry covers the rare genuinely-transient case (a brief
+  // network blip on first-ever binary download, a momentarily-busy CI
+  // runner) without masking a real, consistently-failing setup — if it
+  // fails twice in a row, that's a real problem worth seeing, not
+  // something to keep silently retrying.
+  try {
+    mongod = await MongoMemoryServer.create();
+  } catch (err) {
+    console.warn("MongoMemoryServer failed to start, retrying once:", err.message);
+    mongod = await MongoMemoryServer.create();
+  }
   await mongoose.connect(mongod.getUri());
 }
 
