@@ -43,7 +43,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend lint & syntax check
+    name: Backend lint, syntax check & tests
     runs-on: ubuntu-latest
 
     defaults:
@@ -70,5 +70,22 @@ jobs:
       - name: Syntax check all source files
         run: find src -name "*.js" -exec node --check {} +
 
+      # mongodb-memory-server (used by tests/helpers/db.js) downloads a real
+      # MongoDB binary on first use. Without a cache, every single CI run
+      # re-downloads it from scratch and fails outright on any network
+      # hiccup — this is the single biggest source of "tests sometimes just
+      # fail" in CI specifically (a warm local machine doesn't have this
+      # problem since the binary stays cached on disk between runs). The
+      # cache key is pinned to MONGOMS_VERSION (set in
+      # tests/helpers/db.js) so a version bump there automatically busts
+      # this cache instead of silently using a stale binary.
+      - name: Cache MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-7.0.14
+
       - name: Run tests
+        env:
+          MONGOMS_DOWNLOAD_DIR: ~/.cache/mongodb-binaries
         run: npm test
