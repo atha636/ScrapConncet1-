@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema(
     rating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    // Set when the user deletes their own account (see authController.deleteAccount).
+    // We soft-delete rather than remove the document outright because pickups,
+    // messages, ratings, etc. still reference this user's id — wiping the row
+    // would orphan that history for the other party involved. name/email/phone
+    // are scrubbed at the same time so no personal data lingers.
+    deletedAt: { type: Date, default: null },
 
     // Collector-specific fields
     collectorSuspended: { type: Boolean, default: false },
