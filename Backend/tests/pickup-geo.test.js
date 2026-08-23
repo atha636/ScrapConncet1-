@@ -118,4 +118,21 @@ describe("GET /api/pickup/available", () => {
 
     expect(res.body.data).toHaveLength(0);
   });
+
+  test("excludes pending pickups whose requester is inactive/deleted, with and without coordinates", async () => {
+    await User.updateOne({ email: "requester@example.com" }, { isActive: false });
+
+    const withoutCoords = await request(app)
+      .get("/api/pickup/available")
+      .set("Authorization", `Bearer ${collectorToken}`);
+    expect(withoutCoords.body.data).toHaveLength(0);
+    expect(withoutCoords.body.total).toBe(0);
+
+    const withCoords = await request(app)
+      .get("/api/pickup/available")
+      .query({ lat: CHANDIGARH.lat, lng: CHANDIGARH.lng })
+      .set("Authorization", `Bearer ${collectorToken}`);
+    expect(withCoords.body.data).toHaveLength(0);
+    expect(withCoords.body.total).toBe(0);
+  });
 });

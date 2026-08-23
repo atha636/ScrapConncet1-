@@ -1,11 +1,13 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Pickup = require("../models/Pickup");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const generateToken = require("../utils/generateToken");
 const { generateToken: generateSecureToken, hashToken } = require("../utils/token");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/sendEmail");
 const { googleClient, hasGoogleConfig } = require("../config/googleAuth");
+const notifyUser = require("../utils/notifyUser");
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const RESET_TTL_MS = 60 * 60 * 1000; // 1h
@@ -212,6 +214,40 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
     if (!password) throw new ApiError(400, "Enter your password to confirm.");
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new ApiError(401, "Incorrect password");
+  }
+
+  // A collector mid-job can't just vanish on the requester waiting for
+  // them — make them resolve or hand back active work first rather than
+  // silently leaving a pickup stuck "accepted"/"in_progress" forever with
+  // an assignee who no longer exists.
+  const activeJob = await Pickup.exists({
+    collector: user._id,
+    status: { $in: ["accepted", "in_progress"] },
+  });
+  if (activeJob) {
+    throw new ApiError(
+      400,
+      "You have an active pickup in progress. Complete it or ask the requester to cancel it before deleting your account."
+    );
+  }
+
+  // Any of this user's own pickup requests still sitting open need to be
+  // pulled off the board too — otherwise they keep showing up in the
+  // collector feed indefinitely, pointing at a requester who no longer
+  // exists and can't be reached at the contact info shown.
+  const openRequests = await Pickup.find({ user: user._id, status: { $in: ["pending", "accepted"] } });
+  for (const pickup of openRequests) {
+    const hadCollector = pickup.collector;
+    pickup.pushHistory("cancelled", user._id);
+    await pickup.save();
+    req.io.emit("updatePickup", pickup);
+    if (hadCollector) {
+      await notifyUser(req.io, hadCollector, {
+        type: "status_update",
+        text: `The ${pickup.scrapType} pickup you accepted was cancelled — the requester's account was deleted`,
+        pickupId: pickup._id,
+      });
+    }
   }
 
   user.isActive = false;

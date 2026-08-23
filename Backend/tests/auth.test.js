@@ -1,6 +1,7 @@
 const request = require("supertest");
 const createApp = require("../src/app");
 const User = require("../src/models/User");
+const Pickup = require("../src/models/Pickup");
 const { connect, clearDatabase, closeDatabase } = require("./helpers/db");
 
 const app = createApp();
@@ -230,6 +231,60 @@ describe("DELETE /api/auth/me", () => {
       .send({ email: validUser.email, password: validUser.password });
 
     expect(res.status).toBe(403);
+  });
+
+  test("cancels the user's own open pickup requests so they stop appearing to collectors", async () => {
+    const { body } = await register();
+    const userId = body.user._id ?? body.user.id;
+
+    const pickup = await Pickup.create({
+      user: userId,
+      scrapType: "metal",
+      estimatedWeightKg: 5,
+      location: { lat: 30.73, lng: 76.77, address: "Test address" },
+      price: 100,
+      statusHistory: [{ status: "pending", changedBy: userId }],
+    });
+
+    await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: validUser.password, confirm: "DELETE" });
+
+    const updated = await Pickup.findById(pickup._id);
+    expect(updated.status).toBe("cancelled");
+  });
+
+  test("blocks deletion while the account has an active collector job", async () => {
+    const requester = await User.create({
+      name: "Requester",
+      email: "req-active@example.com",
+      password: "Password123",
+    });
+    const collectorRes = await request(app).post("/api/auth/register").send({
+      ...validUser,
+      email: "collector-active@example.com",
+      wantsToBeCollector: true,
+    });
+    const collectorId = collectorRes.body.user._id ?? collectorRes.body.user.id;
+
+    await Pickup.create({
+      user: requester._id,
+      collector: collectorId,
+      scrapType: "metal",
+      estimatedWeightKg: 5,
+      location: { lat: 30.73, lng: 76.77, address: "Test address" },
+      price: 100,
+      status: "accepted",
+      statusHistory: [{ status: "accepted", changedBy: collectorId }],
+    });
+
+    const res = await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${collectorRes.body.token}`)
+      .send({ password: validUser.password, confirm: "DELETE" });
+
+    expect(res.status).toBe(400);
   });
 });
 

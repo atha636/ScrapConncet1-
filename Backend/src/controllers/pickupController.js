@@ -63,14 +63,22 @@ exports.getAvailable = asyncHandler(async (req, res) => {
   const lng = parseFloat(req.query.lng);
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
+  // Deleting/deactivating an account cancels that person's own *open*
+  // pickup requests (see authController.deleteAccount), but this is a
+  // second line of defense — e.g. for rows that predate that fix, or an
+  // admin deactivation — so a request tied to an account nobody can reach
+  // never lingers in the feed collectors see.
+  const activeRequesterIds = await User.find({ isActive: true }).distinct("_id");
+
   if (!hasCoords) {
+    const filter = { status: "pending", user: { $in: activeRequesterIds } };
     const [data, total] = await Promise.all([
-      Pickup.find({ status: "pending" })
+      Pickup.find(filter)
         .sort({ isUrgent: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("user", "name phone"),
-      Pickup.countDocuments({ status: "pending" }),
+      Pickup.countDocuments(filter),
     ]);
 
     return res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
@@ -87,7 +95,7 @@ exports.getAvailable = asyncHandler(async (req, res) => {
         near: { type: "Point", coordinates: [lng, lat] },
         distanceField: "distanceMeters",
         maxDistance: radiusKm * 1000,
-        query: { status: "pending" },
+        query: { status: "pending", user: { $in: activeRequesterIds } },
         spherical: true,
       },
     },
