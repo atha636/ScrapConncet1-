@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { updateProfile, changePassword } from "../services/authService";
+import { updateProfile, changePassword, fetchMe } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import Card from "../components/ui/Card";
 import ErrorBox from "../components/common/ErrorBox";
+import DeleteAccountModal from "../components/profile/DeleteAccountModal";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { isPushSupported, getPushStatus, enablePush, disablePush } from "../lib/push";
 
@@ -41,7 +43,8 @@ function InlineBanner({ children, tone = "success" }) {
 export default function Profile() {
   useDocumentMeta({ title: "Profile", noindex: true });
 
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
+  const navigate = useNavigate();
 
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
@@ -59,6 +62,12 @@ export default function Profile() {
   const [pushError, setPushError] = useState("");
   const [pushBusy, setPushBusy] = useState(false);
 
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  // Defaults to true (the common case) until /auth/me confirms otherwise —
+  // asking a password-based user for their password is always correct, so
+  // erring this way never blocks anyone from the delete flow.
+  const [hasPassword, setHasPassword] = useState(true);
+
   useEffect(() => {
     if (!isPushSupported()) {
       setPushState({ loading: false, supported: false, subscribed: false, denied: false });
@@ -68,6 +77,18 @@ export default function Profile() {
       .then((s) => setPushState({ loading: false, ...s }))
       .catch(() => setPushState({ loading: false, supported: false, subscribed: false, denied: false }));
   }, []);
+
+  useEffect(() => {
+    fetchMe()
+      .then((res) => setHasPassword(res.data.hasPassword !== false))
+      .catch(() => {});
+  }, []);
+
+  const handleAccountDeleted = () => {
+    setDeleteModalOpen(false);
+    logout();
+    navigate("/login");
+  };
 
   const handleTogglePush = async () => {
     setPushError("");
@@ -283,6 +304,31 @@ export default function Profile() {
           </form>
         </Card>
       </motion.div>
+
+      {/* Danger zone */}
+      <motion.div variants={fadeUp}>
+        <Card className="p-6 sm:p-8 border-rust/30">
+          <h2 className="font-display font-semibold text-rust mb-1.5">Danger zone</h2>
+          <p className="text-sm text-inkSoft mb-5">
+            Permanently delete your ScrapConnect account and personal data. This can't be undone.
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={() => setDeleteModalOpen(true)}
+            className="rounded-md border border-rust text-rust text-sm font-semibold px-4 py-2.5 hover:bg-rust/5 transition-colors"
+          >
+            Delete my account
+          </motion.button>
+        </Card>
+      </motion.div>
+
+      <DeleteAccountModal
+        open={deleteModalOpen}
+        hasPassword={hasPassword}
+        onClose={() => setDeleteModalOpen(false)}
+        onDeleted={handleAccountDeleted}
+      />
     </motion.div>
   );
 }
