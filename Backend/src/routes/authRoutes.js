@@ -6,6 +6,7 @@ const {
   me,
   updateProfile,
   changePassword,
+  deleteAccount,
   verifyEmail,
   resendVerification,
   forgotPassword,
@@ -19,6 +20,7 @@ const {
   googleAuthSchema,
   updateProfileSchema,
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } = require("../validators/authValidator");
@@ -29,6 +31,7 @@ router.post("/google", validate(googleAuthSchema), googleAuth);
 router.get("/me", auth, me);
 router.patch("/me", auth, validate(updateProfileSchema), updateProfile);
 router.patch("/change-password", auth, validate(changePasswordSchema), changePassword);
+router.delete("/me", auth, validate(deleteAccountSchema), deleteAccount);
 
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification", auth, resendVerification);

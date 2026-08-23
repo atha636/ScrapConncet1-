@@ -46,6 +46,18 @@ const changePasswordSchema = z.object({
     .regex(/[0-9]/, "New password must contain a number"),
 });
 
+// password is optional here because a Google-only account has none to check —
+// the controller decides whether it's actually required based on the account
+// itself. `confirm` is a belt-and-suspenders check so this can never be hit
+// by an accidental/malformed request; the real "are you sure" UX lives in the
+// frontend's warning modal.
+const deleteAccountSchema = z.object({
+  password: z.string().optional(),
+  confirm: z.literal("DELETE", {
+    errorMap: () => ({ message: 'Type "DELETE" to confirm.' }),
+  }),
+});
+
 const forgotPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
 });
@@ -65,6 +77,7 @@ module.exports = {
   googleAuthSchema,
   updateProfileSchema,
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 };

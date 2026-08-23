@@ -45,6 +45,7 @@ exports.login = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select("+password");
   if (!user) throw new ApiError(401, "Invalid email or password");
 
+  if (user.deletedAt) throw new ApiError(403, "This account has been deleted");
   if (!user.isActive) throw new ApiError(403, "This account has been deactivated");
 
   // A Google-only account has no password to compare against — bcrypt.compare
@@ -134,6 +135,7 @@ exports.googleAuth = asyncHandler(async (req, res) => {
     }
   }
 
+  if (user.deletedAt) throw new ApiError(403, "This account has been deleted");
   if (!user.isActive) throw new ApiError(403, "This account has been deactivated");
 
   const token = generateToken(user);
@@ -142,9 +144,16 @@ exports.googleAuth = asyncHandler(async (req, res) => {
 
 // GET /api/auth/me
 exports.me = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
+  // +password only to compute hasPassword below (e.g. so the frontend knows
+  // whether to ask for one before deleting the account) — it's stripped
+  // from the response by the toJSON transform like everywhere else.
+  const user = await User.findById(req.user.id).select("+password");
   if (!user) throw new ApiError(404, "User not found");
-  res.json(user);
+
+  const hasPassword = !!user.password;
+  const json = user.toJSON();
+  json.hasPassword = hasPassword;
+  res.json(json);
 });
 
 // PATCH /api/auth/me
@@ -184,6 +193,50 @@ exports.changePassword = asyncHandler(async (req, res) => {
   // successful change.
   const token = generateToken(user);
   res.json({ success: true, token });
+});
+
+// DELETE /api/auth/me
+// Self-service account deletion. Soft-delete rather than a hard remove:
+// pickups/messages/ratings tied to this user's id stay intact for whoever
+// they transacted with, but the account is deactivated and scrubbed of
+// personal info so it can't be used or found going forward.
+exports.deleteAccount = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+
+  const user = await User.findById(req.user.id).select("+password");
+  if (!user) throw new ApiError(404, "User not found");
+
+  // Only password-based accounts have anything to check here — a Google-only
+  // account never set one, so there's no secret this person could type.
+  if (user.password) {
+    if (!password) throw new ApiError(400, "Enter your password to confirm.");
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new ApiError(401, "Incorrect password");
+  }
+
+  user.isActive = false;
+  user.deletedAt = new Date();
+  user.name = "Deleted user";
+  // Free up the original email/phone for reuse by mutating them, rather than
+  // leaving this person's real contact info sitting in a "deleted" row.
+  user.email = `deleted-${user._id}@deleted.scrapconnect.local`;
+  user.phone = undefined;
+  // Replace the password with an unusable random hash instead of unsetting
+  // it — the schema requires a password for any non-Google account, so
+  // clearing it outright would fail validation on save.
+  user.password = await bcrypt.hash(generateSecureToken().raw, 12);
+  user.googleId = undefined;
+  user.resetTokenHash = null;
+  user.resetTokenExpires = null;
+  user.verificationTokenHash = null;
+  user.verificationTokenExpires = null;
+  // Invalidate this and every other outstanding token immediately (see
+  // middleware/auth.js) rather than waiting for natural expiry.
+  user.sessionVersion = (user.sessionVersion || 0) + 1;
+
+  await user.save();
+
+  res.json({ success: true });
 });
 
 // GET /api/auth/verify-email?token=...

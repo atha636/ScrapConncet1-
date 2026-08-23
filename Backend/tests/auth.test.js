@@ -146,6 +146,93 @@ describe("GET /api/auth/me", () => {
   });
 });
 
+describe("DELETE /api/auth/me", () => {
+  const register = () => request(app).post("/api/auth/register").send(validUser);
+
+  test("returns 401 with no token", async () => {
+    const res = await request(app).delete("/api/auth/me").send({ password: "x", confirm: "DELETE" });
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects a missing/incorrect confirm literal with 400", async () => {
+    const { body } = await register();
+    const res = await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: validUser.password, confirm: "delete" });
+
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects a missing password for a password-based account with 400", async () => {
+    const { body } = await register();
+    const res = await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ confirm: "DELETE" });
+
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects an incorrect password with 401", async () => {
+    const { body } = await register();
+    const res = await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: "WrongPassword1", confirm: "DELETE" });
+
+    expect(res.status).toBe(401);
+  });
+
+  test("soft-deletes the account, scrubs personal info, and revokes the token", async () => {
+    const { body } = await register();
+    const res = await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: validUser.password, confirm: "DELETE" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const stored = await User.findById(body.user._id ?? body.user.id);
+    expect(stored.isActive).toBe(false);
+    expect(stored.deletedAt).toBeTruthy();
+    expect(stored.name).toBe("Deleted user");
+    expect(stored.email).not.toBe(validUser.email);
+    expect(stored.phone).toBeUndefined();
+
+    // The token used to delete the account is revoked immediately (bumped
+    // sessionVersion), not just left to expire naturally.
+    const meRes = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${body.token}`);
+    expect(meRes.status).toBe(401);
+  });
+
+  test("frees up the original email for a new registration", async () => {
+    const { body } = await register();
+    await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: validUser.password, confirm: "DELETE" });
+
+    const res = await request(app).post("/api/auth/register").send(validUser);
+    expect(res.status).toBe(201);
+  });
+
+  test("a deleted account can no longer log in", async () => {
+    const { body } = await register();
+    await request(app)
+      .delete("/api/auth/me")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ password: validUser.password, confirm: "DELETE" });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: validUser.email, password: validUser.password });
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe("POST /api/auth/forgot-password", () => {
   test("responds the same way for a registered and an unregistered email (no user enumeration)", async () => {
     await request(app).post("/api/auth/register").send(validUser);
