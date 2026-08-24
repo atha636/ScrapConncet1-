@@ -202,10 +202,11 @@ describe("DELETE /api/auth/me", () => {
     expect(stored.email).not.toBe(validUser.email);
     expect(stored.phone).toBeUndefined();
 
-    // The token used to delete the account is revoked immediately (bumped
-    // sessionVersion), not just left to expire naturally.
+    // The token used to delete the account is revoked immediately too, but
+    // isActive is checked first in the auth middleware (see middleware/auth.js),
+    // so the response is 403 "deactivated" rather than a generic 401 here.
     const meRes = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${body.token}`);
-    expect(meRes.status).toBe(401);
+    expect(meRes.status).toBe(403);
   });
 
   test("frees up the original email for a new registration", async () => {
