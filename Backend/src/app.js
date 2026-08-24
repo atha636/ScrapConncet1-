@@ -47,11 +47,19 @@ function createApp() {
   // protection at all. This is deliberately generous (routine use should
   // never come close to it) — it's a backstop against scripted hammering,
   // not a throttle on normal usage.
+  //
+  // Skipped entirely in tests: a single test file can easily register/log
+  // in dozens of times in a few seconds (each `it` often creates its own
+  // user), which isn't "abuse" — it's just how the suite runs. Applying the
+  // same limiter there means test N+1 starts getting real 429s once test N
+  // has already used up the window, failing tests that have nothing to do
+  // with rate limiting at all.
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === "test",
     message: { success: false, message: "Too many requests, please slow down" },
   });
   app.use("/api", apiLimiter);
@@ -61,6 +69,7 @@ function createApp() {
     max: 30,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === "test",
     message: { success: false, message: "Too many attempts, please try again later" },
   });
   app.use("/api/auth", authLimiter);
