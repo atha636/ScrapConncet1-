@@ -231,7 +231,12 @@ describe("DELETE /api/auth/me", () => {
       .post("/api/auth/login")
       .send({ email: validUser.email, password: validUser.password });
 
-    expect(res.status).toBe(403);
+    // Deletion scrubs the email (freeing it up for reuse — see "frees up
+    // the original email" above), so a login attempt against the *original*
+    // email now matches no user at all. That correctly falls into the
+    // generic "Invalid email or password" 401 rather than leaking that this
+    // email used to belong to someone via a distinct "deactivated" message.
+    expect(res.status).toBe(401);
   });
 
   test("cancels the user's own open pickup requests so they stop appearing to collectors", async () => {
