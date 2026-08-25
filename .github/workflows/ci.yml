@@ -33,6 +33,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # --audit-level=high fails the build only on high/critical advisories
+      # (like the cloudinary one this was added after finding) — moderate/low
+      # findings are common in transitive dev tooling and would make this
+      # noisy without adding real signal. --omit=dev keeps that noise out
+      # entirely by only scanning what actually ships to production, since a
+      # vulnerable devDependency (a linter, a test runner) never reaches a
+      # deployed server or a built frontend bundle. A version bump behind a
+      # security advisory should fail CI here rather than sit unnoticed until
+      # someone happens to run `npm audit` manually.
+      - name: Audit dependencies for known vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -63,6 +75,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit dependencies for known vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Lint
         run: npm run lint
