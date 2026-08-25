@@ -11,14 +11,12 @@ let storage;
 const SAFE_EXTENSIONS = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
 
 if (hasCloudinaryConfig) {
-  const { CloudinaryStorage } = require("multer-storage-cloudinary");
+  const CloudinaryStorage = require("../lib/cloudinaryStorage");
   storage = new CloudinaryStorage({
     cloudinary,
-    params: {
-      folder: "scrapconnect/pickups",
-      allowed_formats: ["jpg", "jpeg", "png", "webp"],
-      transformation: [{ width: 1200, height: 1200, crop: "limit" }],
-    },
+    folder: "scrapconnect/pickups",
+    allowedFormats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 1200, height: 1200, crop: "limit" }],
   });
 } else {
   // Dev fallback — local disk. NOTE: not durable on most hosts (Render/Vercel
