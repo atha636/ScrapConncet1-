@@ -36,9 +36,7 @@ vi.mock("../lib/push", () => ({
   disablePush: (...args) => mockDisablePush(...args),
 }));
 
-// DeleteAccountModal has its own dedicated test file. Stubbing it here keeps
-// these tests focused on what Profile itself is responsible for: opening
-// the modal, passing it the right `hasPassword`, and handling `onDeleted`.
+
 vi.mock("../components/profile/DeleteAccountModal", () => ({
   default: ({ open, hasPassword, onDeleted }) =>
     open ? (
