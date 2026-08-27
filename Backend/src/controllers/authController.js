@@ -179,6 +179,14 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select("+password");
   if (!user) throw new ApiError(404, "User not found");
 
+  // A Google-only account never set a password — bcrypt.compare() throws on
+  // an undefined hash rather than just returning false, which would
+  // otherwise surface here as a raw 500 instead of a clear, actionable
+  // message telling them why this form doesn't apply to their account.
+  if (!user.password) {
+    throw new ApiError(400, "Your account signs in with Google and doesn't have a password to change.");
+  }
+
   const isMatch = await bcrypt.compare(currentPassword, user.password);
   if (!isMatch) throw new ApiError(401, "Current password is incorrect");
 
