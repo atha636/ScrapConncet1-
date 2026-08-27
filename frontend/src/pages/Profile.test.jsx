@@ -36,7 +36,9 @@ vi.mock("../lib/push", () => ({
   disablePush: (...args) => mockDisablePush(...args),
 }));
 
-
+// DeleteAccountModal has its own dedicated test file. Stubbing it here keeps
+// these tests focused on what Profile itself is responsible for: opening
+// the modal, passing it the right `hasPassword`, and handling `onDeleted`.
 vi.mock("../components/profile/DeleteAccountModal", () => ({
   default: ({ open, hasPassword, onDeleted }) =>
     open ? (
@@ -143,6 +145,21 @@ describe("Profile — account details form", () => {
 });
 
 describe("Profile — change password form", () => {
+  test("hides the change-password form entirely for a Google-only account", async () => {
+    mockFetchMe.mockResolvedValueOnce({ data: { hasPassword: false } });
+    renderPage();
+
+    await waitFor(() => expect(mockFetchMe).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText("Change password")).not.toBeInTheDocument());
+  });
+
+  test("shows the change-password form once /auth/me confirms the account has a password", async () => {
+    mockFetchMe.mockResolvedValueOnce({ data: { hasPassword: true } });
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Change password" })).toBeInTheDocument();
+  });
+
   test("rejects a new password under 8 characters without calling the API", async () => {
     renderPage();
 

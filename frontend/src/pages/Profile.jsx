@@ -266,44 +266,55 @@ export default function Profile() {
         </Card>
       </motion.div>
 
-      {/* Password change */}
-      <motion.div variants={fadeUp}>
-        <Card className="p-6 sm:p-8">
-          <h2 className="font-display font-semibold text-ink mb-5">Change password</h2>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <AnimatePresence>
-              {passwordError && <InlineBanner tone="error">{passwordError}</InlineBanner>}
-              {passwordSuccess && <InlineBanner>Password changed successfully.</InlineBanner>}
-            </AnimatePresence>
+      {/* Password change — only meaningful for an account that actually has
+          a password to change. A Google-only account never set one, and
+          the backend now rejects this cleanly, but hiding the form
+          entirely is a better experience than showing a form that can
+          only ever fail. */}
+      {hasPassword && (
+        <motion.div variants={fadeUp}>
+          <Card className="p-6 sm:p-8">
+            <h2 className="font-display font-semibold text-ink mb-5">Change password</h2>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <AnimatePresence>
+                {passwordError && <InlineBanner tone="error">{passwordError}</InlineBanner>}
+                {passwordSuccess && <InlineBanner>Password changed successfully.</InlineBanner>}
+              </AnimatePresence>
 
-            <div>
-              <label className="field-label">Current password</label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="field-input"
-                placeholder="Enter your current password"
-              />
-            </div>
+              <div>
+                <label className="field-label">Current password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="field-input"
+                  placeholder="Enter your current password"
+                />
+              </div>
 
-            <div>
-              <label className="field-label">New password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="field-input"
-                placeholder="Min. 8 characters, 1 letter, 1 number"
-              />
-            </div>
+              <div>
+                <label className="field-label">New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="field-input"
+                  placeholder="Min. 8 characters, 1 letter, 1 number"
+                />
+              </div>
 
-            <motion.button whileTap={{ scale: 0.98 }} type="submit" className="btn-primary" disabled={savingPassword}>
-              {savingPassword ? "Updating…" : "Change password"}
-            </motion.button>
-          </form>
-        </Card>
-      </motion.div>
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                className="btn-primary"
+                disabled={savingPassword}
+              >
+                {savingPassword ? "Updating…" : "Change password"}
+              </motion.button>
+            </form>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Danger zone */}
       <motion.div variants={fadeUp}>
