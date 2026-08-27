@@ -1,4 +1,5 @@
 const request = require("supertest");
+const jwt = require("jsonwebtoken");
 const createApp = require("../src/app");
 const User = require("../src/models/User");
 const Pickup = require("../src/models/Pickup");
@@ -291,6 +292,78 @@ describe("DELETE /api/auth/me", () => {
       .send({ password: validUser.password, confirm: "DELETE" });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/auth/change-password", () => {
+  test("returns 401 with no token", async () => {
+    const res = await request(app)
+      .patch("/api/auth/change-password")
+      .send({ currentPassword: validUser.password, newPassword: "NewPass123" });
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects an incorrect current password with 401", async () => {
+    const { body } = await request(app).post("/api/auth/register").send(validUser);
+    const res = await request(app)
+      .patch("/api/auth/change-password")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ currentPassword: "WrongPassword1", newPassword: "NewPass123" });
+    expect(res.status).toBe(401);
+  });
+
+  test("changes the password and returns a fresh, usable token", async () => {
+    const { body } = await request(app).post("/api/auth/register").send(validUser);
+
+    const res = await request(app)
+      .patch("/api/auth/change-password")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ currentPassword: validUser.password, newPassword: "NewPass123" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTruthy();
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: validUser.email, password: "NewPass123" });
+    expect(loginRes.status).toBe(200);
+  });
+
+  test("revokes the old session — the token used to change it stops working immediately", async () => {
+    const { body } = await request(app).post("/api/auth/register").send(validUser);
+
+    await request(app)
+      .patch("/api/auth/change-password")
+      .set("Authorization", `Bearer ${body.token}`)
+      .send({ currentPassword: validUser.password, newPassword: "NewPass123" });
+
+    const res = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${body.token}`);
+    expect(res.status).toBe(401);
+  });
+
+  // Regression test: a Google-only account has no `password` field at all
+  // (see models/User.js), and bcrypt.compare() throws on an undefined hash
+  // rather than returning false. Before this was guarded explicitly, this
+  // request crashed with a generic 500 instead of a clear message.
+  test("returns a clear 400, not a 500, for a Google-only account with no password to change", async () => {
+    const googleUser = await User.create({
+      name: "Google User",
+      email: "google-user@example.com",
+      googleId: "google-sub-12345",
+      isVerified: true,
+    });
+    const googleToken = jwt.sign(
+      { id: googleUser._id, role: googleUser.role, sessionVersion: 0 },
+      process.env.JWT_SECRET
+    );
+
+    const res = await request(app)
+      .patch("/api/auth/change-password")
+      .set("Authorization", `Bearer ${googleToken}`)
+      .send({ currentPassword: "anything", newPassword: "NewPass123" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/Google/i);
   });
 });
 
