@@ -191,27 +191,34 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
 
 // PATCH /api/pickup/:id/cancel  (requester only, must own the request)
 exports.cancelByRequester = asyncHandler(async (req, res) => {
-  const pickup = await Pickup.findById(req.params.id);
-  if (!pickup) throw new ApiError(404, "Pickup not found");
+  // Atomic, scoped by both ownership and current status in the filter
+  // itself — matching acceptPickup's pattern below rather than a separate
+  // read-then-write. Without this, a double-tap or retried "Cancel" request
+  // could both read a still-cancellable status and both push a duplicate
+  // "cancelled" history entry (and, worse, both fire the collector
+  // notification below a second time) before either write lands.
+  const pickup = await Pickup.findOneAndUpdate(
+    { _id: req.params.id, user: req.user.id, status: { $in: ["pending", "accepted"] } },
+    { $set: { status: "cancelled" }, $push: { statusHistory: { status: "cancelled", changedBy: req.user.id } } },
+    { new: true }
+  );
 
-  if (String(pickup.user) !== String(req.user.id)) {
-    throw new ApiError(403, "This isn't your pickup request");
+  if (!pickup) {
+    const existing = await Pickup.findById(req.params.id);
+    if (!existing) throw new ApiError(404, "Pickup not found");
+    if (String(existing.user) !== String(req.user.id)) {
+      throw new ApiError(403, "This isn't your pickup request");
+    }
+    // Once a collector is en route (in_progress) it's too late to cancel
+    // from the app — real-world coordination should happen via chat/phone
+    // instead.
+    throw new ApiError(400, `Can't cancel a pickup that's already ${existing.status}`);
   }
-
-  // Once a collector is en route (in_progress) it's too late to cancel from
-  // the app — real-world coordination should happen via chat/phone instead.
-  if (!["pending", "accepted"].includes(pickup.status)) {
-    throw new ApiError(400, `Can't cancel a pickup that's already ${pickup.status}`);
-  }
-
-  const hadCollector = pickup.collector;
-  pickup.pushHistory("cancelled", req.user.id);
-  await pickup.save();
 
   req.io.emit("updatePickup", pickup);
 
-  if (hadCollector) {
-    await notifyUser(req.io, hadCollector, {
+  if (pickup.collector) {
+    await notifyUser(req.io, pickup.collector, {
       type: "status_update",
       text: `The ${pickup.scrapType} pickup you accepted was cancelled by the requester`,
       pickupId: pickup._id,
@@ -220,27 +227,54 @@ exports.cancelByRequester = asyncHandler(async (req, res) => {
 
   res.json(pickup);
 });
+
+// Reverse lookup for updateStatus below: which current status(es) a pickup
+// must be in for a given target status to be a legal transition. Built this
+// way (rather than the more natural fromStatus -> allowed toStatuses map)
+// specifically so it can be used as a MongoDB $in filter directly in the
+// atomic update — see the comment there for why that matters.
+const VALID_FROM_STATUSES = {
+  in_progress: ["accepted"],
+  cancelled: ["accepted", "in_progress"],
+  completed: ["in_progress"],
+};
+
 exports.updateStatus = asyncHandler(async (req, res) => {
-  const pickup = await Pickup.findById(req.params.id);
-  if (!pickup) throw new ApiError(404, "Pickup not found");
+  const nextStatus = req.body.status;
+  const validFrom = VALID_FROM_STATUSES[nextStatus] || [];
 
-  if (String(pickup.collector) !== String(req.user.id)) {
-    throw new ApiError(403, "You are not assigned to this pickup");
+  // Atomic, scoped by both collector ownership and current status in the
+  // filter itself — not a separate read-then-write (see acceptPickup's
+  // comment for the same pattern and the race it closes). Without this, two
+  // near-simultaneous requests to mark the same pickup "completed" — a
+  // realistic double-tap, or a client retrying after a slow/dropped
+  // response — could both read status "in_progress", both pass validation,
+  // and both push a duplicate history entry. The unique index on
+  // Transaction(pickup, type) already prevented double-crediting the
+  // earning itself, but the pickup's own status/history update had no
+  // equivalent protection until now.
+  const pickup =
+    validFrom.length > 0
+      ? await Pickup.findOneAndUpdate(
+          { _id: req.params.id, collector: req.user.id, status: { $in: validFrom } },
+          {
+            $set: { status: nextStatus },
+            $push: { statusHistory: { status: nextStatus, changedBy: req.user.id } },
+          },
+          { new: true }
+        )
+      : null;
+
+  if (!pickup) {
+    const existing = await Pickup.findById(req.params.id);
+    if (!existing) throw new ApiError(404, "Pickup not found");
+    if (String(existing.collector) !== String(req.user.id)) {
+      throw new ApiError(403, "You are not assigned to this pickup");
+    }
+    throw new ApiError(400, `Cannot move from ${existing.status} to ${nextStatus}`);
   }
 
-  const validTransitions = {
-    accepted: ["in_progress", "cancelled"],
-    in_progress: ["completed", "cancelled"],
-  };
-  const allowed = validTransitions[pickup.status] || [];
-  if (!allowed.includes(req.body.status)) {
-    throw new ApiError(400, `Cannot move from ${pickup.status} to ${req.body.status}`);
-  }
-
-  pickup.pushHistory(req.body.status, req.user.id);
-  await pickup.save();
-
-  if (req.body.status === "completed") {
+  if (nextStatus === "completed") {
     try {
       await Transaction.create({
         collector: pickup.collector,
@@ -260,7 +294,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
 
   await notifyUser(req.io, pickup.user, {
     type: "status_update",
-    text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[req.body.status] || req.body.status}`,
+    text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[nextStatus] || nextStatus}`,
     pickupId: pickup._id,
   });
 
