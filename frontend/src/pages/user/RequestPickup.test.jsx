@@ -15,6 +15,11 @@ vi.mock("../../services/pickupService", () => ({
   createPickup: (...args) => mockCreatePickup(...args),
 }));
 
+const mockCompressImage = vi.fn();
+vi.mock("../../utils/compressImage", () => ({
+  compressImage: (...args) => mockCompressImage(...args),
+}));
+
 function mockGeolocationSuccess(lat = 12.34, lng = 56.78) {
   globalThis.navigator.geolocation = {
     getCurrentPosition: vi.fn((success) => success({ coords: { latitude: lat, longitude: lng } })),
@@ -39,6 +44,7 @@ describe("RequestPickup", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockCreatePickup.mockReset();
+    mockCompressImage.mockReset().mockImplementation((f) => Promise.resolve(f)); // passthrough by default
     delete globalThis.navigator.geolocation;
   });
 
@@ -132,5 +138,81 @@ describe("RequestPickup", () => {
     await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
     const submittedForm = mockCreatePickup.mock.calls[0][0];
     expect(submittedForm.has("estimatedWeightKg")).toBe(false);
+  });
+
+  describe("photo picker", () => {
+    function pickFile(name) {
+      const file = new File(["fake-bytes"], name, { type: "image/jpeg" });
+      const input = document.querySelector('input[type="file"]');
+      fireEvent.change(input, { target: { files: [file] } });
+      return file;
+    }
+
+    test("submits the compressed file the API returned, not the raw original", async () => {
+      mockGeolocationSuccess();
+      const compressed = new File(["compressed-bytes"], "compressed.jpg", { type: "image/jpeg" });
+      mockCompressImage.mockResolvedValueOnce(compressed);
+      mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+      renderPage();
+
+      pickFile("original.jpg");
+      await waitFor(() => expect(mockCompressImage).toHaveBeenCalledTimes(1));
+
+      fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+      await screen.findByText(/Location captured/);
+      fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+      await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
+      const submittedForm = mockCreatePickup.mock.calls[0][0];
+      expect(submittedForm.get("image").name).toBe("compressed.jpg");
+    });
+
+    // Regression test: picking photo A, then quickly picking photo B before
+    // A's compression finishes, used to be able to submit A's compressed
+    // result if A's promise happened to resolve after B's — silently
+    // submitting a different photo than the one shown in the preview.
+    test("a slow-to-compress earlier selection can't overwrite a newer one", async () => {
+      mockGeolocationSuccess();
+
+      let resolveFirst;
+      const firstCompressed = new File(["first"], "first-compressed.jpg", { type: "image/jpeg" });
+      const secondCompressed = new File(["second"], "second-compressed.jpg", { type: "image/jpeg" });
+
+      mockCompressImage
+        .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = () => resolve(firstCompressed))))
+        .mockResolvedValueOnce(secondCompressed);
+
+      mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+      renderPage();
+
+      pickFile("first.jpg"); // starts compressing, does not resolve yet
+      pickFile("second.jpg"); // starts compressing, resolves quickly
+      await waitFor(() => expect(mockCompressImage).toHaveBeenCalledTimes(2));
+
+      // The first (stale) selection finally finishes, after the second one
+      // already completed — this is the exact ordering that used to lose.
+      resolveFirst();
+
+      fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+      await screen.findByText(/Location captured/);
+      fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+      await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
+      const submittedForm = mockCreatePickup.mock.calls[0][0];
+      expect(submittedForm.get("image").name).toBe("second-compressed.jpg");
+    });
+
+    test("revokes the previous preview's object URL when a new photo is picked", async () => {
+      const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
+      renderPage();
+
+      pickFile("first.jpg");
+      await waitFor(() => expect(mockCompressImage).toHaveBeenCalledTimes(1));
+
+      pickFile("second.jpg");
+      await waitFor(() => expect(revokeSpy).toHaveBeenCalled());
+
+      revokeSpy.mockRestore();
+    });
   });
 });
