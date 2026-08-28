@@ -6,13 +6,7 @@ import useCountUp from "../hooks/useCountUp";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
 
-// The hero's signature moment: instead of a generic decorative illustration,
-// it's an actual receipt — reusing the same .ticket perforated-edge and
-// .stamp ink-stamp classes every pickup card in the app already uses — that
-// "prints" itself out on load, line by line, ending in a rubber-stamped
-// PAID. It's the app's own visual language (thermal-receipt, not a stock
-// "recycling" icon set), and it dramatizes the actual promise: post scrap,
-// get paid on the spot.
+
 const RECEIPT_ITEMS = [
   { label: "Metal · 10kg", amount: 500 },
   { label: "Plastic · 3kg", amount: 60 },
