@@ -6,9 +6,7 @@ vi.mock("../components/admin/AdminCharts", () => ({
   default: () => <div data-testid="admin-charts" />,
 }));
 
-// useCountUp normally animates via requestAnimationFrame — returning the
-// target immediately keeps stat-card assertions synchronous and
-// deterministic instead of racing an animation.
+
 vi.mock("../hooks/useCountUp", () => ({
   default: (target) => target,
 }));
