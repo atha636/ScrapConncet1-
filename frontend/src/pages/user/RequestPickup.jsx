@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createPickup, SCRAP_TYPES } from "../../services/pickupService";
@@ -42,17 +42,45 @@ export default function RequestPickup() {
   const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState("");
 
+  // Tracks the most recent handleFile() call so a slower-resolving
+  // compression from an earlier selection can't overwrite a newer one —
+  // without this, picking photo A then quickly picking photo B could
+  // finish compressing A *after* B, silently submitting A instead of the
+  // photo actually shown in the preview.
+  const fileRequestIdRef = useRef(0);
+  // The preview blob URL from the current selection, so it can be revoked
+  // the moment it's replaced or the page unmounts, instead of leaking one
+  // URL per photo picked for the life of the tab.
+  const previewUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
+
   const handleFile = async (f) => {
     if (!f) return;
-    setPreview(URL.createObjectURL(f)); // instant preview from the original
+
+    const requestId = ++fileRequestIdRef.current;
+
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const objectUrl = URL.createObjectURL(f);
+    previewUrlRef.current = objectUrl;
+    setPreview(objectUrl); // instant preview from the original
+
     setCompressing(true);
     try {
       const compressed = await compressImage(f);
+      // A newer selection has already started since this one kicked off —
+      // let that request's own state updates win instead of stomping them.
+      if (requestId !== fileRequestIdRef.current) return;
       setFile(compressed);
     } catch {
+      if (requestId !== fileRequestIdRef.current) return;
       setFile(f); // compression failed — fall back to the original file
     } finally {
-      setCompressing(false);
+      if (requestId === fileRequestIdRef.current) setCompressing(false);
     }
   };
 
