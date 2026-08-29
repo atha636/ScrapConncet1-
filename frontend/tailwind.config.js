@@ -4,27 +4,35 @@ export default {
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        bg: "#EDE4D3",
-        surface: "#FAF5EA",
-        surfaceRaised: "#FFFCF5",
-        ink: "#241A12",
-        inkSoft: "#6B5A47",
-        inkFaint: "#9C8A73",
+        // Every one of these is a CSS variable defined in index.css, once
+        // for :root (light) and once for .dark — so every existing
+        // bg-surface / text-ink / border-line usage across the app
+        // automatically repaints for dark mode with zero per-component
+        // changes. The rgb(... / <alpha-value>) form is what lets Tailwind
+        // opacity modifiers (bg-rust/[0.08], border-line/40, etc.) keep
+        // working exactly as before.
+        bg: "rgb(var(--c-bg) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        surfaceRaised: "rgb(var(--c-surface-raised) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        inkSoft: "rgb(var(--c-ink-soft) / <alpha-value>)",
+        inkFaint: "rgb(var(--c-ink-faint) / <alpha-value>)",
         rust: {
-          DEFAULT: "#A63D24",
-          dark: "#7E2E1A",
-          light: "#C25836",
+          DEFAULT: "rgb(var(--c-rust) / <alpha-value>)",
+          dark: "rgb(var(--c-rust-dark) / <alpha-value>)",
+          light: "rgb(var(--c-rust-light) / <alpha-value>)",
         },
         amber: {
-          DEFAULT: "#C4841E",
-          dark: "#9C6816",
-          light: "#DDA246",
+          DEFAULT: "rgb(var(--c-amber) / <alpha-value>)",
+          dark: "rgb(var(--c-amber-dark) / <alpha-value>)",
+          light: "rgb(var(--c-amber-light) / <alpha-value>)",
         },
-        line: "#D8C9AE",
-        danger: "#8C2F1B",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        danger: "rgb(var(--c-danger) / <alpha-value>)",
       },
       fontFamily: {
         display: ["'Roboto Slab'", "serif"],

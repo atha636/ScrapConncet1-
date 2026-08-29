@@ -4,6 +4,7 @@ import "./index.css";
 import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext"; // 👈 add this
+import { ThemeProvider } from "./context/ThemeContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { hasGoogleAuth } from "./utils/googleAuthConfig";
@@ -18,11 +19,13 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 // separately renders nothing in that case, so email/password auth is
 // entirely unaffected either way.
 const appTree = (
-  <BrowserRouter>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </BrowserRouter>
+  <ThemeProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
+  </ThemeProvider>
 );
 
 ReactDOM.createRoot(document.getElementById("root")).render(

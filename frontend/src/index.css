@@ -4,8 +4,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- Theme tokens ---------- */
+/* Light: warm aged paper. Dark: the same receipt/ticket desk, lit by a
+   single lamp at night — deep warm brown-black, not a generic AI slate,
+   with the ink/rust/amber accents pulled up in value so they still read
+   as ink and stamps rather than glow. Values are "R G B" (no commas) so
+   Tailwind can apply its own alpha via rgb(var(--x) / <alpha-value>). */
 :root {
   color-scheme: light;
+
+  --c-bg: 237 228 211;             /* #EDE4D3 */
+  --c-surface: 250 245 234;        /* #FAF5EA */
+  --c-surface-raised: 255 252 245; /* #FFFCF5 */
+  --c-ink: 36 26 18;               /* #241A12 */
+  --c-ink-soft: 107 90 71;         /* #6B5A47 */
+  --c-ink-faint: 156 138 115;      /* #9C8A73 */
+  --c-line: 216 201 174;           /* #D8C9AE */
+
+  --c-rust: 166 61 36;             /* #A63D24 */
+  --c-rust-dark: 126 46 26;        /* #7E2E1A */
+  --c-rust-light: 194 88 54;       /* #C25836 */
+  --c-amber: 196 132 30;           /* #C4841E */
+  --c-amber-dark: 156 104 22;      /* #9C6816 */
+  --c-amber-light: 221 162 70;     /* #DDA246 */
+  --c-danger: 140 47 27;           /* #8C2F1B */
+
+  --dot-opacity: 0.06;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-bg: 24 19 14;                /* #18130E — warm near-black, not slate */
+  --c-surface: 33 26 19;           /* #211A13 */
+  --c-surface-raised: 42 33 24;    /* #2A2118 */
+  --c-ink: 238 229 213;            /* #EEE5D5 */
+  --c-ink-soft: 181 163 138;       /* #B5A38A */
+  --c-ink-faint: 130 114 95;       /* #82725F */
+  --c-line: 66 54 40;              /* #423628 */
+
+  --c-rust: 216 105 71;            /* #D86947 — brightened for dark contrast */
+  --c-rust-dark: 166 61 36;        /* #A63D24 */
+  --c-rust-light: 235 140 104;     /* #EB8C68 */
+  --c-amber: 224 165 66;           /* #E0A542 */
+  --c-amber-dark: 196 132 30;      /* #C4841E */
+  --c-amber-light: 237 197 122;    /* #EDC57A */
+  --c-danger: 214 96 68;           /* #D66044 */
+
+  --dot-opacity: 0.14;
 }
 
 * {
@@ -14,13 +60,14 @@
 
 body {
   margin: 0;
-  background: #EDE4D3;
+  background: rgb(var(--c-bg));
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(36, 26, 18, 0.06) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, rgb(var(--c-ink) / var(--dot-opacity)) 1px, transparent 0);
   background-size: 22px 22px;
-  color: #241A12;
+  color: rgb(var(--c-ink));
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, .font-display {
@@ -29,7 +76,7 @@ h1, h2, h3, h4, .font-display {
 
 /* Visible keyboard focus everywhere — no glassy focus rings */
 :focus-visible {
-  outline: 2.5px solid #A63D24;
+  outline: 2.5px solid rgb(var(--c-rust));
   outline-offset: 2px;
 }
 
@@ -46,10 +93,10 @@ h1, h2, h3, h4, .font-display {
    edge (punched-hole notches). */
 .ticket {
   position: relative;
-  background: #FAF5EA;
-  border: 1px solid #D8C9AE;
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line));
   border-radius: 6px;
-  box-shadow: 0 1px 0 rgba(36, 26, 18, 0.04);
+  box-shadow: 0 1px 0 rgb(var(--c-ink) / 0.04);
 }
 
 .ticket::before {
@@ -59,7 +106,7 @@ h1, h2, h3, h4, .font-display {
   left: 0;
   right: 0;
   height: 8px;
-  background-image: radial-gradient(circle at center, #EDE4D3 3px, transparent 3.5px);
+  background-image: radial-gradient(circle at center, rgb(var(--c-bg)) 3px, transparent 3.5px);
   background-size: 16px 8px;
   background-position: 8px 0;
   background-repeat: repeat-x;
@@ -81,11 +128,11 @@ h1, h2, h3, h4, .font-display {
   transform: rotate(-2deg);
 }
 
-.stamp-pending  { color: #9C6816; }
-.stamp-accepted { color: #A63D24; }
-.stamp-progress { color: #7E2E1A; }
-.stamp-completed{ color: #4A3B28; border-style: solid; }
-.stamp-cancelled{ color: #8C2F1B; opacity: 0.7; }
+.stamp-pending  { color: rgb(var(--c-amber-dark)); }
+.stamp-accepted { color: rgb(var(--c-rust)); }
+.stamp-progress { color: rgb(var(--c-rust-dark)); }
+.stamp-completed{ color: rgb(var(--c-ink-soft)); border-style: solid; }
+.stamp-cancelled{ color: rgb(var(--c-danger)); opacity: 0.7; }
 
 /* ---------- Form controls ---------- */
 .field-label {
@@ -95,39 +142,39 @@ h1, h2, h3, h4, .font-display {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6B5A47;
+  color: rgb(var(--c-ink-soft));
   margin-bottom: 6px;
 }
 
 .field-input {
   width: 100%;
   padding: 12px 14px;
-  background: #FFFCF5;
-  border: 1.5px solid #D8C9AE;
+  background: rgb(var(--c-surface-raised));
+  border: 1.5px solid rgb(var(--c-line));
   border-radius: 6px;
-  color: #241A12;
+  color: rgb(var(--c-ink));
   font-family: 'Inter', sans-serif;
   /* 16px, not 14px — iOS Safari auto-zooms the whole page on focus for any
      input under 16px, which is a jarring, well-known mobile bug. */
   font-size: 16px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
 }
 
-.field-input::placeholder { color: #9C8A73; }
+.field-input::placeholder { color: rgb(var(--c-ink-faint)); }
 
 .field-input:hover {
-  border-color: #C25836;
+  border-color: rgb(var(--c-rust-light));
 }
 
 .field-input:focus {
-  border-color: #A63D24;
-  box-shadow: 0 0 0 3px rgba(166, 61, 36, 0.12);
+  border-color: rgb(var(--c-rust));
+  box-shadow: 0 0 0 3px rgb(var(--c-rust) / 0.15);
 }
 
 .field-input.field-error {
-  border-color: #8C2F1B;
-  box-shadow: 0 0 0 3px rgba(140, 47, 27, 0.1);
+  border-color: rgb(var(--c-danger));
+  box-shadow: 0 0 0 3px rgb(var(--c-danger) / 0.12);
 }
 
 /* ---------- Buttons ---------- */
@@ -137,8 +184,8 @@ h1, h2, h3, h4, .font-display {
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  background: #A63D24;
-  color: #FAF5EA;
+  background: rgb(var(--c-rust));
+  color: rgb(var(--c-surface));
   border: none;
   border-radius: 6px;
   font-family: 'Inter', sans-serif;
@@ -147,7 +194,7 @@ h1, h2, h3, h4, .font-display {
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
 }
-.btn-primary:hover:not(:disabled) { background: #7E2E1A; }
+.btn-primary:hover:not(:disabled) { background: rgb(var(--c-rust-dark)); }
 .btn-primary:active:not(:disabled) { transform: translateY(1px); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
@@ -158,8 +205,8 @@ h1, h2, h3, h4, .font-display {
   gap: 8px;
   padding: 12px 20px;
   background: transparent;
-  color: #241A12;
-  border: 1.5px solid #D8C9AE;
+  color: rgb(var(--c-ink));
+  border: 1.5px solid rgb(var(--c-line));
   border-radius: 6px;
   font-family: 'Inter', sans-serif;
   font-weight: 600;
@@ -167,7 +214,7 @@ h1, h2, h3, h4, .font-display {
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.btn-secondary:hover:not(:disabled) { border-color: #A63D24; background: rgba(166, 61, 36, 0.05); }
+.btn-secondary:hover:not(:disabled) { border-color: rgb(var(--c-rust)); background: rgb(var(--c-rust) / 0.07); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------- Horizontally-scrollable tab bars on narrow screens ---------- */

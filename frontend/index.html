@@ -66,6 +66,18 @@
     </script>
   </head>
   <body>
+    <!-- Runs before React mounts so a returning dark-mode visitor never sees
+         a flash of the light theme while the bundle loads. Mirrors the same
+         localStorage key + prefers-color-scheme fallback as ThemeContext. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("scrapconnect-theme");
+          var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
