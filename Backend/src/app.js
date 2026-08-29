@@ -33,6 +33,24 @@ function createApp() {
   }
 
   app.use(helmet());
+
+  // Helmet's default CSP blocks the Swagger UI bundle loaded from unpkg.com
+  // in docs/index.html. Only relax it for /docs — the rest of the app keeps
+  // Helmet's strict default.
+  app.use(
+    "/docs",
+    helmet({
+      contentSecurityPolicy: {
+                directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://unpkg.com", "'unsafe-inline'"],
+          styleSrc: ["'self'", "https://unpkg.com", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https://unpkg.com"],
+          connectSrc: ["'self'"],
+        },
+      },
+    })
+  );
   app.use(cors({ origin: buildCorsOriginCheck(CLIENT_ORIGIN), credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(sanitize);
@@ -79,7 +97,12 @@ function createApp() {
     next();
   });
 
-  app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+    app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+  // Interactive API docs (Swagger UI, loaded from CDN) + the raw OpenAPI
+  // spec, both served as plain static files — no new dependency needed.
+  // Visit /docs for the browsable version.
+  app.use("/docs", express.static(require("path").join(__dirname, "..", "docs")));
 
   app.use("/api/auth", require("./routes/authRoutes"));
   app.use("/api/pickup", require("./routes/pickupRoutes"));

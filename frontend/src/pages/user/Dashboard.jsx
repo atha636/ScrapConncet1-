@@ -20,7 +20,8 @@ const listItem = {
 };
 
 // Animated number for the stat cards — ticks up from 0 once data has
-// loaded, matching the same count-up used in the homepage receipt hero.
+// loaded, matching the same count-up used in the homepage receipt hero. 
+
 function StatValue({ value, isMoney }) {
   const animated = useCountUp(value, true, 600);
   return <>{isMoney ? formatPrice(animated) : animated}</>;

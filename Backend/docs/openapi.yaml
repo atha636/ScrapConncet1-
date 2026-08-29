@@ -1,0 +1,1051 @@
+openapi: 3.0.3
+info:
+  title: ScrapConnect API
+  version: "2.0.1"
+  description: |
+    REST API for ScrapConnect — a marketplace connecting households with scrap collectors.
+    Users post pickup requests, collectors accept and fulfil them, and both sides chat,
+    track status in real time (via Socket.io), and rate each other afterward.
+
+    ### Auth
+    Most endpoints require a JWT sent as `Authorization: Bearer <token>`. Tokens are
+    issued by `/api/auth/register`, `/api/auth/login`, and `/api/auth/google`.
+
+    ### Response envelope
+    Errors always return `{ "success": false, "message": "...", "details"?: [...] }`.
+    Successful responses generally return `{ "success": true, ... }` with the resource
+    under a named key (see each endpoint's example).
+
+    ### Roles
+    Every account has a `role` of `user`, `collector`, or `admin`. Endpoints are
+    restricted by role where noted — a mismatched role gets a `403`.
+  contact:
+    name: ScrapConnect
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://api.scrapconnect.example.com
+    description: Production (replace with your deployed URL)
+
+tags:
+  - name: Auth
+  - name: Pickups
+  - name: Messages
+  - name: Ratings
+  - name: Notifications
+  - name: Wallet
+  - name: Push
+  - name: Admin
+  - name: Export
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      description: Unauthenticated uptime probe for monitoring / load balancers.
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  # ───────────────────────── AUTH ─────────────────────────
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account
+      description: Rate limited to 30 requests / 15 min per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 60, example: "Asha Rao" }
+                email: { type: string, format: email, example: "asha@example.com" }
+                password:
+                  type: string
+                  minLength: 8
+                  description: Must contain at least one letter and one number.
+                  example: "Passw0rd"
+                phone: { type: string, minLength: 7, maxLength: 20, example: "+919812345678" }
+                wantsToBeCollector:
+                  type: boolean
+                  default: false
+                  description: If true, account is created with role "collector" instead of "user".
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email + password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      summary: Sign in / register via Google
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential: { type: string, description: "Google ID token from Google Sign-In" }
+                wantsToBeCollector: { type: boolean, default: false }
+                roleChosen:
+                  type: boolean
+                  default: false
+                  description: >
+                    Set true once the frontend has explicitly collected a role for this
+                    sign-in. On a brand-new Google account the backend may respond asking
+                    the client to resubmit with this set to true after the user picks a role.
+      responses:
+        "200":
+          description: Logged in / registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  user: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Auth]
+      summary: Update own profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 60 }
+                phone: { type: string }
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  user: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [Auth]
+      summary: Delete own account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                password: { type: string, description: "Required unless account is Google-only" }
+                confirm:
+                  type: string
+                  enum: ["DELETE"]
+                  description: 'Must be the literal string "DELETE".'
+      responses:
+        "200": { description: Account deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/change-password:
+    patch:
+      tags: [Auth]
+      summary: Change password (while logged in)
+      description: Invalidates all other active sessions by bumping `sessionVersion`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        "200": { description: Password changed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/verify-email:
+    get:
+      tags: [Auth]
+      summary: Verify email via emailed token
+      security: []
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Email verified }
+
+  /api/auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend the verification email
+      responses:
+        "200": { description: Verification email sent }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password reset email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200": { description: "Reset email sent (always 200 regardless of whether the email exists, to avoid account enumeration)" }
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using the emailed token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        "200": { description: Password reset }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  # ───────────────────────── PICKUPS ─────────────────────────
+  /api/pickup/request:
+    post:
+      tags: [Pickups]
+      summary: Create a pickup request
+      description: "Role required: `user`. Accepts `multipart/form-data` for an optional image."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [scrapType, lat, lng]
+              properties:
+                scrapType:
+                  type: string
+                  enum: [metal, plastic, paper, e-waste, glass, other]
+                estimatedWeightKg: { type: number, minimum: 0 }
+                lat: { type: number, minimum: -90, maximum: 90 }
+                lng: { type: number, minimum: -180, maximum: 180 }
+                address: { type: string, maxLength: 200 }
+                image: { type: string, format: binary }
+      responses:
+        "201":
+          description: Pickup created. Price is calculated server-side from scrapType + weight — never trust a client-submitted price.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickup: { $ref: "#/components/schemas/Pickup" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/pickup/my-requests:
+    get:
+      tags: [Pickups]
+      summary: List the current user's pickup requests
+      description: "Role required: `user`."
+      responses:
+        "200":
+          description: List of pickups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Pickup" }
+
+  /api/pickup/{id}/cancel:
+    patch:
+      tags: [Pickups]
+      summary: Cancel a pickup (requester only)
+      description: "Role required: `user`."
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickup: { $ref: "#/components/schemas/Pickup" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/pickup/available:
+    get:
+      tags: [Pickups]
+      summary: List pending pickups available to accept
+      description: "Role required: `collector`. Sorted by distance using a Mongo 2dsphere geo index."
+      responses:
+        "200":
+          description: Available pickups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Pickup" }
+
+  /api/pickup/collector/jobs:
+    get:
+      tags: [Pickups]
+      summary: List jobs assigned to the current collector
+      description: "Role required: `collector`."
+      responses:
+        "200":
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Pickup" }
+
+  /api/pickup/{id}/accept:
+    patch:
+      tags: [Pickups]
+      summary: Accept a pending pickup
+      description: "Role required: `collector`."
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickup: { $ref: "#/components/schemas/Pickup" }
+        "409": { description: "Already accepted by another collector" }
+
+  /api/pickup/{id}/status:
+    patch:
+      tags: [Pickups]
+      summary: Update pickup status
+      description: "Role required: `collector`. Appends to `statusHistory` and emits a Socket.io event."
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [accepted, in_progress, completed, cancelled]
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickup: { $ref: "#/components/schemas/Pickup" }
+
+  # ───────────────────────── MESSAGES ─────────────────────────
+  /api/pickup/{id}/messages:
+    get:
+      tags: [Messages]
+      summary: Get chat messages for a pickup
+      description: Only the requester and the assigned collector may access a pickup's chat.
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  messages:
+                    type: array
+                    items: { $ref: "#/components/schemas/Message" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Messages]
+      summary: Send a chat message for a pickup
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "201":
+          description: Message sent, broadcast over the pickup's Socket.io room
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { $ref: "#/components/schemas/Message" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  # ───────────────────────── RATINGS ─────────────────────────
+  /api/pickup/{id}/rating:
+    get:
+      tags: [Ratings]
+      summary: Get ratings for a completed pickup
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      responses:
+        "200":
+          description: Ratings (up to one per direction)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  ratings:
+                    type: array
+                    items: { $ref: "#/components/schemas/Rating" }
+    post:
+      tags: [Ratings]
+      summary: Submit a rating for a completed pickup
+      description: One rating per direction per pickup — enforced by a compound unique Mongo index, not just app logic.
+      parameters:
+        - $ref: "#/components/parameters/PickupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 500 }
+      responses:
+        "201":
+          description: Rating submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rating: { $ref: "#/components/schemas/Rating" }
+        "409": { description: "Already rated this pickup in this direction" }
+
+  # ───────────────────────── NOTIFICATIONS ─────────────────────────
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for the current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  notifications:
+                    type: array
+                    items: { $ref: "#/components/schemas/Notification" }
+
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200": { description: Marked as read }
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Marked as read }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ───────────────────────── WALLET ─────────────────────────
+  /api/wallet/summary:
+    get:
+      tags: [Wallet]
+      summary: Get wallet balance summary
+      description: "Role required: `collector`."
+      responses:
+        "200":
+          description: Wallet summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  availableBalance: { type: number }
+                  pendingBalance: { type: number }
+
+  /api/wallet/trend:
+    get:
+      tags: [Wallet]
+      summary: Get earnings trend over time
+      description: "Role required: `collector`."
+      responses:
+        "200": { description: Earnings trend series }
+
+  /api/wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: List wallet transactions
+      description: "Role required: `collector`."
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  transactions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Transaction" }
+
+  /api/wallet/payout:
+    post:
+      tags: [Wallet]
+      summary: Request a payout
+      description: "Role required: `collector`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, description: "Must meet the platform minimum payout amount." }
+      responses:
+        "201": { description: Payout requested }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /api/wallet/payouts:
+    get:
+      tags: [Wallet]
+      summary: List own payout requests
+      description: "Role required: `collector`."
+      responses:
+        "200":
+          description: Payout requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  payouts:
+                    type: array
+                    items: { $ref: "#/components/schemas/PayoutRequest" }
+
+  # ───────────────────────── PUSH ─────────────────────────
+  /api/push/vapid-public-key:
+    get:
+      tags: [Push]
+      summary: Get the VAPID public key for Web Push subscription
+      security: []
+      responses:
+        "200":
+          description: Public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey: { type: string, nullable: true, description: "null if push isn't configured on this deployment" }
+
+  /api/push/subscribe:
+    post:
+      tags: [Push]
+      summary: Register a Web Push subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint: { type: string, format: uri }
+                keys:
+                  type: object
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh: { type: string }
+                    auth: { type: string }
+      responses:
+        "201": { description: Subscribed }
+
+  /api/push/unsubscribe:
+    post:
+      tags: [Push]
+      summary: Remove a Web Push subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint: { type: string, format: uri }
+      responses:
+        "200": { description: Unsubscribed }
+
+  # ───────────────────────── EXPORT ─────────────────────────
+  /api/export/my-requests:
+    get:
+      tags: [Export]
+      summary: Export own pickup requests as CSV
+      description: "Role required: `user`."
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+
+  /api/export/admin/users:
+    get:
+      tags: [Export]
+      summary: Export all users as CSV
+      description: "Role required: `admin`."
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+
+  /api/export/admin/pickups:
+    get:
+      tags: [Export]
+      summary: Export all pickups as CSV
+      description: "Role required: `admin`."
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+
+  # ───────────────────────── ADMIN ─────────────────────────
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: Get platform-wide stats
+      description: "Role required: `admin`."
+      responses:
+        "200": { description: Stats object }
+
+  /api/admin/analytics:
+    get:
+      tags: [Admin]
+      summary: Get analytics for admin dashboard charts
+      description: "Role required: `admin`."
+      responses:
+        "200": { description: Analytics series }
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List / search users
+      description: "Role required: `admin`."
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: search
+          schema: { type: string }
+          description: Free-text search on name/email (safely regex-escaped server-side).
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+
+  /api/admin/users/{id}/deactivate:
+    patch:
+      tags: [Admin]
+      summary: Deactivate a user
+      description: "Role required: `admin`."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deactivated }
+
+  /api/admin/users/{id}/activate:
+    patch:
+      tags: [Admin]
+      summary: Reactivate a user
+      description: "Role required: `admin`."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Activated }
+
+  /api/admin/users/{id}/reinstate:
+    patch:
+      tags: [Admin]
+      summary: Reinstate a previously suspended collector
+      description: "Role required: `admin`."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Reinstated }
+
+  /api/admin/payouts:
+    get:
+      tags: [Admin]
+      summary: List payout requests
+      description: "Role required: `admin`."
+      responses:
+        "200":
+          description: Payout requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  payouts:
+                    type: array
+                    items: { $ref: "#/components/schemas/PayoutRequest" }
+
+  /api/admin/payouts/{id}/approve:
+    patch:
+      tags: [Admin]
+      summary: Approve a payout request
+      description: "Role required: `admin`."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Approved }
+
+  /api/admin/payouts/{id}/reject:
+    patch:
+      tags: [Admin]
+      summary: Reject a payout request
+      description: "Role required: `admin`."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Rejected }
+
+  /api/admin/pickups:
+    get:
+      tags: [Admin]
+      summary: List all pickups (admin oversight view)
+      description: "Role required: `admin`."
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, accepted, in_progress, completed, cancelled] }
+      responses:
+        "200":
+          description: Pickups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  pickups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Pickup" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Pass the token from login/register as `Authorization: Bearer <token>`.'
+
+  parameters:
+    PickupId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      description: Pickup document ID
+
+  responses:
+    ValidationError:
+      description: Request body failed Zod validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: Missing, invalid, or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Authenticated but wrong role, or not a party to this resource
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string, example: "Invalid token" }
+        details:
+          type: array
+          items: { type: object }
+          nullable: true
+
+    User:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, nullable: true }
+        role: { type: string, enum: [user, collector, admin] }
+        isActive: { type: boolean }
+        emailVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      description: Never includes `password` — stripped server-side in `User.toJSON`.
+
+    AuthResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        token: { type: string, description: "JWT — send as Authorization: Bearer <token>" }
+        user: { $ref: "#/components/schemas/User" }
+
+    Pickup:
+      type: object
+      properties:
+        _id: { type: string }
+        user: { type: string, description: "Requester's user ID" }
+        collector: { type: string, nullable: true }
+        scrapType: { type: string, enum: [metal, plastic, paper, e-waste, glass, other] }
+        estimatedWeightKg: { type: number, nullable: true }
+        image: { type: string, nullable: true }
+        location:
+          type: object
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+            address: { type: string, nullable: true }
+        price: { type: number, description: "Calculated server-side — never accepted from the client." }
+        isUrgent: { type: boolean }
+        status: { type: string, enum: [pending, accepted, in_progress, completed, cancelled] }
+        statusHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              changedAt: { type: string, format: date-time }
+              changedBy: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Message:
+      type: object
+      properties:
+        _id: { type: string }
+        pickup: { type: string }
+        sender: { type: string }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Rating:
+      type: object
+      properties:
+        _id: { type: string }
+        pickup: { type: string }
+        from: { type: string }
+        to: { type: string }
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        _id: { type: string }
+        user: { type: string }
+        type: { type: string }
+        message: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Transaction:
+      type: object
+      properties:
+        _id: { type: string }
+        collector: { type: string }
+        pickup: { type: string, nullable: true }
+        amount: { type: number }
+        type: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    PayoutRequest:
+      type: object
+      properties:
+        _id: { type: string }
+        collector: { type: string }
+        amount: { type: number }
+        status: { type: string, enum: [pending, approved, rejected] }
+        createdAt: { type: string, format: date-time }
