@@ -131,7 +131,7 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="px-4 py-2 text-xs text-danger bg-[#8C2F1B]/[0.07] border-t border-[#8C2F1B]/20 overflow-hidden"
+                  className="px-4 py-2 text-xs text-danger bg-danger/[0.07] border-t border-danger/20 overflow-hidden"
                 >
                   {error}
                 </motion.div>

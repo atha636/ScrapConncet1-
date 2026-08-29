@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Navbar from "./Navbar";
 import { AuthProvider } from "../../context/AuthContext";
+import { ThemeProvider } from "../../context/ThemeContext";
 
 vi.mock("../../lib/socket", () => ({
   disconnectSocket: vi.fn(),
@@ -22,11 +23,13 @@ function renderNavbar(user, initialPath = "/dashboard") {
     localStorage.setItem("user", JSON.stringify(user));
   }
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <AuthProvider>
-        <Navbar />
-      </AuthProvider>
-    </MemoryRouter>
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <AuthProvider>
+          <Navbar />
+        </AuthProvider>
+      </MemoryRouter>
+    </ThemeProvider>
   );
 }
 
