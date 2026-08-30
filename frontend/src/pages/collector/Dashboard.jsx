@@ -31,6 +31,12 @@ const NEXT_ACTION = {
   in_progress: { label: "Mark completed", next: "completed" },
 };
 
+// Shared by the initial /available fetch and the live "newPickup" socket
+// filter below, so a real-time addition is always held to the exact same
+// distance bound as the page's own initial load — one constant, not two
+// numbers that could quietly drift apart if only one were ever changed.
+const AVAILABLE_RADIUS_KM = 50;
+
 const TABS = [
   { key: "available", label: "Available" },
   { key: "mine", label: "My jobs" },
@@ -110,7 +116,7 @@ export default function CollectorDashboard() {
       // happened to be in the newest 20 nationally." Without coordinates
       // (denied/unsupported), falls back to the original newest-first list.
       const availableParams = myCoords
-        ? { limit: 50, lat: myCoords.lat, lng: myCoords.lng, radiusKm: 50 }
+        ? { limit: 50, lat: myCoords.lat, lng: myCoords.lng, radiusKm: AVAILABLE_RADIUS_KM }
         : { limit: 20 };
 
       const [a, m] = await Promise.all([
@@ -176,9 +182,32 @@ export default function CollectorDashboard() {
     }
   };
 
-  // New request comes in -> add it to the available list live
+  // New request comes in -> add it to the available list live, but only if
+  // it falls inside the same radius the initial load already used — a raw
+  // pickup document from the "newPickup" broadcast carries no distanceKm
+  // field (that's computed server-side only by the $geoNear-backed
+  // /available endpoint), so without this filter every collector on the
+  // platform would see every new pickup appear in real time regardless of
+  // distance, contradicting the radius-scoped list they started with.
+  // Also attaches distanceKm/distanceMeters here so "Nearest first"
+  // sorting works correctly on live-added items too, not just ones from
+  // the initial fetch.
   useSocket("newPickup", (pickup) => {
-    setAvailable((prev) => [pickup, ...prev]);
+    if (!myCoords) {
+      // No location yet — the initial load itself fell back to
+      // newest-first nationally in this case, so stay consistent with that
+      // rather than silently dropping every live pickup until location is
+      // granted.
+      setAvailable((prev) => [pickup, ...prev]);
+      return;
+    }
+
+    const distanceMeters =
+      1000 *
+      distanceKm(myCoords.lat, myCoords.lng, pickup.location.lat, pickup.location.lng);
+    if (distanceMeters > AVAILABLE_RADIUS_KM * 1000) return;
+
+    setAvailable((prev) => [{ ...pickup, distanceMeters, distanceKm: distanceMeters / 1000 }, ...prev]);
   });
 
   // Any pickup updated (by this collector or another) -> reconcile both lists
