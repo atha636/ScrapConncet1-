@@ -182,15 +182,7 @@ export default function CollectorDashboard() {
     }
   };
 
-  // New request comes in -> add it to the available list live, but only if
-  // it falls inside the same radius the initial load already used — a raw
-  // pickup document from the "newPickup" broadcast carries no distanceKm
-  // field (that's computed server-side only by the $geoNear-backed
-  // /available endpoint), so without this filter every collector on the
-  // platform would see every new pickup appear in real time regardless of
-  // distance, contradicting the radius-scoped list they started with.
-  // Also attaches distanceKm/distanceMeters here so "Nearest first"
-  // sorting works correctly on live-added items too, not just ones from
+  // Live socket updates for new pickups — only ones within the same radius
   // the initial fetch.
   useSocket("newPickup", (pickup) => {
     if (!myCoords) {
