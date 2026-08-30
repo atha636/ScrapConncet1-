@@ -156,6 +156,15 @@ exports.deactivateUser = asyncHandler(async (req, res) => {
 exports.activateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw new ApiError(404, "User not found");
+  // A soft-deleted account has its email scrubbed to a placeholder and its
+  // password replaced with a random, unknowable hash (see
+  // authController.deleteAccount) — reactivating it would set isActive:
+  // true on an account nobody, including its original owner, can actually
+  // sign into. Deletion is intentionally one-way from the user's side, and
+  // admin activation shouldn't be a back door around that.
+  if (user.deletedAt) {
+    throw new ApiError(400, "This account was deleted by the user and can't be reactivated");
+  }
 
   user.isActive = true;
   await user.save();
