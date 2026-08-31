@@ -25,6 +25,7 @@ import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 const NEXT_ACTION = {
   accepted: { label: "Start pickup", next: "in_progress" },
@@ -74,6 +75,7 @@ function WalletIcon() {
 export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
   const { user } = useAuth();
+  const { showToast } = useToast();
   const isSuspended = !!user?.collectorSuspended;
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
@@ -132,7 +134,31 @@ export default function CollectorDashboard() {
     }
   }, [myCoords]);
 
-  useEffect(() => { load(); }, [load]);
+  // Deliberately wait for geolocation to settle ("success" or "error")
+  // before firing the very first load — "idle" (locateMe() hasn't run yet)
+  // and "locating" (request in flight) both need to be waited out, not just
+  // "locating", since on the very first render locStatus is still "idle"
+  // for one tick before the locateMe() effect's state update lands. Without
+  // this, the dashboard fetches once immediately with no coordinates —
+  // nationwide, unfiltered — and then fetches again a moment later once
+  // geolocation resolves, this time radius-filtered to the real position.
+  // Those two fetches can disagree (a pickup outside the radius shows up,
+  // then vanishes a second later), which reads as a bug even though each
+  // individual fetch is correct. Waiting for one settled location first
+  // means there's only ever one fetch, so the list is right from the start.
+  useEffect(() => {
+    if (locStatus === "idle" || locStatus === "locating") {
+      // Don't wait forever — if the browser's permission prompt sits
+      // unanswered (or geolocation silently never settles), fall back to
+      // the unfiltered nationwide list rather than leaving the dashboard
+      // blank indefinitely. useGeolocation's own getCurrentPosition timeout
+      // is 10s; this fires slightly after that as a backstop in case the
+      // browser never calls either callback at all.
+      const fallback = setTimeout(load, 11000);
+      return () => clearTimeout(fallback);
+    }
+    load();
+  }, [load, locStatus]);
 
   // Loaded on demand, not with the rest of the dashboard — a collector who
   // never opens this tab shouldn't pay for the extra request every visit.
@@ -182,15 +208,33 @@ export default function CollectorDashboard() {
     }
   };
 
-  // Live socket updates for new pickups — only ones within the same radius
+  // New request comes in -> add it to the available list live, but only if
+  // it falls inside the same radius the initial load already used — a raw
+  // pickup document from the "newPickup" broadcast carries no distanceKm
+  // field (that's computed server-side only by the $geoNear-backed
+  // /available endpoint), so without this filter every collector on the
+  // platform would see every new pickup appear in real time regardless of
+  // distance, contradicting the radius-scoped list they started with.
+  // Also attaches distanceKm/distanceMeters here so "Nearest first"
+  // sorting works correctly on live-added items too, not just ones from
   // the initial fetch.
   useSocket("newPickup", (pickup) => {
+    const notify = () => {
+      showToast({
+        title: "New pickup nearby",
+        message: `${pickup.scrapType} · ${pickup.estimatedWeightKg ?? "?"}kg — ${formatPrice(pickup.price)}`,
+        type: "success",
+        onClick: () => setDetailsPickup(pickup),
+      });
+    };
+
     if (!myCoords) {
       // No location yet — the initial load itself fell back to
       // newest-first nationally in this case, so stay consistent with that
       // rather than silently dropping every live pickup until location is
       // granted.
       setAvailable((prev) => [pickup, ...prev]);
+      notify();
       return;
     }
 
@@ -200,6 +244,7 @@ export default function CollectorDashboard() {
     if (distanceMeters > AVAILABLE_RADIUS_KM * 1000) return;
 
     setAvailable((prev) => [{ ...pickup, distanceMeters, distanceKm: distanceMeters / 1000 }, ...prev]);
+    notify();
   });
 
   // Any pickup updated (by this collector or another) -> reconcile both lists
