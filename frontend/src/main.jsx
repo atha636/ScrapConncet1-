@@ -5,6 +5,7 @@ import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext"; // 👈 add this
 import { ThemeProvider } from "./context/ThemeContext";
+import { ToastProvider } from "./context/ToastContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { hasGoogleAuth } from "./utils/googleAuthConfig";
@@ -21,9 +22,11 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const appTree = (
   <ThemeProvider>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   </ThemeProvider>
 );
