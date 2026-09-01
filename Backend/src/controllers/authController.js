@@ -159,14 +159,42 @@ exports.me = asyncHandler(async (req, res) => {
 });
 
 // PATCH /api/auth/me
+// PATCH /api/auth/me
 exports.updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone } = req.body;
+  const { name, phone, collectorPreferences } = req.body;
 
   const user = await User.findById(req.user.id);
   if (!user) throw new ApiError(404, "User not found");
 
   if (name !== undefined) user.name = name;
   if (phone !== undefined) user.phone = phone;
+
+  // Deliberately scoped to role "collector" — a "user"/"admin" account
+  // sending this is silently ignored rather than erroring, since the field
+  // is meaningless for them and a hard 400 here would just be friction for
+  // no benefit (nothing in the frontend sends this outside the collector
+  // preferences panel anyway).
+  //
+  // Each sub-field is set individually via user.set("collectorPreferences.x", ...)
+  // rather than `user.collectorPreferences = { ...merged object }`. This
+  // isn't stylistic — collectorPreferences is a nested schema path, not a
+  // real Mongoose subdocument, and reassigning the whole parent object
+  // bypasses per-field enum/min/max validation on its children entirely
+  // (confirmed directly: an invalid scrapTypes value saves silently when
+  // set via whole-object assignment, but is correctly rejected when set
+  // via its own path). Our Zod validator already blocks a bad value before
+  // it gets here, but this keeps the schema's own validation actually
+  // load-bearing rather than dead code, in case anything ever writes this
+  // field through a path that skips the route validator.
+  if (collectorPreferences !== undefined && user.role === "collector") {
+    if (collectorPreferences.scrapTypes !== undefined) {
+      user.set("collectorPreferences.scrapTypes", collectorPreferences.scrapTypes);
+    }
+    if (collectorPreferences.radiusKm !== undefined) {
+      user.set("collectorPreferences.radiusKm", collectorPreferences.radiusKm);
+    }
+  }
+
   await user.save();
 
   res.json(user);

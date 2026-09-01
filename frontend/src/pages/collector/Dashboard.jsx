@@ -20,6 +20,7 @@ import { getRatings } from "../../services/ratingService";
 import { hasUserRated } from "../../utils/ratings";
 import MapModal from "../../components/map/MapModal";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
+import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -76,6 +77,15 @@ export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
   const { user } = useAuth();
   const { showToast } = useToast();
+  const [prefsOpen, setPrefsOpen] = useState(false);
+
+  // A saved preference overrides the platform default radius; an unset
+  // one (never configured, or explicitly cleared) falls back to it. Same
+  // for scrap types — an empty/unset array means "no filter, show me
+  // everything," matching how the existing typeFilter dropdown already
+  // treats "all".
+  const effectiveRadiusKm = user?.collectorPreferences?.radiusKm || AVAILABLE_RADIUS_KM;
+  const preferredScrapTypes = user?.collectorPreferences?.scrapTypes;
   const isSuspended = !!user?.collectorSuspended;
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
@@ -118,7 +128,7 @@ export default function CollectorDashboard() {
       // happened to be in the newest 20 nationally." Without coordinates
       // (denied/unsupported), falls back to the original newest-first list.
       const availableParams = myCoords
-        ? { limit: 50, lat: myCoords.lat, lng: myCoords.lng, radiusKm: AVAILABLE_RADIUS_KM }
+        ? { limit: 50, lat: myCoords.lat, lng: myCoords.lng, radiusKm: effectiveRadiusKm }
         : { limit: 20 };
 
       const [a, m] = await Promise.all([
@@ -132,7 +142,7 @@ export default function CollectorDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [myCoords]);
+  }, [myCoords, effectiveRadiusKm]);
 
   // Deliberately wait for geolocation to settle ("success" or "error")
   // before firing the very first load — "idle" (locateMe() hasn't run yet)
@@ -219,6 +229,13 @@ export default function CollectorDashboard() {
   // sorting works correctly on live-added items too, not just ones from
   // the initial fetch.
   useSocket("newPickup", (pickup) => {
+    // A type preference is a hard filter — if the collector said "only
+    // metal and e-waste," a plastic pickup shouldn't interrupt them with a
+    // toast or silently pad their list, even if it's nearby.
+    if (preferredScrapTypes?.length && !preferredScrapTypes.includes(pickup.scrapType)) {
+      return;
+    }
+
     const notify = () => {
       showToast({
         title: "New pickup nearby",
@@ -241,7 +258,7 @@ export default function CollectorDashboard() {
     const distanceMeters =
       1000 *
       distanceKm(myCoords.lat, myCoords.lng, pickup.location.lat, pickup.location.lng);
-    if (distanceMeters > AVAILABLE_RADIUS_KM * 1000) return;
+    if (distanceMeters > effectiveRadiusKm * 1000) return;
 
     setAvailable((prev) => [{ ...pickup, distanceMeters, distanceKm: distanceMeters / 1000 }, ...prev]);
     notify();
@@ -439,6 +456,19 @@ export default function CollectorDashboard() {
                 Clear filters
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setPrefsOpen(true)}
+              className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-inkSoft hover:text-rust transition-colors self-center"
+              title="Choose which pickups trigger a live alert"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              Notify me for…
+            </button>
           </div>
         )}
 
@@ -854,6 +884,12 @@ export default function CollectorDashboard() {
           }}
           accepting={actingId === detailsPickup?._id}
           isSuspended={isSuspended}
+        />
+
+        <NotifyPreferencesModal
+          open={prefsOpen}
+          onClose={() => setPrefsOpen(false)}
+          defaultRadiusKm={AVAILABLE_RADIUS_KM}
         />
       </div>
     </MotionConfig>
