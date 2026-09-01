@@ -93,7 +93,7 @@ describe("ChatBox", () => {
     mockUsePickupChat.mockReturnValue({
       messages: [
         { _id: "m1", text: "Hi there", sender: { _id: "me1", name: "Priya" }, createdAt: new Date().toISOString() },
-        { _id: "m2", text: "On my way", sender: { _id: "other1", name: "Raj" }, createdAt: new Date().toISOString() },
+        { _id: "m2", text: "See you soon", sender: { _id: "other1", name: "Raj" }, createdAt: new Date().toISOString() },
       ],
       loading: false,
       error: "",
@@ -103,7 +103,7 @@ describe("ChatBox", () => {
     renderChatBox();
 
     expect(screen.getByText("Hi there")).toBeInTheDocument();
-    expect(screen.getByText("On my way")).toBeInTheDocument();
+    expect(screen.getByText("See you soon")).toBeInTheDocument();
     expect(screen.getByText("Raj")).toBeInTheDocument();
     // Priya (the logged-in user) sent m1 — her own bubble has no sender label
     expect(screen.queryByText("Priya")).not.toBeInTheDocument();
@@ -150,5 +150,58 @@ describe("ChatBox", () => {
     renderChatBox({ onClose });
     fireEvent.click(screen.getByLabelText("Close chat"));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test("clicking a quick-reply chip sends that exact phrase (requester wording)", () => {
+    const send = vi.fn();
+    mockUsePickupChat.mockReturnValue({ messages: [], loading: false, error: "", sending: false, send });
+    renderChatBox();
+
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
+
+    expect(send).toHaveBeenCalledWith("I'm ready");
+  });
+
+  test("a collector sees travel-status phrases instead of the requester's", () => {
+    const send = vi.fn();
+    mockUsePickupChat.mockReturnValue({ messages: [], loading: false, error: "", sending: false, send });
+    renderChatBox({}, { _id: "c1", name: "Atharv", role: "collector" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Arrived" }));
+
+    expect(send).toHaveBeenCalledWith("Arrived");
+    expect(screen.queryByRole("button", { name: "I'm ready" })).not.toBeInTheDocument();
+  });
+
+  test("does not send a quick reply while a message is already sending", () => {
+    const send = vi.fn();
+    mockUsePickupChat.mockReturnValue({ messages: [], loading: false, error: "", sending: true, send });
+    renderChatBox();
+
+    expect(screen.getByRole("button", { name: "I'm ready" })).toBeDisabled();
+  });
+
+  test("renders a shared-location message as a Maps link, not raw text", () => {
+    mockUsePickupChat.mockReturnValue({
+      messages: [
+        {
+          _id: "m1",
+          text: "📍 Live location: https://www.google.com/maps?q=30.7333,76.7794",
+          sender: { _id: "other1", name: "Raj" },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+    });
+    renderChatBox();
+
+    expect(screen.getByText("Live location shared")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Live location shared/ });
+    expect(link).toHaveAttribute("href", "https://www.google.com/maps?q=30.7333,76.7794");
+    // The raw encoded text itself shouldn't leak through as a plain bubble
+    expect(screen.queryByText(/📍 Live location:/)).not.toBeInTheDocument();
   });
 });
