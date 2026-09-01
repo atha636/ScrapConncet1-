@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { SCRAP_TYPES } = require("../models/Pickup");
 
 // NOTE: role is intentionally NOT accepted here. Registering as "collector"
 // is a separate, explicit action — never a field a client can freely set on
@@ -35,6 +36,18 @@ const googleAuthSchema = z.object({
 const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(60).optional(),
   phone: z.union([z.string().trim().min(7).max(20), z.literal("")]).optional(),
+  // Only meaningful for a collector account — the controller silently
+  // ignores this for any other role rather than erroring, since a generic
+  // profile-update call shouldn't need to know the caller's role up front.
+  collectorPreferences: z
+    .object({
+      // Empty array is a valid, deliberate choice ("no type filter" — see
+      // all scrap types), so it's kept distinct from omitting the field
+      // entirely (which leaves the existing preference untouched).
+      scrapTypes: z.array(z.enum(SCRAP_TYPES)).max(SCRAP_TYPES.length).optional(),
+      radiusKm: z.number().min(1).max(100).optional(),
+    })
+    .optional(),
 });
 
 const changePasswordSchema = z.object({

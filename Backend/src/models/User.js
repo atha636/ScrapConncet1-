@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { SCRAP_TYPES } = require("./Pickup");
 
 const userSchema = new mongoose.Schema(
   {
@@ -35,7 +36,22 @@ const userSchema = new mongoose.Schema(
     collectorSuspended: { type: Boolean, default: false },
     collectorSuspendedAt: { type: Date, default: null },
 
-    
+    // Lets a collector narrow which live "new pickup" events actually
+    // reach them (toast/list) to scrap types they actually want and a
+    // radius they're willing to travel, instead of every pending pickup
+    // nationwide. Meaningless for role "user"/"admin", so left unset
+    // (undefined) rather than given defaults for those roles — the
+    // frontend only ever reads/writes this for a collector account.
+    // scrapTypes: null/empty array means "no type filter" (all types).
+    collectorPreferences: {
+      scrapTypes: { type: [String], enum: SCRAP_TYPES, default: undefined },
+      // Capped at 100, matching pickupController.getAvailable's own
+      // Math.min(100, ...) clamp on the radiusKm query param — storing a
+      // preference above what the endpoint will ever actually honor would
+      // just be a silently-lying setting.
+      radiusKm: { type: Number, min: 1, max: 100, default: undefined },
+    },
+
     isVerified: { type: Boolean, default: false },
     verificationTokenHash: { type: String, select: false, default: null },
     verificationTokenExpires: { type: Date, select: false, default: null },
