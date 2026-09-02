@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { SCRAP_TYPES } from "../../services/pickupService";
 import { updateProfile } from "../../services/authService";
@@ -42,7 +43,7 @@ export default function NotifyPreferencesModal({ open, onClose, defaultRadiusKm 
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -126,6 +127,7 @@ export default function NotifyPreferencesModal({ open, onClose, defaultRadiusKm 
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
