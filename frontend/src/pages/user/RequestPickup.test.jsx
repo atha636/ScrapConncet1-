@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import RequestPickup from "./RequestPickup";
+import { AuthProvider } from "../../context/AuthContext";
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -35,7 +36,9 @@ function mockGeolocationDenied() {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <RequestPickup />
+      <AuthProvider>
+        <RequestPickup />
+      </AuthProvider>
     </MemoryRouter>
   );
 }
@@ -46,6 +49,13 @@ describe("RequestPickup", () => {
     mockCreatePickup.mockReset();
     mockCompressImage.mockReset().mockImplementation((f) => Promise.resolve(f)); // passthrough by default
     delete globalThis.navigator.geolocation;
+    localStorage.clear();
+    // Contact fields pre-fill from the logged-in account — seeding one
+    // with both name and phone here means every pre-existing submit test
+    // below "just works" without individually filling those fields in,
+    // since the account already supplies valid values.
+    localStorage.setItem("token", "tok");
+    localStorage.setItem("user", JSON.stringify({ _id: "u1", name: "Priya", phone: "9876500000", role: "user" }));
   });
 
   test("defaults to 'Metal' selected among the scrap type options", () => {
@@ -107,10 +117,28 @@ describe("RequestPickup", () => {
     const submittedForm = mockCreatePickup.mock.calls[0][0];
     expect(submittedForm.get("scrapType")).toBe("plastic");
     expect(submittedForm.get("estimatedWeightKg")).toBe("3.5");
+    expect(submittedForm.get("contactName")).toBe("Priya");
+    expect(submittedForm.get("contactPhone")).toBe("9876500000");
     expect(submittedForm.get("lat")).toBe("12.34");
     expect(submittedForm.get("lng")).toBe("56.78");
 
     expect(mockNavigate).toHaveBeenCalledWith("/my-requests");
+  });
+
+  test("blocks submission and shows an error when contact name or phone is cleared", async () => {
+    mockGeolocationSuccess();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+    await screen.findByText(/Location captured/);
+
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    expect(
+      await screen.findByText("Add a contact name and phone number so the collector can reach you.")
+    ).toBeInTheDocument();
+    expect(mockCreatePickup).not.toHaveBeenCalled();
   });
 
   test("shows the server's error message when submission fails", async () => {

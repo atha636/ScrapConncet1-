@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createPickup, SCRAP_TYPES } from "../../services/pickupService";
+import { useAuth } from "../../context/AuthContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
 import Card from "../../components/ui/Card";
@@ -30,10 +31,13 @@ export default function RequestPickup() {
   useDocumentMeta({ title: "Request Pickup", noindex: true });
 
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 
   const [scrapType, setScrapType] = useState("metal");
   const [weight, setWeight] = useState("");
+  const [contactName, setContactName] = useState(user?.name || "");
+  const [contactPhone, setContactPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -88,6 +92,10 @@ export default function RequestPickup() {
     e.preventDefault();
     setError("");
 
+    if (!contactName.trim() || !contactPhone.trim()) {
+      return setError("Add a contact name and phone number so the collector can reach you.");
+    }
+
     if (!coords) {
       return setError("Share your pickup location before submitting.");
     }
@@ -97,6 +105,8 @@ export default function RequestPickup() {
       const form = new FormData();
       form.append("scrapType", scrapType);
       if (weight) form.append("estimatedWeightKg", weight);
+      form.append("contactName", contactName.trim());
+      form.append("contactPhone", contactPhone.trim());
       form.append("lat", coords.lat);
       form.append("lng", coords.lng);
       if (address) form.append("address", address);
@@ -182,6 +192,32 @@ export default function RequestPickup() {
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
               />
+            </motion.div>
+
+            {/* Contact */}
+            <motion.div variants={fadeUp}>
+              <label className="field-label">Contact — so the collector can reach you</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  maxLength={60}
+                  className="field-input"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone number"
+                  maxLength={20}
+                  className="field-input"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-inkFaint mt-1.5">
+                Shown to the collector who accepts this pickup, so they can call or message you.
+              </p>
             </motion.div>
 
             {/* Location */}
