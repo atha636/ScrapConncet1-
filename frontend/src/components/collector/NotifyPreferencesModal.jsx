@@ -46,24 +46,24 @@ export default function NotifyPreferencesModal({ open, onClose, defaultRadiusKm 
   return createPortal(
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-ink/40"
-            onClick={onClose}
-          />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+          onClick={onClose}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label="Notification preferences"
-            className="fixed z-50 inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2
-                       sm:w-[26rem] max-w-[calc(100vw-2rem)] ticket p-5 pt-6"
+            className="w-full sm:w-[26rem] max-w-[calc(100vw-2rem)] ticket p-5 pt-6"
           >
             <h3 className="text-base font-bold text-ink mb-1">Notify me for…</h3>
             <p className="text-xs text-inkSoft mb-4">
@@ -125,7 +125,7 @@ export default function NotifyPreferencesModal({ open, onClose, defaultRadiusKm 
               </button>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body
