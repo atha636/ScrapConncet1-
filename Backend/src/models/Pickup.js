@@ -11,6 +11,26 @@ const pickupSchema = new mongoose.Schema(
     estimatedWeightKg: { type: Number, min: 0 },
     image: { type: String, default: null },
 
+    // Captured on the request form itself (pre-filled from the requester's
+    // profile, but editable there) rather than only ever reading
+    // user.name/user.phone off the account — the account's phone is
+    // optional at registration (see authValidator.registerSchema), so
+    // relying on it alone meant a collector could accept a pickup with no
+    // way to actually call the requester if that field was ever left
+    // blank. Requiring a confirmed number at request time closes that gap
+    // for every pickup going forward.
+    //
+    // Deliberately NOT `required: true` here, even though the create
+    // endpoint's Zod validator always requires both — escalateStalePickups
+    // (see src/jobs) calls pickup.save() on old pending pickups on a cron
+    // schedule, and a schema-level `required` would throw a validation
+    // error on every pickup created before this field existed the next
+    // time that job tries to save one. Enforcing "required" only at the
+    // validator layer keeps every new pickup guaranteed to have both,
+    // without retroactively invalidating anything already in the database.
+    contactName: { type: String, trim: true, maxlength: 60 },
+    contactPhone: { type: String, trim: true, maxlength: 20 },
+
     location: {
       lat: { type: Number, required: true, min: -90, max: 90 },
       lng: { type: Number, required: true, min: -180, max: 180 },

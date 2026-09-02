@@ -21,12 +21,14 @@ const paginate = (query) => {
 
 // POST /api/pickup/request
 exports.createPickup = asyncHandler(async (req, res) => {
-  const { scrapType, estimatedWeightKg, lat, lng, address } = req.body;
+  const { scrapType, estimatedWeightKg, contactName, contactPhone, lat, lng, address } = req.body;
 
   const pickup = await Pickup.create({
     user: req.user.id,
     scrapType,
     estimatedWeightKg,
+    contactName,
+    contactPhone,
     image: req.file?.path || req.file?.secure_url || null,
     location: { lat, lng, address },
     price: estimatePrice(scrapType, estimatedWeightKg),
