@@ -20,6 +20,7 @@ import { getRatings } from "../../services/ratingService";
 import { hasUserRated } from "../../utils/ratings";
 import MapModal from "../../components/map/MapModal";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
+import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -98,6 +99,7 @@ export default function CollectorDashboard() {
   const [ratedIds, setRatedIds] = useState(new Set());
   const [mapPickup, setMapPickup] = useState(null);
   const [detailsPickup, setDetailsPickup] = useState(null);
+  const [reportPickup, setReportPickup] = useState(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -602,6 +604,12 @@ export default function CollectorDashboard() {
                                 </svg>
                                 Chat
                               </button>
+                              <button
+                                onClick={() => setReportPickup(item)}
+                                className="text-xs font-semibold text-inkFaint hover:text-danger"
+                              >
+                                Report
+                              </button>
                               {action && (
                                 <motion.button
                                   whileTap={{ scale: 0.96 }}
@@ -649,6 +657,12 @@ export default function CollectorDashboard() {
                           <div className="flex items-center gap-3">
                             <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
                             <StatusStamp status={item.status} />
+                            <button
+                              onClick={() => setReportPickup(item)}
+                              className="text-xs font-semibold text-inkFaint hover:text-danger"
+                            >
+                              Report
+                            </button>
                             {item.status === "completed" && item.user && !ratedIds.has(item._id) && (
                               <button
                                 onClick={() => setRatePickup(item)}
@@ -890,6 +904,12 @@ export default function CollectorDashboard() {
           open={prefsOpen}
           onClose={() => setPrefsOpen(false)}
           defaultRadiusKm={AVAILABLE_RADIUS_KM}
+        />
+
+        <ReportIssueModal
+          pickupId={reportPickup?._id}
+          open={!!reportPickup}
+          onClose={() => setReportPickup(null)}
         />
       </div>
     </MotionConfig>

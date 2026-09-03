@@ -18,6 +18,7 @@ export default function RequestDetailModal({
   onChat,
   onCancel,
   onRate,
+  onReport,
   cancelling,
   alreadyRated,
 }) {
@@ -145,6 +146,16 @@ export default function RequestDetailModal({
               {pickup.collector && pickup.status !== "cancelled" && (
                 <motion.button whileTap={{ scale: 0.96 }} onClick={onChat} className="btn-secondary !py-2 !px-4 text-sm">
                   Chat
+                </motion.button>
+              )}
+
+              {pickup.collector && onReport && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={onReport}
+                  className="text-sm font-semibold text-inkFaint hover:text-danger px-2"
+                >
+                  Report an issue
                 </motion.button>
               )}
 

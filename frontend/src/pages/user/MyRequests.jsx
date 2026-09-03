@@ -10,6 +10,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import RequestDetailModal from "../../components/pickup/RequestDetailModal";
+import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -50,6 +51,7 @@ export default function MyRequests() {
   const [cancellingId, setCancellingId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [detailsPickup, setDetailsPickup] = useState(null);
+  const [reportPickup, setReportPickup] = useState(null);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -289,12 +291,19 @@ export default function MyRequests() {
         onClose={() => setDetailsPickup(null)}
         onChat={() => { setChatPickup(detailsPickup); setDetailsPickup(null); }}
         onRate={() => { setRatePickup(detailsPickup); setDetailsPickup(null); }}
+        onReport={() => { setReportPickup(detailsPickup); setDetailsPickup(null); }}
         onCancel={async () => {
           const ok = await handleCancel(detailsPickup);
           if (ok) setDetailsPickup(null);
         }}
         cancelling={cancellingId === detailsPickup?._id}
         alreadyRated={ratedIds.has(detailsPickup?._id)}
+      />
+
+      <ReportIssueModal
+        pickupId={reportPickup?._id}
+        open={!!reportPickup}
+        onClose={() => setReportPickup(null)}
       />
     </div>
   );

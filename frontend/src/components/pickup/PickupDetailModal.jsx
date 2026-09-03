@@ -11,7 +11,7 @@ const rowItem = {
   show: { opacity: 1, x: 0, transition: { duration: 0.18 } },
 };
 
-export default function PickupDetailModal({ pickup, open, onClose, onAccept, onViewMap, accepting, isSuspended }) {
+export default function PickupDetailModal({ pickup, open, onClose, onAccept, onViewMap, onReport, accepting, isSuspended }) {
   return (
     <AnimatePresence>
       {open && pickup && (
@@ -142,15 +142,28 @@ export default function PickupDetailModal({ pickup, open, onClose, onAccept, onV
               <motion.button whileTap={{ scale: 0.96 }} onClick={onClose} className="btn-secondary !py-2 !px-4 text-sm">
                 Close
               </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={onAccept}
-                disabled={accepting || isSuspended}
-                title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
-                className="btn-primary !py-2 !px-4 text-sm"
-              >
-                {accepting ? "Accepting…" : "Accept pickup"}
-              </motion.button>
+
+              {pickup.status !== "pending" && onReport && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={onReport}
+                  className="text-sm font-semibold text-inkFaint hover:text-danger px-2 mr-auto"
+                >
+                  Report an issue
+                </motion.button>
+              )}
+
+              {pickup.status === "pending" && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={onAccept}
+                  disabled={accepting || isSuspended}
+                  title={isSuspended ? "Your account can't accept new pickups right now" : undefined}
+                  className="btn-primary !py-2 !px-4 text-sm"
+                >
+                  {accepting ? "Accepting…" : "Accept pickup"}
+                </motion.button>
+              )}
             </div>
           </motion.div>
         </motion.div>
