@@ -11,6 +11,8 @@ import {
   approvePayout,
   rejectPayout,
   getAllPickups,
+  getDisputes,
+  resolveDispute,
   exportUsersCsv,
   exportPickupsCsv,
 } from "../services/adminService";
@@ -30,8 +32,21 @@ const TABS = [
   { key: "analytics", label: "Analytics" },
   { key: "users", label: "Users" },
   { key: "payouts", label: "Payouts" },
+  { key: "disputes", label: "Disputes" },
   { key: "pickups", label: "All pickups" },
 ];
+
+// Mirrors ReportIssueModal's own mapping so the reason reads the same way
+// wherever it's shown — the person who filed it and the admin reviewing it
+// should see identical wording, not two different phrasings of the same enum.
+const DISPUTE_REASON_LABELS = {
+  no_show: "Never showed up",
+  wrong_weight_or_price: "Weight or price disagreement",
+  damaged_property: "Property damaged",
+  unsafe_or_rude_behavior: "Unsafe or rude behavior",
+  payment_issue: "Payment issue",
+  other: "Other",
+};
 
 const listStagger = {
   hidden: {},
@@ -62,6 +77,9 @@ export default function AdminPanel() {
   const [pickups, setPickups] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [payoutFilter, setPayoutFilter] = useState("pending");
+  const [disputes, setDisputes] = useState([]);
+  const [disputeFilter, setDisputeFilter] = useState("open");
+  const [resolvingNote, setResolvingNote] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actingId, setActingId] = useState(null);
@@ -89,6 +107,11 @@ export default function AdminPanel() {
     setPayouts(res.data.data);
   }, [payoutFilter]);
 
+  const loadDisputes = useCallback(async (status = disputeFilter) => {
+    const res = await getDisputes({ limit: 30, status: status || undefined });
+    setDisputes(res.data.data);
+  }, [disputeFilter]);
+
   const loadPickups = useCallback(async () => {
     const res = await getAllPickups({ limit: 30 });
     setPickups(res.data.data);
@@ -106,11 +129,13 @@ export default function AdminPanel() {
         ? () => loadUsers()
         : tab === "payouts"
         ? () => loadPayouts()
+        : tab === "disputes"
+        ? () => loadDisputes()
         : loadPickups;
     load()
       .catch(() => setError("Couldn't load this section. Try refreshing."))
       .finally(() => setLoading(false));
-  }, [tab, loadOverview, loadAnalytics, loadUsers, loadPayouts, loadPickups]);
+  }, [tab, loadOverview, loadAnalytics, loadUsers, loadPayouts, loadDisputes, loadPickups]);
 
   const handleToggleActive = async (u) => {
     setActingId(u._id);
@@ -158,6 +183,26 @@ export default function AdminPanel() {
       setPayouts((prev) => (payoutFilter ? prev.filter((x) => x._id !== p._id) : prev.map((x) => (x._id === p._id ? res.data : x))));
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't reject this payout.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleResolveDispute = async (d, status) => {
+    setActingId(d._id);
+    setError("");
+    try {
+      const res = await resolveDispute(d._id, { status, resolutionNotes: resolvingNote[d._id] });
+      setDisputes((prev) =>
+        disputeFilter ? prev.filter((x) => x._id !== d._id) : prev.map((x) => (x._id === d._id ? res.data : x))
+      );
+      setResolvingNote((prev) => {
+        const next = { ...prev };
+        delete next[d._id];
+        return next;
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't update this dispute.");
     } finally {
       setActingId(null);
     }
@@ -418,6 +463,111 @@ export default function AdminPanel() {
                                   {actingId === p._id ? "…" : "Approve"}
                                 </motion.button>
                               </>
+                            )}
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
+                </motion.div>
+              </div>
+            )}
+
+            {tab === "disputes" && (
+              <div>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <select
+                    value={disputeFilter}
+                    onChange={(e) => {
+                      setDisputeFilter(e.target.value);
+                      loadDisputes(e.target.value);
+                    }}
+                    className="field-input !w-auto text-sm"
+                  >
+                    <option value="open">Open</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="dismissed">Dismissed</option>
+                    <option value="">All</option>
+                  </select>
+                </div>
+
+                <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
+                  {disputes.length === 0 ? (
+                    <Card className="p-10 text-center text-inkSoft">No disputes here.</Card>
+                  ) : (
+                    disputes.map((d) => (
+                      <motion.div key={d._id} variants={listItem} layout>
+                        <Card className="p-4">
+                          <div className="flex items-start justify-between gap-4 flex-wrap">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-ink text-sm">
+                                  {DISPUTE_REASON_LABELS[d.reason] || d.reason}
+                                </span>
+                                <span
+                                  className={`stamp ${
+                                    d.status === "resolved"
+                                      ? "stamp-completed"
+                                      : d.status === "dismissed"
+                                      ? "stamp-cancelled"
+                                      : "stamp-pending"
+                                  }`}
+                                >
+                                  {d.status === "resolved" ? "Resolved" : d.status === "dismissed" ? "Dismissed" : "Open"}
+                                </span>
+                              </div>
+                              <div className="text-xs text-inkSoft mt-1">
+                                {d.reportedBy?.name} ({d.reportedBy?.role}) reported {d.reportedAgainst?.name}
+                                {d.pickup?.scrapType && <> · {d.pickup.scrapType} pickup, {formatPrice(d.pickup.price)}</>}
+                              </div>
+                              <div className="text-xs text-inkFaint mt-0.5 font-mono">
+                                Filed {new Date(d.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              </div>
+                              {d.description && (
+                                <p className="text-sm text-ink mt-2 bg-surfaceRaised border border-line rounded-ticket p-2.5">
+                                  {d.description}
+                                </p>
+                              )}
+                              {d.status !== "open" && d.resolutionNotes && (
+                                <p className="text-xs text-inkSoft mt-2">
+                                  <span className="font-semibold">
+                                    {d.status === "resolved" ? "Resolved" : "Dismissed"} by {d.resolvedBy?.name}:
+                                  </span>{" "}
+                                  {d.resolutionNotes}
+                                </p>
+                              )}
+                            </div>
+
+                            {d.status === "open" && (
+                              <div className="flex flex-col gap-2 items-end shrink-0 w-full sm:w-56">
+                                <input
+                                  type="text"
+                                  placeholder="Resolution note (optional)"
+                                  value={resolvingNote[d._id] || ""}
+                                  onChange={(e) =>
+                                    setResolvingNote((prev) => ({ ...prev, [d._id]: e.target.value }))
+                                  }
+                                  className="field-input text-xs !py-1.5 w-full"
+                                />
+                                <div className="flex gap-2">
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleResolveDispute(d, "dismissed")}
+                                    disabled={actingId === d._id}
+                                    className="text-xs font-semibold text-inkFaint hover:text-danger"
+                                  >
+                                    Dismiss
+                                  </motion.button>
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleResolveDispute(d, "resolved")}
+                                    disabled={actingId === d._id}
+                                    className="btn-primary !py-1.5 !px-3 text-xs"
+                                  >
+                                    {actingId === d._id ? "…" : "Mark resolved"}
+                                  </motion.button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </Card>

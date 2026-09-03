@@ -60,7 +60,7 @@ export default function useNotifications() {
     // same place NotificationBell's own click handler would.
     showToast({
       title: toastTitle(notification),
-      message: notification.message,
+      message: notification.text,
       type: TOAST_TYPE[notification.type] || "info",
       onClick: notification.pickup
         ? () => navigate(user?.role === "collector" ? "/collector" : "/my-requests")

@@ -27,6 +27,8 @@ const adminService = vi.hoisted(() => ({
   approvePayout: vi.fn(),
   rejectPayout: vi.fn(),
   getAllPickups: vi.fn(),
+  getDisputes: vi.fn(),
+  resolveDispute: vi.fn(),
   exportUsersCsv: vi.fn(),
   exportPickupsCsv: vi.fn(),
 }));
@@ -76,12 +78,26 @@ const PICKUPS = [
   },
 ];
 
+const DISPUTES = [
+  {
+    _id: "d1",
+    reason: "no_show",
+    description: "Collector never arrived after accepting.",
+    status: "open",
+    createdAt: new Date().toISOString(),
+    reportedBy: { name: "Priya Sharma", role: "user" },
+    reportedAgainst: { name: "Raj Patidar", role: "collector" },
+    pickup: { scrapType: "metal", price: 500 },
+  },
+];
+
 function setDefaults() {
   adminService.getAdminStats.mockResolvedValue({ data: STATS });
   adminService.getAdminAnalytics.mockResolvedValue({ data: { series: [] } });
   adminService.getAdminUsers.mockResolvedValue({ data: { data: USERS } });
   adminService.getPayoutRequests.mockResolvedValue({ data: { data: PAYOUTS } });
   adminService.getAllPickups.mockResolvedValue({ data: { data: PICKUPS } });
+  adminService.getDisputes.mockResolvedValue({ data: { data: DISPUTES } });
 }
 
 describe("AdminPanel", () => {
@@ -228,6 +244,53 @@ describe("AdminPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reject" }));
 
     await waitFor(() => expect(adminService.rejectPayout).toHaveBeenCalledWith("p1"));
+  });
+
+  test("switching to the Disputes tab loads and renders open disputes", async () => {
+    render(<AdminPanel />);
+    await screen.findByText("Requesters");
+    fireEvent.click(screen.getByRole("button", { name: "Disputes" }));
+
+    expect(await screen.findByText("Never showed up")).toBeInTheDocument();
+    expect(screen.getByText(/Priya Sharma.*reported Raj Patidar/)).toBeInTheDocument();
+    expect(screen.getByText("Collector never arrived after accepting.")).toBeInTheDocument();
+    expect(document.querySelector(".stamp-pending")).toHaveTextContent("Open");
+  });
+
+  test("marking a dispute resolved sends the typed note and calls resolveDispute", async () => {
+    adminService.resolveDispute.mockResolvedValue({
+      data: { ...DISPUTES[0], status: "resolved", resolutionNotes: "Refunded the requester" },
+    });
+    render(<AdminPanel />);
+    await screen.findByText("Requesters");
+    fireEvent.click(screen.getByRole("button", { name: "Disputes" }));
+    await screen.findByText("Never showed up");
+
+    fireEvent.change(screen.getByPlaceholderText("Resolution note (optional)"), {
+      target: { value: "Refunded the requester" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark resolved" }));
+
+    await waitFor(() =>
+      expect(adminService.resolveDispute).toHaveBeenCalledWith("d1", {
+        status: "resolved",
+        resolutionNotes: "Refunded the requester",
+      })
+    );
+  });
+
+  test("dismissing a dispute calls resolveDispute with status dismissed", async () => {
+    adminService.resolveDispute.mockResolvedValue({ data: { ...DISPUTES[0], status: "dismissed" } });
+    render(<AdminPanel />);
+    await screen.findByText("Requesters");
+    fireEvent.click(screen.getByRole("button", { name: "Disputes" }));
+    await screen.findByText("Never showed up");
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    await waitFor(() =>
+      expect(adminService.resolveDispute).toHaveBeenCalledWith("d1", { status: "dismissed", resolutionNotes: undefined })
+    );
   });
 
   test("switching to the All pickups tab loads and renders pickups", async () => {
