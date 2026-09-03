@@ -4,6 +4,7 @@ const role = require("../middleware/role");
 const upload = require("../middleware/upload");
 const validate = require("../middleware/validate");
 const { createPickupSchema, updateStatusSchema } = require("../validators/pickupValidator");
+const { createDisputeSchema } = require("../validators/disputeValidator");
 
 const {
   createPickup,
@@ -14,6 +15,7 @@ const {
   updateStatus,
   cancelByRequester,
 } = require("../controllers/pickupController");
+const { createDispute } = require("../controllers/disputeController");
 
 router.post(
   "/request",
@@ -36,6 +38,16 @@ router.patch(
   role("collector"),
   validate(updateStatusSchema),
   updateStatus
+);
+
+// Either party to the pickup can file a dispute — not restricted to a
+// single role the way most other routes here are.
+router.post(
+  "/:id/dispute",
+  auth,
+  role("user", "collector"),
+  validate(createDisputeSchema),
+  createDispute
 );
 
 module.exports = router;

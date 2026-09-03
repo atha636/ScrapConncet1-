@@ -18,6 +18,17 @@ export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 
 export const updateStatus = (id, status) => API.patch(`/pickup/${id}/status`, { status });
 
+export const DISPUTE_REASONS = [
+  "no_show",
+  "wrong_weight_or_price",
+  "damaged_property",
+  "unsafe_or_rude_behavior",
+  "payment_issue",
+  "other",
+];
+
+export const createDispute = (pickupId, data) => API.post(`/pickup/${pickupId}/dispute`, data);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });

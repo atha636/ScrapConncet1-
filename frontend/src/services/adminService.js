@@ -20,6 +20,10 @@ export const rejectPayout = (id, note) => API.patch(`/admin/payouts/${id}/reject
 
 export const getAllPickups = (params = {}) => API.get("/admin/pickups", { params });
 
+export const getDisputes = (params = {}) => API.get("/admin/disputes", { params });
+
+export const resolveDispute = (id, data) => API.patch(`/admin/disputes/${id}/resolve`, data);
+
 export const exportUsersCsv = () => API.get("/export/admin/users", { responseType: "blob" });
 
 export const exportPickupsCsv = () => API.get("/export/admin/pickups", { responseType: "blob" });
