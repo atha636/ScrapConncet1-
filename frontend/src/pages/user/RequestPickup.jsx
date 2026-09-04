@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { createPickup, SCRAP_TYPES } from "../../services/pickupService";
+import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES } from "../../services/pickupService";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
 import Card from "../../components/ui/Card";
@@ -32,12 +33,15 @@ export default function RequestPickup() {
 
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 
   const [scrapType, setScrapType] = useState("metal");
   const [weight, setWeight] = useState("");
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
+  const [repeat, setRepeat] = useState(false);
+  const [frequency, setFrequency] = useState("weekly");
   const [address, setAddress] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -113,6 +117,32 @@ export default function RequestPickup() {
       if (file) form.append("image", file);
 
       await createPickup(form);
+
+      if (repeat) {
+        // Best-effort: the one-time pickup above is the primary action and
+        // has already succeeded by this point — a failure setting up the
+        // recurring template shouldn't block navigation or make it look
+        // like the whole submission failed. Surface it as a toast instead.
+        try {
+          await createRecurring({
+            scrapType,
+            estimatedWeightKg: weight || undefined,
+            contactName: contactName.trim(),
+            contactPhone: contactPhone.trim(),
+            lat: coords.lat,
+            lng: coords.lng,
+            address: address || undefined,
+            frequency,
+          });
+        } catch {
+          showToast({
+            title: "Pickup requested",
+            message: "But we couldn't set up the repeat schedule — you can try again next time.",
+            type: "error",
+          });
+        }
+      }
+
       navigate("/my-requests");
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't submit your request. Try again.");
@@ -323,6 +353,51 @@ export default function RequestPickup() {
                 </AnimatePresence>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
               </motion.label>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="ticket p-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={repeat}
+                  onChange={(e) => setRepeat(e.target.checked)}
+                  className="w-4 h-4 accent-rust shrink-0"
+                />
+                <span className="text-sm font-semibold text-ink">Repeat this pickup</span>
+              </label>
+              <AnimatePresence>
+                {repeat && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <p className="text-xs text-inkFaint mt-2 mb-2">
+                      We'll automatically request a new pickup with these same details on schedule —
+                      pause or cancel it anytime from My requests.
+                    </p>
+                    <div className="flex gap-2">
+                      {RECURRING_FREQUENCIES.map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setFrequency(f)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize border transition-colors ${
+                            frequency === f
+                              ? "bg-rust text-surface border-rust"
+                              : "bg-transparent text-inkSoft border-line hover:border-rust/50"
+                          }`}
+                          aria-pressed={frequency === f}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             <motion.button

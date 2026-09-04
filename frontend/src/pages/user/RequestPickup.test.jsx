@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import RequestPickup from "./RequestPickup";
 import { AuthProvider } from "../../context/AuthContext";
+import { ToastProvider } from "../../context/ToastContext";
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -11,9 +12,12 @@ vi.mock("react-router-dom", async () => {
 });
 
 const mockCreatePickup = vi.fn();
+const mockCreateRecurring = vi.fn();
 vi.mock("../../services/pickupService", () => ({
   SCRAP_TYPES: ["metal", "plastic", "paper", "e-waste", "glass", "other"],
+  RECURRING_FREQUENCIES: ["weekly", "biweekly", "monthly"],
   createPickup: (...args) => mockCreatePickup(...args),
+  createRecurring: (...args) => mockCreateRecurring(...args),
 }));
 
 const mockCompressImage = vi.fn();
@@ -36,9 +40,11 @@ function mockGeolocationDenied() {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <AuthProvider>
-        <RequestPickup />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <RequestPickup />
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>
   );
 }
@@ -47,6 +53,7 @@ describe("RequestPickup", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockCreatePickup.mockReset();
+    mockCreateRecurring.mockReset();
     mockCompressImage.mockReset().mockImplementation((f) => Promise.resolve(f)); // passthrough by default
     delete globalThis.navigator.geolocation;
     localStorage.clear();
@@ -123,6 +130,66 @@ describe("RequestPickup", () => {
     expect(submittedForm.get("lng")).toBe("56.78");
 
     expect(mockNavigate).toHaveBeenCalledWith("/my-requests");
+  });
+
+  test("checking 'Repeat this pickup' also calls createRecurring with the same details and chosen frequency", async () => {
+    mockGeolocationSuccess(12.34, 56.78);
+    mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+    mockCreateRecurring.mockResolvedValue({ data: { _id: "r1" } });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+    await screen.findByText(/Location captured/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Plastic" }));
+    fireEvent.click(screen.getByLabelText("Repeat this pickup"));
+    fireEvent.click(screen.getByRole("button", { name: "monthly" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => expect(mockCreateRecurring).toHaveBeenCalledTimes(1));
+    expect(mockCreateRecurring).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scrapType: "plastic",
+        contactName: "Priya",
+        contactPhone: "9876500000",
+        lat: 12.34,
+        lng: 56.78,
+        frequency: "monthly",
+      })
+    );
+    // The one-time pickup is still the primary action and must go through
+    // regardless of the repeat toggle being on.
+    expect(mockCreatePickup).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith("/my-requests");
+  });
+
+  test("leaving 'Repeat this pickup' unchecked never calls createRecurring", async () => {
+    mockGeolocationSuccess();
+    mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+    await screen.findByText(/Location captured/);
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
+    expect(mockCreateRecurring).not.toHaveBeenCalled();
+  });
+
+  test("a failed createRecurring doesn't block navigation, since the one-time pickup already succeeded", async () => {
+    mockGeolocationSuccess();
+    mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+    mockCreateRecurring.mockRejectedValue(new Error("network error"));
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+    await screen.findByText(/Location captured/);
+    fireEvent.click(screen.getByLabelText("Repeat this pickup"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => expect(mockCreateRecurring).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/my-requests"));
   });
 
   test("blocks submission and shows an error when contact name or phone is cleared", async () => {

@@ -11,6 +11,7 @@ import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import RequestDetailModal from "../../components/pickup/RequestDetailModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
+import RecurringPickupsPanel from "../../components/pickup/RecurringPickupsPanel";
 import { formatPrice } from "../../utils/formatPrice";
 import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -154,6 +155,8 @@ export default function MyRequests() {
           <Link to="/request" className="btn-primary">+ New request</Link>
         </div>
       </div>
+
+      <RecurringPickupsPanel />
 
       {error && <div className="mb-5"><ErrorBox>{error}</ErrorBox></div>}
 
