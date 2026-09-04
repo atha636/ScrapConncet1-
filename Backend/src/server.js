@@ -9,6 +9,7 @@ const createApp = require("./app");
 const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
+const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -44,6 +45,14 @@ setupSocket(io);
 // collector feed instead of silently going stale.
 cron.schedule("*/5 * * * *", () => {
   escalateStalePickups(io).catch((err) => console.error("Escalation job failed:", err));
+});
+
+// Every hour — weekly/biweekly/monthly schedules only need date-level
+// precision, so there's no benefit to checking more often than this, and a
+// due template never waits more than an hour past its scheduled date to
+// actually spawn.
+cron.schedule("0 * * * *", () => {
+  spawnRecurringPickups(io).catch((err) => console.error("Recurring pickup job failed:", err));
 });
 
 const PORT = process.env.PORT || 5000;
