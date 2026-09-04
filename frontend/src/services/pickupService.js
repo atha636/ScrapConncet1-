@@ -29,6 +29,16 @@ export const DISPUTE_REASONS = [
 
 export const createDispute = (pickupId, data) => API.post(`/pickup/${pickupId}/dispute`, data);
 
+export const RECURRING_FREQUENCIES = ["weekly", "biweekly", "monthly"];
+
+export const createRecurring = (data) => API.post("/pickup/recurring", data);
+
+export const getMyRecurring = () => API.get("/pickup/recurring");
+
+export const toggleRecurring = (id) => API.patch(`/pickup/recurring/${id}/toggle`);
+
+export const deleteRecurring = (id) => API.delete(`/pickup/recurring/${id}`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
