@@ -19,6 +19,7 @@ import RatingModal from "../../components/rating/RatingModal";
 import { getRatings } from "../../services/ratingService";
 import { hasUserRated } from "../../utils/ratings";
 import MapModal from "../../components/map/MapModal";
+import MapThumbnail from "../../components/map/MapThumbnail";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
@@ -506,11 +507,17 @@ export default function CollectorDashboard() {
                           className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
                         >
                           <div className="flex gap-4">
-                            {item.image && (
+                            {item.image ? (
                               <img
                                 src={item.image}
                                 alt={item.scrapType}
                                 className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                              />
+                            ) : (
+                              <MapThumbnail
+                                lat={item.location?.lat}
+                                lng={item.location?.lng}
+                                onClick={(e) => { e.stopPropagation(); setMapPickup(item); }}
                               />
                             )}
                             <div>
