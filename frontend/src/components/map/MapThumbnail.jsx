@@ -1,12 +1,6 @@
 import { latLngToTile, tileUrl } from "../../utils/staticMapTile";
 
-/**
- * A small, static "where is this" preview for list cards — one lightweight
- * <img> request per pickup, not a full interactive Leaflet instance (which
- * would mean dozens of live map instances on a busy Available list). Click
- * it to open the real interactive map (see MapModal/PickupMap) for zoom,
- * pan, and directions.
- */
+
 export default function MapThumbnail({ lat, lng, size = 64, zoom = 15, onClick, className = "" }) {
   if (typeof lat !== "number" || typeof lng !== "number") return null;
 
