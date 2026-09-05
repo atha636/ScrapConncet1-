@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { formatPrice } from "../../utils/formatPrice";
 import { formatDistance } from "../../utils/distance";
+import MapThumbnail from "../map/MapThumbnail";
 
 const rowStagger = {
   hidden: {},
@@ -83,19 +84,27 @@ export default function PickupDetailModal({ pickup, open, onClose, onAccept, onV
 
                 <motion.div variants={rowItem} className="flex items-start justify-between gap-4">
                   <dt className="text-inkFaint shrink-0">Location</dt>
-                  <dd className="text-right">
-                    <div className="text-ink">
-                      {pickup.location?.address ||
-                        `${pickup.location.lat.toFixed(3)}, ${pickup.location.lng.toFixed(3)}`}
-                    </div>
-                    {pickup.distanceKm !== undefined && (
-                      <div className="font-mono text-xs text-amber-dark font-semibold mt-0.5">
-                        {formatDistance(pickup.distanceKm)} away
+                  <dd className="flex items-start gap-3">
+                    <div className="text-right">
+                      <div className="text-ink">
+                        {pickup.location?.address ||
+                          `${pickup.location.lat.toFixed(3)}, ${pickup.location.lng.toFixed(3)}`}
                       </div>
-                    )}
-                    <button onClick={onViewMap} className="text-xs text-rust font-semibold hover:underline mt-0.5">
-                      View on map
-                    </button>
+                      {pickup.distanceKm !== undefined && (
+                        <div className="font-mono text-xs text-amber-dark font-semibold mt-0.5">
+                          {formatDistance(pickup.distanceKm)} away
+                        </div>
+                      )}
+                      <button onClick={onViewMap} className="text-xs text-rust font-semibold hover:underline mt-0.5">
+                        View on map
+                      </button>
+                    </div>
+                    <MapThumbnail
+                      size={56}
+                      lat={pickup.location?.lat}
+                      lng={pickup.location?.lng}
+                      onClick={onViewMap}
+                    />
                   </dd>
                 </motion.div>
 

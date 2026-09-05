@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
+import MapThumbnail from "../map/MapThumbnail";
 
 const rowStagger = {
   hidden: {},
@@ -91,9 +92,12 @@ export default function RequestDetailModal({
                 {pickup.location && (
                   <motion.div variants={rowItem} className="flex items-start justify-between gap-4">
                     <dt className="text-inkFaint shrink-0">Location</dt>
-                    <dd className="text-ink text-right">
-                      {pickup.location.address ||
-                        `${pickup.location.lat.toFixed(3)}, ${pickup.location.lng.toFixed(3)}`}
+                    <dd className="flex items-center gap-3">
+                      <span className="text-ink text-right">
+                        {pickup.location.address ||
+                          `${pickup.location.lat.toFixed(3)}, ${pickup.location.lng.toFixed(3)}`}
+                      </span>
+                      <MapThumbnail size={48} lat={pickup.location.lat} lng={pickup.location.lng} />
                     </dd>
                   </motion.div>
                 )}
