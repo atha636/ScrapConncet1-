@@ -39,6 +39,10 @@ export const toggleRecurring = (id) => API.patch(`/pickup/recurring/${id}/toggle
 
 export const deleteRecurring = (id) => API.delete(`/pickup/recurring/${id}`);
 
+export const getPickupById = (id) => API.get(`/pickup/${id}`);
+
+export const getLeaderboard = () => API.get("/pickup/collector/leaderboard");
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });

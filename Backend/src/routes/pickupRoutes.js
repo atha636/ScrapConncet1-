@@ -15,8 +15,10 @@ const {
   acceptPickup,
   updateStatus,
   cancelByRequester,
+  getPickupById,
 } = require("../controllers/pickupController");
 const { createDispute } = require("../controllers/disputeController");
+const { getLeaderboard } = require("../controllers/collectorStatsController");
 const {
   createRecurring,
   getMyRecurring,
@@ -49,6 +51,7 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
+router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.patch("/:id/accept", auth, role("collector"), acceptPickup);
 router.patch(
   "/:id/status",
@@ -67,5 +70,12 @@ router.post(
   validate(createDisputeSchema),
   createDispute
 );
+
+// Deliberately declared LAST among this file's GET routes — Express
+// matches routes in declaration order, not by specificity, so a bare
+// "/:id" declared any earlier would shadow every literal GET path above it
+// (a request to GET /my-requests would incorrectly match here with
+// id="my-requests" instead of ever reaching the real handler).
+router.get("/:id", auth, getPickupById);
 
 module.exports = router;
