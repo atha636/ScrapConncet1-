@@ -40,6 +40,26 @@ exports.createPickup = asyncHandler(async (req, res) => {
 });
 
 // GET /api/pickup/my-requests
+// GET /api/pickup/:id  (the requester or the assigned collector only)
+// Exists mainly to support deep-linking — a push notification or shared
+// link can point straight at one pickup without needing it to already be
+// present in whatever paginated list the app happens to have loaded.
+exports.getPickupById = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id)
+    .populate("user", "name phone")
+    .populate("collector", "name phone rating");
+
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+
+  const isRequester = String(pickup.user._id) === String(req.user.id);
+  const isCollector = pickup.collector && String(pickup.collector._id) === String(req.user.id);
+  if (!isRequester && !isCollector) {
+    throw new ApiError(403, "You don't have access to this pickup");
+  }
+
+  res.json(pickup);
+});
+
 exports.getMyRequests = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
 
