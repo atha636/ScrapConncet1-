@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import {
   getAvailable,
   getCollectorJobs,
   acceptPickup,
   updateStatus,
+  getPickupById,
   SCRAP_TYPES,
 } from "../../services/pickupService";
 import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
@@ -22,6 +24,7 @@ import MapModal from "../../components/map/MapModal";
 import MapThumbnail from "../../components/map/MapThumbnail";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
+import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -78,6 +81,8 @@ function WalletIcon() {
 export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [prefsOpen, setPrefsOpen] = useState(false);
 
@@ -121,6 +126,29 @@ export default function CollectorDashboard() {
   // side of the marketplace this actually matters for, and the UI already
   // has a graceful fallback (locStatus === "error") if they decline.
   useEffect(() => { locateMe(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrives here from PickupRedirect (a push-notification click) with a
+  // specific pickup to open — see the identical effect in MyRequests.jsx
+  // for the full reasoning. Checks the two lists already in memory first
+  // (cheap, no request), falling back to a direct fetch for anything not
+  // currently loaded — e.g. a completed job that's aged out of "My jobs".
+  useEffect(() => {
+    const openId = location.state?.openPickupId;
+    if (!openId) return;
+
+    navigate(location.pathname, { replace: true, state: {} });
+
+    const alreadyLoaded = [...available, ...myJobs].find((p) => p._id === openId);
+    if (alreadyLoaded) {
+      setDetailsPickup(alreadyLoaded);
+      return;
+    }
+
+    getPickupById(openId)
+      .then((res) => setDetailsPickup(res.data))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.openPickupId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -702,6 +730,8 @@ export default function CollectorDashboard() {
                   <CardSkeleton count={2} />
                 ) : (
                   <>
+                    <LeaderboardPanel />
+
                     <motion.div
                       variants={listStagger}
                       initial="hidden"
