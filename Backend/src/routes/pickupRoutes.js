@@ -52,11 +52,22 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
-router.patch("/:id/accept", auth, role("collector"), acceptPickup);
+router.patch(
+  "/:id/accept",
+  auth,
+  role("collector"),
+  acceptPickup
+);
 router.patch(
   "/:id/status",
   auth,
   role("collector"),
+  // Multer inspects Content-Type and simply calls next() untouched for a
+  // plain JSON request — this doesn't change behavior for the common
+  // accepted/in_progress transitions, which still send a normal JSON body
+  // with no file. Only a "completed" transition needs to actually attach
+  // a photo (see updateStatus's own check for that requirement).
+  upload.single("photo"),
   validate(updateStatusSchema),
   updateStatus
 );

@@ -11,6 +11,13 @@ const pickupSchema = new mongoose.Schema(
     estimatedWeightKg: { type: Number, min: 0 },
     image: { type: String, default: null },
 
+    // Uploaded by the collector at the moment they mark the pickup
+    // "completed" — proof of what was actually collected, so a later
+    // dispute ("this was never picked up" / "the weight doesn't match
+    // what I was paid for") has real evidence to check against instead of
+    // just one party's word against the other's.
+    completionPhoto: { type: String, default: null },
+
     // Captured on the request form itself (pre-filled from the requester's
     // profile, but editable there) rather than only ever reading
     // user.name/user.phone off the account — the account's phone is

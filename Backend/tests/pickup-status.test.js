@@ -124,10 +124,42 @@ describe("PATCH /api/pickup/:id/status", () => {
     const step2 = await request(app)
       .patch(`/api/pickup/${pickup._id}/status`)
       .set("Authorization", `Bearer ${token(collector)}`)
-      .send({ status: "completed" });
+      .field("status", "completed")
+      .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
     expect(step2.status).toBe(200);
     expect(step2.body.status).toBe("completed");
     expect(step2.body.statusHistory).toHaveLength(3);
+    expect(step2.body.completionPhoto).toBeTruthy();
+  });
+
+  test("rejects marking a pickup completed without a completion photo attached", async () => {
+    const pickup = await makePickup("in_progress", [
+      { status: "accepted", changedBy: collector._id },
+      { status: "in_progress", changedBy: collector._id },
+    ]);
+
+    const res = await request(app)
+      .patch(`/api/pickup/${pickup._id}/status`)
+      .set("Authorization", `Bearer ${token(collector)}`)
+      .send({ status: "completed" }); // plain JSON, no photo attached
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/completion photo/i);
+
+    const stored = await Pickup.findById(pickup._id);
+    expect(stored.status).toBe("in_progress"); // unchanged — the whole request was rejected up front
+  });
+
+  test("does not require a photo for the accepted -> in_progress transition", async () => {
+    const pickup = await makePickup("accepted", [{ status: "accepted", changedBy: collector._id }]);
+
+    const res = await request(app)
+      .patch(`/api/pickup/${pickup._id}/status`)
+      .set("Authorization", `Bearer ${token(collector)}`)
+      .send({ status: "in_progress" }); // plain JSON — should still work exactly as before
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("in_progress");
   });
 
   test("two simultaneous requests to mark the same pickup completed: only one succeeds, one history entry, one transaction", async () => {
@@ -140,7 +172,8 @@ describe("PATCH /api/pickup/:id/status", () => {
       request(app)
         .patch(`/api/pickup/${pickup._id}/status`)
         .set("Authorization", `Bearer ${token(collector)}`)
-        .send({ status: "completed" });
+        .field("status", "completed")
+        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 
     // Fired concurrently (not awaited one after another) to actually
     // exercise the race, not just call the endpoint twice sequentially.

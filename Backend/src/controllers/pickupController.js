@@ -39,7 +39,6 @@ exports.createPickup = asyncHandler(async (req, res) => {
   res.status(201).json(pickup);
 });
 
-// GET /api/pickup/my-requests
 // GET /api/pickup/:id  (the requester or the assigned collector only)
 // Exists mainly to support deep-linking — a push notification or shared
 // link can point straight at one pickup without needing it to already be
@@ -60,6 +59,7 @@ exports.getPickupById = asyncHandler(async (req, res) => {
   res.json(pickup);
 });
 
+// GET /api/pickup/my-requests
 exports.getMyRequests = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
 
@@ -265,6 +265,16 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   const nextStatus = req.body.status;
   const validFrom = VALID_FROM_STATUSES[nextStatus] || [];
 
+  // Required, not optional — proof of collection is most of this field's
+  // value. An optional photo would mean disputes on pickups where a
+  // collector simply skipped uploading one are back to square one, no
+  // better off than before this existed at all.
+  if (nextStatus === "completed" && !req.file) {
+    throw new ApiError(400, "A completion photo is required to mark this pickup as done");
+  }
+
+  const completionPhotoUrl = req.file?.path || req.file?.secure_url;
+
   // Atomic, scoped by both collector ownership and current status in the
   // filter itself — not a separate read-then-write (see acceptPickup's
   // comment for the same pattern and the race it closes). Without this, two
@@ -280,7 +290,10 @@ exports.updateStatus = asyncHandler(async (req, res) => {
       ? await Pickup.findOneAndUpdate(
           { _id: req.params.id, collector: req.user.id, status: { $in: validFrom } },
           {
-            $set: { status: nextStatus },
+            $set: {
+              status: nextStatus,
+              ...(completionPhotoUrl ? { completionPhoto: completionPhotoUrl } : {}),
+            },
             $push: { statusHistory: { status: nextStatus, changedBy: req.user.id } },
           },
           { new: true }

@@ -69,7 +69,7 @@ exports.getDisputes = asyncHandler(async (req, res) => {
       .populate("reportedBy", "name email role")
       .populate("reportedAgainst", "name email role")
       .populate("resolvedBy", "name")
-      .populate("pickup", "scrapType price status createdAt"),
+      .populate("pickup", "scrapType price status createdAt completionPhoto"),
     Dispute.countDocuments(filter),
   ]);
 
