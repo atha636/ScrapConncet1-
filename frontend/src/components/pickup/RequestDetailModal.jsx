@@ -115,6 +115,21 @@ export default function RequestDetailModal({
                   </motion.div>
                 )}
 
+                {pickup.completionPhoto && (
+                  <motion.div variants={rowItem}>
+                    <dt className="text-inkFaint mb-1.5">Completion photo</dt>
+                    <dd>
+                      <a href={pickup.completionPhoto} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={pickup.completionPhoto}
+                          alt="Proof of collection"
+                          className="w-full max-h-48 object-cover rounded-md border border-line"
+                        />
+                      </a>
+                    </dd>
+                  </motion.div>
+                )}
+
                 {pickup.createdAt && (
                   <motion.div variants={rowItem} className="flex items-center justify-between">
                     <dt className="text-inkFaint">Requested</dt>

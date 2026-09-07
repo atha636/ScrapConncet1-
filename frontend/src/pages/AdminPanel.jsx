@@ -528,6 +528,20 @@ export default function AdminPanel() {
                                   {d.description}
                                 </p>
                               )}
+                              {d.pickup?.completionPhoto && (
+                                <a
+                                  href={d.pickup.completionPhoto}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block mt-2"
+                                >
+                                  <img
+                                    src={d.pickup.completionPhoto}
+                                    alt="Completion evidence"
+                                    className="h-20 rounded-md border border-line object-cover hover:opacity-90 transition-opacity"
+                                  />
+                                </a>
+                              )}
                               {d.status !== "open" && d.resolutionNotes && (
                                 <p className="text-xs text-inkSoft mt-2">
                                   <span className="font-semibold">

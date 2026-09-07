@@ -16,7 +16,20 @@ export const getCollectorJobs = (params = {}) => API.get("/pickup/collector/jobs
 
 export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 
-export const updateStatus = (id, status) => API.patch(`/pickup/${id}/status`, { status });
+// `photoFile` is only meaningful (and required by the backend) when
+// `status` is "completed" — every other transition still sends a plain
+// JSON body exactly as before.
+export const updateStatus = (id, status, photoFile) => {
+  if (!photoFile) {
+    return API.patch(`/pickup/${id}/status`, { status });
+  }
+  const form = new FormData();
+  form.append("status", status);
+  form.append("photo", photoFile);
+  return API.patch(`/pickup/${id}/status`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
 
 export const DISPUTE_REASONS = [
   "no_show",

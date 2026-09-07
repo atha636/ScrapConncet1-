@@ -24,6 +24,7 @@ import MapModal from "../../components/map/MapModal";
 import MapThumbnail from "../../components/map/MapThumbnail";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
+import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
@@ -106,6 +107,9 @@ export default function CollectorDashboard() {
   const [mapPickup, setMapPickup] = useState(null);
   const [detailsPickup, setDetailsPickup] = useState(null);
   const [reportPickup, setReportPickup] = useState(null);
+  const [completingPickup, setCompletingPickup] = useState(null);
+  const [completingError, setCompletingError] = useState("");
+  const [completingSubmitting, setCompletingSubmitting] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -319,16 +323,33 @@ export default function CollectorDashboard() {
     }
   };
 
-  const handleAdvance = async (id, next) => {
+  const handleAdvance = async (id, next, photoFile) => {
     setActingId(id);
     try {
-      const res = await updateStatus(id, next);
+      const res = await updateStatus(id, next, photoFile);
       setMyJobs((prev) => prev.map((p) => (p._id === id ? res.data : p)));
       if (next === "completed") setWallet(null); // refetch next time the wallet tab is opened
+      return true;
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't update the status.");
+      return false;
     } finally {
       setActingId(null);
+    }
+  };
+
+  const handleCompletionSubmit = async (file) => {
+    setCompletingSubmitting(true);
+    setCompletingError("");
+    try {
+      const res = await updateStatus(completingPickup._id, "completed", file);
+      setMyJobs((prev) => prev.map((p) => (p._id === completingPickup._id ? res.data : p)));
+      setWallet(null);
+      setCompletingPickup(null);
+    } catch (err) {
+      setCompletingError(err.response?.data?.message || "Couldn't submit the completion photo. Try again.");
+    } finally {
+      setCompletingSubmitting(false);
     }
   };
 
@@ -648,7 +669,11 @@ export default function CollectorDashboard() {
                               {action && (
                                 <motion.button
                                   whileTap={{ scale: 0.96 }}
-                                  onClick={() => handleAdvance(item._id, action.next)}
+                                  onClick={() =>
+                                    action.next === "completed"
+                                      ? setCompletingPickup(item)
+                                      : handleAdvance(item._id, action.next)
+                                  }
                                   disabled={actingId === item._id}
                                   className="btn-primary !py-2 !px-4 text-sm"
                                 >
@@ -947,6 +972,14 @@ export default function CollectorDashboard() {
           pickupId={reportPickup?._id}
           open={!!reportPickup}
           onClose={() => setReportPickup(null)}
+        />
+
+        <CompletionPhotoModal
+          open={!!completingPickup}
+          onClose={() => { setCompletingPickup(null); setCompletingError(""); }}
+          onSubmit={handleCompletionSubmit}
+          submitting={completingSubmitting}
+          error={completingError}
         />
       </div>
     </MotionConfig>
