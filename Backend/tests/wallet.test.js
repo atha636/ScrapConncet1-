@@ -67,7 +67,8 @@ async function complete() {
   return request(app)
     .patch(`/api/pickup/${pickup._id}/status`)
     .set("Authorization", `Bearer ${collectorToken}`)
-    .send({ status: "completed" });
+    .field("status", "completed")
+    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 }
 
 describe("Completing a pickup credits the collector's ledger", () => {
@@ -171,7 +172,8 @@ describe("GET /api/wallet/transactions", () => {
       await request(app)
         .patch(`/api/pickup/${p._id}/status`)
         .set("Authorization", `Bearer ${collectorToken}`)
-        .send({ status: "completed" });
+        .field("status", "completed")
+        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
     }
 
     const page1 = await request(app)

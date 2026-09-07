@@ -51,7 +51,8 @@ async function creditEarning(amount) {
   await request(app)
     .patch(`/api/pickup/${pickup._id}/status`)
     .set("Authorization", `Bearer ${token(collector)}`)
-    .send({ status: "completed" });
+    .field("status", "completed")
+    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 }
 
 beforeEach(async () => {
