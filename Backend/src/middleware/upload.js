@@ -21,6 +21,21 @@ if (hasCloudinaryConfig) {
 } else {
   // Dev fallback — local disk. NOTE: not durable on most hosts (Render/Vercel
   // wipe ephemeral disk on redeploy). Set CLOUDINARY_* env vars for production.
+  //
+  // uploads/ is gitignored (never commit runtime uploads) and multer's
+  // diskStorage does NOT create its destination directory on its own — it
+  // throws ENOENT the moment anything tries to save a file there if it's
+  // missing. That's invisible in an existing local dev setup (the folder
+  // was probably created the first time you ever tested an upload), but a
+  // fresh clone, a fresh CI checkout, or a fresh deploy with no Cloudinary
+  // configured would hit it immediately. Creating it once here, at module
+  // load, makes the disk fallback actually work out of the box everywhere —
+  // resolved with path.resolve() against process.cwd(), the same basis
+  // multer itself uses to resolve a relative destination string, so the
+  // stored file path format below is completely unchanged from before.
+  const fs = require("fs");
+  fs.mkdirSync(path.resolve("uploads"), { recursive: true });
+
   storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, "uploads/"),
     // Never build the on-disk filename from file.originalname — a crafted
