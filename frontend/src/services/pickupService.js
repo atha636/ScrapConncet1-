@@ -56,6 +56,8 @@ export const getPickupById = (id) => API.get(`/pickup/${id}`);
 
 export const getLeaderboard = () => API.get("/pickup/collector/leaderboard");
 
+export const getCollectorProfile = (id) => API.get(`/pickup/collector/${id}/profile`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
