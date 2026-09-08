@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 import MapThumbnail from "../map/MapThumbnail";
+import CollectorProfileCard from "../collector/CollectorProfileCard";
 
 const rowStagger = {
   hidden: {},
@@ -103,9 +104,11 @@ export default function RequestDetailModal({
                 )}
 
                 {pickup.collector?.name && (
-                  <motion.div variants={rowItem} className="flex items-center justify-between">
-                    <dt className="text-inkFaint">Collector</dt>
-                    <dd className="text-ink font-medium">{pickup.collector.name}</dd>
+                  <motion.div variants={rowItem}>
+                    <dt className="text-inkFaint mb-1.5">Collector</dt>
+                    <dd>
+                      <CollectorProfileCard collectorId={pickup.collector._id || pickup.collector.id} />
+                    </dd>
                   </motion.div>
                 )}
                 {pickup.collector?.phone && (

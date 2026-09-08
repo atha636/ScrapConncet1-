@@ -1,4 +1,5 @@
 const Pickup = require("../models/Pickup");
+const Rating = require("../models/Rating");
 const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -12,6 +13,9 @@ const TOP_N = 10;
 // query bounded rather than scanning a collector's entire multi-year
 // history every time they open this page.
 const STREAK_LOOKBACK_LIMIT = 400;
+// How many of a collector's most recent written reviews to surface on their
+// profile — a preview, not a full review history page, so this stays small.
+const RECENT_REVIEWS_LIMIT = 3;
 
 // GET /api/pickup/collector/leaderboard  (collector only)
 exports.getLeaderboard = asyncHandler(async (req, res) => {
@@ -87,6 +91,17 @@ exports.getCollectorProfile = asyncHandler(async (req, res) => {
     .sort({ updatedAt: -1 })
     .limit(STREAK_LOOKBACK_LIMIT);
 
+  // Only ratings left with an actual written comment are worth surfacing
+  // here — a bare star score with nothing written adds no more signal than
+  // the aggregate `rating` average already shown above it.
+  const recentReviews = await Rating.find({
+    toUser: collector._id,
+    comment: { $exists: true, $ne: "" },
+  })
+    .sort({ createdAt: -1 })
+    .limit(RECENT_REVIEWS_LIMIT)
+    .populate("fromUser", "name");
+
   res.json({
     id: collector._id,
     name: collector.name,
@@ -96,5 +111,15 @@ exports.getCollectorProfile = asyncHandler(async (req, res) => {
     memberSince: collector.createdAt,
     streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
     suspended: collector.collectorSuspended,
+    // fromUser can be null if that account was since deleted (see User's
+    // soft-delete via deletedAt) — fall back to a generic label rather than
+    // letting the review silently disappear or the response error out.
+    recentReviews: recentReviews.map((r) => ({
+      id: r._id,
+      score: r.score,
+      comment: r.comment,
+      fromName: r.fromUser?.name || "A requester",
+      createdAt: r.createdAt,
+    })),
   });
 });
