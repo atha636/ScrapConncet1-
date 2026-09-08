@@ -18,7 +18,7 @@ const {
   getPickupById,
 } = require("../controllers/pickupController");
 const { createDispute } = require("../controllers/disputeController");
-const { getLeaderboard } = require("../controllers/collectorStatsController");
+const { getLeaderboard, getCollectorProfile } = require("../controllers/collectorStatsController");
 const {
   createRecurring,
   getMyRecurring,
@@ -52,6 +52,12 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
+
+// Any authenticated user (not collector-only, unlike the routes above) —
+// this is what a requester sees about the collector on their own pickup.
+// 3 path segments, so it can't collide with the 2-segment "/collector/jobs"
+// or "/collector/leaderboard" above regardless of declaration order.
+router.get("/collector/:id/profile", auth, getCollectorProfile);
 router.patch(
   "/:id/accept",
   auth,
