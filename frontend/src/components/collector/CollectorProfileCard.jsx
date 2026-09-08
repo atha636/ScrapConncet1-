@@ -10,32 +10,32 @@ import { getCollectorProfile } from "../../services/pickupService";
  * should ever block or break it if the lookup fails.
  */
 export default function CollectorProfileCard({ collectorId }) {
-  const [profile, setProfile] = useState(null);
-  // Derived straight from the prop for the initial render, rather than
-  // defaulting to true and then having the effect immediately call
-  // setLoading(false) for the no-id case — that pattern is a same-render
-  // setState-in-effect (flagged by react-hooks/set-state-in-effect) since
-  // it never actually needed a render to find out collectorId was missing.
-  const [loading, setLoading] = useState(!!collectorId);
+  // Loading and "is this the right profile" are both derived from comparing
+  // the id a fetch was made for against the current collectorId, rather
+  // than a separate `loading` state set synchronously inside the effect —
+  // react-hooks/set-state-in-effect flags any setState called directly in
+  // an effect body (even the ordinary "mark loading before an async call"
+  // pattern), so nothing here is set outside the fetch's own .then/.catch
+  // callbacks.
+  const [result, setResult] = useState({ collectorId: null, profile: null });
 
   useEffect(() => {
     if (!collectorId) return;
     let cancelled = false;
-    setLoading(true);
     getCollectorProfile(collectorId)
       .then((res) => {
-        if (!cancelled) setProfile(res.data);
+        if (!cancelled) setResult({ collectorId, profile: res.data });
       })
       .catch(() => {
-        if (!cancelled) setProfile(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ collectorId, profile: null });
       });
     return () => {
       cancelled = true;
     };
   }, [collectorId]);
+
+  const loading = !!collectorId && result.collectorId !== collectorId;
+  const profile = result.collectorId === collectorId ? result.profile : null;
 
   if (loading) {
     return <div className="h-16 rounded-ticket bg-line/30 animate-pulse" />;
