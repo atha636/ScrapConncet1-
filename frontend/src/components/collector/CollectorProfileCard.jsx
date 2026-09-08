@@ -11,13 +11,15 @@ import { getCollectorProfile } from "../../services/pickupService";
  */
 export default function CollectorProfileCard({ collectorId }) {
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Derived straight from the prop for the initial render, rather than
+  // defaulting to true and then having the effect immediately call
+  // setLoading(false) for the no-id case — that pattern is a same-render
+  // setState-in-effect (flagged by react-hooks/set-state-in-effect) since
+  // it never actually needed a render to find out collectorId was missing.
+  const [loading, setLoading] = useState(!!collectorId);
 
   useEffect(() => {
-    if (!collectorId) {
-      setLoading(false);
-      return;
-    }
+    if (!collectorId) return;
     let cancelled = false;
     setLoading(true);
     getCollectorProfile(collectorId)
