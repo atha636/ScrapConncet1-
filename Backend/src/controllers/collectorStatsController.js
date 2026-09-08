@@ -1,5 +1,6 @@
 const Pickup = require("../models/Pickup");
 const User = require("../models/User");
+const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { computeStreak } = require("../utils/streak");
 
@@ -53,5 +54,47 @@ exports.getLeaderboard = asyncHandler(async (req, res) => {
       completedCount: myIndex >= 0 ? ranked[myIndex].completedCount : 0,
       streak: computeStreak(myCompletions.map((p) => p.updatedAt)),
     },
+  });
+});
+
+// GET /api/pickup/collector/:id/profile  (any authenticated user — this is
+// what a requester sees about the collector on their pickup, so it can't be
+// collector-only the way the leaderboard is).
+//
+// Deliberately a narrow, hand-picked projection rather than `User.findById`
+// — this is reachable by any logged-in requester who knows (or guesses) a
+// collector's id, not just the two parties on a shared pickup, so nothing
+// here should be more sensitive than what already appears elsewhere in the
+// product (name/rating are already shown on pickup cards; phone is not,
+// and stays out of this endpoint accordingly).
+exports.getCollectorProfile = asyncHandler(async (req, res) => {
+  const collector = await User.findOne({
+    _id: req.params.id,
+    role: "collector",
+  }).select("name rating ratingCount createdAt collectorSuspended");
+
+  if (!collector) {
+    throw new ApiError(404, "Collector not found");
+  }
+
+  const completedCount = await Pickup.countDocuments({
+    collector: collector._id,
+    status: "completed",
+  });
+
+  const recentCompletions = await Pickup.find({ collector: collector._id, status: "completed" })
+    .select("updatedAt")
+    .sort({ updatedAt: -1 })
+    .limit(STREAK_LOOKBACK_LIMIT);
+
+  res.json({
+    id: collector._id,
+    name: collector.name,
+    rating: collector.rating,
+    ratingCount: collector.ratingCount,
+    completedCount,
+    memberSince: collector.createdAt,
+    streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
+    suspended: collector.collectorSuspended,
   });
 });
