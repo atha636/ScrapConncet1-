@@ -58,6 +58,13 @@ export const getLeaderboard = () => API.get("/pickup/collector/leaderboard");
 
 export const getCollectorProfile = (id) => API.get(`/pickup/collector/${id}/profile`);
 
+// Deliberately called with `API` (which always attaches whatever token is
+// in localStorage, if any) rather than a bare axios/fetch call — the public
+// endpoint itself ignores that header either way (no `auth` middleware on
+// it), so this works identically for a logged-out visitor and a logged-in
+// one previewing their own share link.
+export const getPublicCollectorProfile = (id) => API.get(`/pickup/collector/${id}/profile/public`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });

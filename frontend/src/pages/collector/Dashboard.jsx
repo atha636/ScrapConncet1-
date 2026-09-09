@@ -26,6 +26,7 @@ import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
+import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -766,6 +767,7 @@ export default function CollectorDashboard() {
                   <CardSkeleton count={2} />
                 ) : (
                   <>
+                    <ShareProfileButton collectorId={user?._id || user?.id} />
                     <LeaderboardPanel />
 
                     <motion.div
