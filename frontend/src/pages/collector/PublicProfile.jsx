@@ -15,7 +15,32 @@ import Card from "../../components/ui/Card";
  */
 export default function PublicProfile() {
   const { id } = useParams();
-  const [state, setState] = useState({ status: "loading", profile: null });
+
+  // Same shape as CollectorProfileCard's own state: "which id does this
+  // result belong to" is tracked alongside the result itself, so "loading"
+  // is *derived* by comparing it against the current id rather than a
+  // separate setState call made synchronously at the top of the effect —
+  // react-hooks/set-state-in-effect flags exactly that pattern, since it
+  // triggers an extra render before the real one the fetch will cause.
+  const [result, setResult] = useState({ id: null, status: "loading", profile: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    getPublicCollectorProfile(id)
+      .then((res) => {
+        if (!cancelled) setResult({ id, status: "ready", profile: res.data });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const status = err.response?.status === 429 ? "rate_limited" : "not_found";
+        setResult({ id, status, profile: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const state = result.id === id ? result : { status: "loading", profile: null };
 
   useDocumentMeta({
     title: state.profile ? `${state.profile.name} · Collector Profile` : "Collector Profile",
@@ -26,23 +51,6 @@ export default function PublicProfile() {
     // authenticated pages elsewhere in the app.
     noindex: false,
   });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: "loading", profile: null });
-    getPublicCollectorProfile(id)
-      .then((res) => {
-        if (!cancelled) setState({ status: "ready", profile: res.data });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        const status = err.response?.status === 429 ? "rate_limited" : "not_found";
-        setState({ status, profile: null });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
