@@ -314,6 +314,10 @@ export default function CollectorDashboard() {
       const res = await acceptPickup(id);
       setAvailable((prev) => prev.filter((p) => p._id !== id));
       setMyJobs((prev) => [res.data, ...prev]);
+      // Land the collector where the job actually lives now, instead of
+      // leaving them on "Available" looking at a list it just disappeared
+      // from.
+      setTab("mine");
       return true;
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't accept this pickup — it may already be taken.");
@@ -328,7 +332,13 @@ export default function CollectorDashboard() {
     try {
       const res = await updateStatus(id, next, photoFile);
       setMyJobs((prev) => prev.map((p) => (p._id === id ? res.data : p)));
-      if (next === "completed") setWallet(null); // refetch next time the wallet tab is opened
+      if (next === "completed") {
+        setWallet(null); // refetch next time the wallet tab is opened
+        // Same reasoning as handleAccept: a completed job moves out of "My
+        // jobs" into "History" (see activeJobs/pastJobs below), so follow
+        // it there rather than leaving the collector on a tab it just left.
+        setTab("history");
+      }
       return true;
     } catch (err) {
       setError(err.response?.data?.message || "Couldn't update the status.");
@@ -346,6 +356,7 @@ export default function CollectorDashboard() {
       setMyJobs((prev) => prev.map((p) => (p._id === completingPickup._id ? res.data : p)));
       setWallet(null);
       setCompletingPickup(null);
+      setTab("history");
     } catch (err) {
       setCompletingError(err.response?.data?.message || "Couldn't submit the completion photo. Try again.");
     } finally {
