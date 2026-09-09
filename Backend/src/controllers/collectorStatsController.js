@@ -61,25 +61,24 @@ exports.getLeaderboard = asyncHandler(async (req, res) => {
   });
 });
 
-// GET /api/pickup/collector/:id/profile  (any authenticated user — this is
-// what a requester sees about the collector on their pickup, so it can't be
-// collector-only the way the leaderboard is).
-//
-// Deliberately a narrow, hand-picked projection rather than `User.findById`
-// — this is reachable by any logged-in requester who knows (or guesses) a
-// collector's id, not just the two parties on a shared pickup, so nothing
-// here should be more sensitive than what already appears elsewhere in the
-// product (name/rating are already shown on pickup cards; phone is not,
-// and stays out of this endpoint accordingly).
-exports.getCollectorProfile = asyncHandler(async (req, res) => {
+// Shared by both the authenticated and public profile endpoints below —
+// same underlying stats either way, callers just differ in how much of the
+// result they're allowed to see (see `public` flag).
+async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
   const collector = await User.findOne({
-    _id: req.params.id,
+    _id: collectorId,
     role: "collector",
   }).select("name rating ratingCount createdAt collectorSuspended");
 
-  if (!collector) {
-    throw new ApiError(404, "Collector not found");
-  }
+  if (!collector) return null;
+
+  // A suspended collector's authenticated profile still needs to show
+  // through (a requester with an active pickup assigned to them has to see
+  // that), but there's no reason to let a share link keep working — and
+  // several good reasons not to (an already-earned link outliving the
+  // account's standing, or a suspended collector generating fresh links to
+  // send out). Treat it as "doesn't exist" for the public endpoint only.
+  if (isPublic && collector.collectorSuspended) return null;
 
   const completedCount = await Pickup.countDocuments({
     collector: collector._id,
@@ -102,7 +101,7 @@ exports.getCollectorProfile = asyncHandler(async (req, res) => {
     .limit(RECENT_REVIEWS_LIMIT)
     .populate("fromUser", "name");
 
-  res.json({
+  return {
     id: collector._id,
     name: collector.name,
     rating: collector.rating,
@@ -110,16 +109,57 @@ exports.getCollectorProfile = asyncHandler(async (req, res) => {
     completedCount,
     memberSince: collector.createdAt,
     streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
-    suspended: collector.collectorSuspended,
+    // Meaningless on the public payload (suspended collectors never reach
+    // here — see above) so leave it off rather than send a field that's
+    // always false and could imply a promise it isn't making.
+    ...(isPublic ? {} : { suspended: collector.collectorSuspended }),
     // fromUser can be null if that account was since deleted (see User's
     // soft-delete via deletedAt) — fall back to a generic label rather than
     // letting the review silently disappear or the response error out.
+    // On the public payload, a reviewer's full name goes out to anyone
+    // holding the link (not just the other party on a shared pickup, like
+    // the authenticated version), so trim it down to a first name — enough
+    // to read as a real person, not enough to identify one.
     recentReviews: recentReviews.map((r) => ({
       id: r._id,
       score: r.score,
       comment: r.comment,
-      fromName: r.fromUser?.name || "A requester",
+      fromName: isPublic
+        ? r.fromUser?.name?.split(" ")[0] || "A requester"
+        : r.fromUser?.name || "A requester",
       createdAt: r.createdAt,
     })),
-  });
+  };
+}
+
+// GET /api/pickup/collector/:id/profile  (any authenticated user — this is
+// what a requester sees about the collector on their pickup, so it can't be
+// collector-only the way the leaderboard is).
+//
+// Deliberately a narrow, hand-picked projection rather than `User.findById`
+// — this is reachable by any logged-in requester who knows (or guesses) a
+// collector's id, not just the two parties on a shared pickup, so nothing
+// here should be more sensitive than what already appears elsewhere in the
+// product (name/rating are already shown on pickup cards; phone is not,
+// and stays out of this endpoint accordingly).
+exports.getCollectorProfile = asyncHandler(async (req, res) => {
+  const profile = await buildCollectorProfile(req.params.id);
+  if (!profile) throw new ApiError(404, "Collector not found");
+  res.json(profile);
+});
+
+// GET /api/pickup/collector/:id/profile/public  (no auth — this is the
+// endpoint behind a collector's "Copy profile link" share button, so it has
+// to work for a logged-out visitor, not just an existing requester).
+//
+// Reuses the exact same stats as the authenticated version, just with the
+// couple of fields above trimmed for an audience that isn't limited to
+// people the collector has actually done a pickup for. Rate-limited more
+// tightly than the general API ceiling (see app.js) since, unlike the
+// authenticated route, there's no login step slowing down enumeration —
+// this is the only unauthenticated per-id lookup in the whole API surface.
+exports.getPublicCollectorProfile = asyncHandler(async (req, res) => {
+  const profile = await buildCollectorProfile(req.params.id, { public: true });
+  if (!profile) throw new ApiError(404, "Collector not found");
+  res.json(profile);
 });

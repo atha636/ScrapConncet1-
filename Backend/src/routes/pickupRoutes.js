@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const rateLimit = require("express-rate-limit");
 const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 const upload = require("../middleware/upload");
@@ -18,7 +19,11 @@ const {
   getPickupById,
 } = require("../controllers/pickupController");
 const { createDispute } = require("../controllers/disputeController");
-const { getLeaderboard, getCollectorProfile } = require("../controllers/collectorStatsController");
+const {
+  getLeaderboard,
+  getCollectorProfile,
+  getPublicCollectorProfile,
+} = require("../controllers/collectorStatsController");
 const {
   createRecurring,
   getMyRecurring,
@@ -58,6 +63,23 @@ router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 // 3 path segments, so it can't collide with the 2-segment "/collector/jobs"
 // or "/collector/leaderboard" above regardless of declaration order.
 router.get("/collector/:id/profile", auth, getCollectorProfile);
+
+// No `auth` — this is the endpoint behind a collector's share link, meant
+// to work for a logged-out visitor. Declared as a literal "/public" suffix
+// after the route above so it can never be swallowed by "/:id" segments
+// elsewhere in this file. Tighter than the app-wide apiLimiter (see
+// app.js): every other per-id lookup in the API requires a login first,
+// which already throttles scripted enumeration on its own — this one
+// doesn't get that for free, so it needs its own ceiling.
+const publicProfileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  message: { success: false, message: "Too many requests, please slow down" },
+});
+router.get("/collector/:id/profile/public", publicProfileLimiter, getPublicCollectorProfile);
 router.patch(
   "/:id/accept",
   auth,
