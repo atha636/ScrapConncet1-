@@ -5,6 +5,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { computeStreak } = require("../utils/streak");
 const { buildReliabilityStats } = require("../utils/reliabilityStats");
+const { computeBadges } = require("../utils/badges");
 
 const WINDOW_DAYS = 7;
 const TOP_N = 10;
@@ -183,6 +184,18 @@ async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
     streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
     avgAcceptMinutes: reliability.avgAcceptMinutes,
     completionRate: reliability.completionRate,
+    // Every input here is already public elsewhere on this same payload
+    // (completedCount, rating, the two reliability numbers above), so
+    // there's nothing badge-specific to strip for the public variant —
+    // unlike `suspended` and `recentReviews` below, this line doesn't need
+    // an isPublic branch at all.
+    badges: computeBadges({
+      completedCount,
+      rating: collector.rating,
+      ratingCount: collector.ratingCount,
+      avgAcceptMinutes: reliability.avgAcceptMinutes,
+      completionRate: reliability.completionRate,
+    }),
     // Meaningless on the public payload (suspended collectors never reach
     // here — see above) so leave it off rather than send a field that's
     // always false and could imply a promise it isn't making.
