@@ -4,6 +4,7 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { computeStreak } = require("../utils/streak");
+const { buildReliabilityStats } = require("../utils/reliabilityStats");
 
 const WINDOW_DAYS = 7;
 const TOP_N = 10;
@@ -101,6 +102,77 @@ async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
     .limit(RECENT_REVIEWS_LIMIT)
     .populate("fromUser", "name");
 
+  // Every Pickup with `collector` set was, by construction, accepted by
+  // them at some point (collector is only ever assigned inside acceptPickup,
+  // alongside pushing an "accepted" statusHistory entry — see that
+  // function) — so this $match alone is every job this collector has ever
+  // taken on, no separate "ever accepted" filter needed.
+  //
+  // $arrayElemAt over a $filter'd statusHistory (rather than, say,
+  // `statusHistory.$` in the query itself) because we need two different
+  // entries per document — the "accepted" one and, only for jobs that ended
+  // in cancellation, the "cancelled" one — and a positional operator can
+  // only ever project one match per array per query.
+  const [reliabilityRaw] = await Pickup.aggregate([
+    { $match: { collector: collector._id } },
+    {
+      $addFields: {
+        acceptedEntry: {
+          $arrayElemAt: [
+            { $filter: { input: "$statusHistory", cond: { $eq: ["$$this.status", "accepted"] } } },
+            0,
+          ],
+        },
+        // Distinguishes a collector backing out after accepting from a
+        // requester cancelling on them — only the former should ever count
+        // against the collector's own completion rate (see
+        // reliabilityStats.js for where that split actually matters).
+        cancelledByCollectorEntry: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: "$statusHistory",
+                cond: {
+                  $and: [
+                    { $eq: ["$$this.status", "cancelled"] },
+                    { $eq: ["$$this.changedBy", collector._id] },
+                  ],
+                },
+              },
+            },
+            0,
+          ],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        // $sum/$divide silently treat a null operand (an accepted entry
+        // that's somehow missing) as contributing 0 rather than erroring
+        // the whole aggregation — acceptedCount below is what actually
+        // gates whether this sum gets divided into anything meaningful.
+        totalAcceptMinutes: {
+          $sum: { $divide: [{ $subtract: ["$acceptedEntry.changedAt", "$createdAt"] }, 60000] },
+        },
+        acceptedCount: { $sum: { $cond: [{ $ifNull: ["$acceptedEntry", false] }, 1, 0] } },
+        completedCount: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
+        collectorCancelledCount: {
+          $sum: { $cond: [{ $ifNull: ["$cancelledByCollectorEntry", false] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+
+  const reliability = buildReliabilityStats(
+    reliabilityRaw || {
+      totalAcceptMinutes: 0,
+      acceptedCount: 0,
+      completedCount: 0,
+      collectorCancelledCount: 0,
+    }
+  );
+
   return {
     id: collector._id,
     name: collector.name,
@@ -109,6 +181,8 @@ async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
     completedCount,
     memberSince: collector.createdAt,
     streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
+    avgAcceptMinutes: reliability.avgAcceptMinutes,
+    completionRate: reliability.completionRate,
     // Meaningless on the public payload (suspended collectors never reach
     // here — see above) so leave it off rather than send a field that's
     // always false and could imply a promise it isn't making.

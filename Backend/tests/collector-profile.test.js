@@ -39,6 +39,31 @@ async function makeCompletedPickup(collector, requester, overrides = {}) {
   });
 }
 
+// Builds a pickup with an explicit statusHistory timeline so accept-time
+// and completion-rate math can be tested against known inputs, rather than
+// relying on whatever Date.now() happens to be at test-run time.
+async function makePickupWithHistory(collector, requester, { createdAt, acceptedAt, finalStatus, cancelledBy }) {
+  const statusHistory = [{ status: "pending", changedAt: createdAt, changedBy: requester._id }];
+  if (acceptedAt) statusHistory.push({ status: "accepted", changedAt: acceptedAt, changedBy: collector._id });
+  if (finalStatus === "completed") {
+    statusHistory.push({ status: "completed", changedAt: acceptedAt, changedBy: collector._id });
+  }
+  if (finalStatus === "cancelled") {
+    statusHistory.push({ status: "cancelled", changedAt: acceptedAt, changedBy: cancelledBy._id });
+  }
+
+  return Pickup.create({
+    user: requester._id,
+    collector: collector._id,
+    scrapType: "metal",
+    price: 100,
+    status: finalStatus === "cancelled" ? "cancelled" : finalStatus === "completed" ? "completed" : "accepted",
+    location: { lat: 12.9, lng: 77.6 },
+    createdAt,
+    statusHistory,
+  });
+}
+
 describe("GET /api/pickup/collector/:id/profile (authenticated)", () => {
   test("returns stats for a requester looking up their collector", async () => {
     const collector = await User.create({
@@ -232,5 +257,118 @@ describe("GET /api/pickup/collector/:id/profile/public (no auth)", () => {
     const fakeId = "507f1f77bcf86cd799439011";
     const res = await request(app).get(`/api/pickup/collector/${fakeId}/profile/public`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("reliability stats (avgAcceptMinutes / completionRate)", () => {
+  test("withholds both stats below the minimum sample size", async () => {
+    const collector = await User.create({
+      name: "New Collector",
+      email: "new-collector@example.com",
+      password: "Password123",
+      role: "collector",
+    });
+    const requester = await User.create({
+      name: "Requester",
+      email: "req-a@example.com",
+      password: "Password123",
+      role: "user",
+    });
+
+    // Only one job on record, and it was cancelled — with the minimum
+    // sample floor in place this must NOT read as a 0% completion rate.
+    await makePickupWithHistory(collector, requester, {
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      acceptedAt: new Date("2026-01-01T00:05:00Z"),
+      finalStatus: "cancelled",
+      cancelledBy: collector,
+    });
+
+    const res = await request(app)
+      .get(`/api/pickup/collector/${collector._id}/profile`)
+      .set("Authorization", `Bearer ${token(requester)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.avgAcceptMinutes).toBeNull();
+    expect(res.body.completionRate).toBeNull();
+  });
+
+  test("computes avgAcceptMinutes and completionRate once enough history exists", async () => {
+    const collector = await User.create({
+      name: "Established Collector",
+      email: "established@example.com",
+      password: "Password123",
+      role: "collector",
+    });
+    const requester = await User.create({
+      name: "Requester",
+      email: "req-b@example.com",
+      password: "Password123",
+      role: "user",
+    });
+
+    // 3 completed jobs, accepted 10 minutes after creation each time.
+    for (let i = 0; i < 3; i++) {
+      await makePickupWithHistory(collector, requester, {
+        createdAt: new Date(`2026-01-0${i + 1}T00:00:00Z`),
+        acceptedAt: new Date(`2026-01-0${i + 1}T00:10:00Z`),
+        finalStatus: "completed",
+      });
+    }
+    // 1 job the collector personally backed out of after accepting.
+    await makePickupWithHistory(collector, requester, {
+      createdAt: new Date("2026-01-04T00:00:00Z"),
+      acceptedAt: new Date("2026-01-04T00:10:00Z"),
+      finalStatus: "cancelled",
+      cancelledBy: collector,
+    });
+
+    const res = await request(app)
+      .get(`/api/pickup/collector/${collector._id}/profile`)
+      .set("Authorization", `Bearer ${token(requester)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.avgAcceptMinutes).toBe(10);
+    expect(res.body.completionRate).toBeCloseTo(0.75);
+  });
+
+  test("a requester cancelling doesn't dent the collector's completion rate", async () => {
+    const collector = await User.create({
+      name: "Collector",
+      email: "collector-req-cancel@example.com",
+      password: "Password123",
+      role: "collector",
+    });
+    const requester = await User.create({
+      name: "Requester",
+      email: "req-c@example.com",
+      password: "Password123",
+      role: "user",
+    });
+
+    for (let i = 0; i < 3; i++) {
+      await makePickupWithHistory(collector, requester, {
+        createdAt: new Date(`2026-02-0${i + 1}T00:00:00Z`),
+        acceptedAt: new Date(`2026-02-0${i + 1}T00:05:00Z`),
+        finalStatus: "completed",
+      });
+    }
+    // Requester-initiated cancellation, not the collector's — should not
+    // count against them at all.
+    await makePickupWithHistory(collector, requester, {
+      createdAt: new Date("2026-02-04T00:00:00Z"),
+      acceptedAt: new Date("2026-02-04T00:05:00Z"),
+      finalStatus: "cancelled",
+      cancelledBy: requester,
+    });
+
+    const res = await request(app)
+      .get(`/api/pickup/collector/${collector._id}/profile`)
+      .set("Authorization", `Bearer ${token(requester)}`);
+
+    expect(res.status).toBe(200);
+    // decidedCount = 3 completed + 0 collector-cancelled = 3, meets the
+    // floor, and the rate is a clean 100% despite the 4th job existing.
+    expect(res.body.completionRate).toBe(1);
   });
 });
