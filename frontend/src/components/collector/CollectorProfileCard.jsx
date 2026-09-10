@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getCollectorProfile } from "../../services/pickupService";
+import { formatAcceptTime, formatCompletionRate } from "../../utils/formatDuration";
 
 /**
  * Gives a requester a quick read on the collector assigned to their
@@ -48,6 +49,8 @@ export default function CollectorProfileCard({ collectorId }) {
   const memberSinceLabel = profile.memberSince
     ? new Date(profile.memberSince).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
     : null;
+  const acceptTimeLabel = formatAcceptTime(profile.avgAcceptMinutes);
+  const completionRateLabel = formatCompletionRate(profile.completionRate);
 
   return (
     <motion.div
@@ -86,10 +89,20 @@ export default function CollectorProfileCard({ collectorId }) {
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-dashed border-line text-xs">
+      <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-dashed border-line text-xs flex-wrap">
         <span className="text-inkSoft">
           <span className="font-semibold text-ink">{profile.completedCount}</span> pickups completed
         </span>
+        {acceptTimeLabel && (
+          <span className="text-inkSoft">
+            · Usually accepts within <span className="font-semibold text-ink">{acceptTimeLabel}</span>
+          </span>
+        )}
+        {completionRateLabel && (
+          <span className="text-inkSoft">
+            · <span className="font-semibold text-ink">{completionRateLabel}</span> completion rate
+          </span>
+        )}
       </div>
 
       {profile.recentReviews?.length > 0 && (

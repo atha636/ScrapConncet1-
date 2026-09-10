@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { getPublicCollectorProfile } from "../../services/pickupService";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import Card from "../../components/ui/Card";
+import { formatAcceptTime, formatCompletionRate } from "../../utils/formatDuration";
 
 /**
  * The page a collector's share link actually opens — no auth required (see
@@ -122,10 +123,25 @@ export default function PublicProfile() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-dashed border-line text-sm">
+              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-dashed border-line text-sm flex-wrap">
                 <span className="text-inkSoft">
                   <span className="font-semibold text-ink">{state.profile.completedCount}</span> pickups completed
                 </span>
+                {formatAcceptTime(state.profile.avgAcceptMinutes) && (
+                  <span className="text-inkSoft">
+                    · Usually accepts within{" "}
+                    <span className="font-semibold text-ink">{formatAcceptTime(state.profile.avgAcceptMinutes)}</span>
+                  </span>
+                )}
+                {formatCompletionRate(state.profile.completionRate) && (
+                  <span className="text-inkSoft">
+                    ·{" "}
+                    <span className="font-semibold text-ink">
+                      {formatCompletionRate(state.profile.completionRate)}
+                    </span>{" "}
+                    completion rate
+                  </span>
+                )}
               </div>
 
               {state.profile.recentReviews?.length > 0 && (
