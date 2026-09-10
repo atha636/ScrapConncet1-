@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getCollectorProfile } from "../../services/pickupService";
 import { formatAcceptTime, formatCompletionRate } from "../../utils/formatDuration";
+import BadgeRow from "./BadgeRow";
 
 /**
  * Gives a requester a quick read on the collector assigned to their
- * pickup — rating, track record, and streak — instead of just a bare name.
- * Self-contained and fails quietly, matching LeaderboardPanel: this is
- * context that makes the pickup detail view better, not something that
- * should ever block or break it if the lookup fails.
+ * pickup — rating, track record, streak, badges, and reliability stats —
+ * instead of just a bare name. Self-contained and fails quietly, matching
+ * LeaderboardPanel: this is context that makes the pickup detail view
+ * better, not something that should ever block or break it if the lookup
+ * fails.
  */
 export default function CollectorProfileCard({ collectorId }) {
   // Loading and "is this the right profile" are both derived from comparing
@@ -88,6 +90,12 @@ export default function CollectorProfileCard({ collectorId }) {
           </div>
         )}
       </div>
+
+      {profile.badges?.length > 0 && (
+        <div className="mt-2.5">
+          <BadgeRow badges={profile.badges} />
+        </div>
+      )}
 
       <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-dashed border-line text-xs flex-wrap">
         <span className="text-inkSoft">
