@@ -23,6 +23,7 @@ const {
   getLeaderboard,
   getCollectorProfile,
   getPublicCollectorProfile,
+  getCollectorReviews,
 } = require("../controllers/collectorStatsController");
 const {
   createRecurring,
@@ -80,6 +81,22 @@ const publicProfileLimiter = rateLimit({
   message: { success: false, message: "Too many requests, please slow down" },
 });
 router.get("/collector/:id/profile/public", publicProfileLimiter, getPublicCollectorProfile);
+
+// Same no-auth reasoning as /profile/public above, but its own limiter
+// rather than sharing publicProfileLimiter's instance — this one is meant
+// to be paged through (10+ requests to read a full review history is
+// normal use, not abuse), so it needs a higher ceiling than a single
+// profile-page load does.
+const collectorReviewsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  message: { success: false, message: "Too many requests, please slow down" },
+});
+router.get("/collector/:id/reviews", collectorReviewsLimiter, getCollectorReviews);
+
 router.patch(
   "/:id/accept",
   auth,

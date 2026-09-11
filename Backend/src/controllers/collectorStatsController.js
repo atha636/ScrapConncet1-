@@ -219,6 +219,55 @@ async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
   };
 }
 
+// GET /api/pickup/collector/:id/reviews  (no auth — same audience as the
+// public profile share link, and linked from both it and the authenticated
+// profile card's "See all reviews" button).
+//
+// Always trims reviewer names to first-name-only, unlike
+// buildCollectorProfile's own isPublic branch — that split exists there
+// because the *authenticated* profile card is only ever shown to the one
+// requester paired with this collector on a real pickup, a natural,
+// bounded audience. A full paginated review history has no such pairing to
+// lean on (it's just as reachable from the public share link as from
+// inside the app), so it consistently uses the same narrower name shown to
+// a logged-out visitor rather than switching behavior based on who's
+// asking.
+exports.getCollectorReviews = asyncHandler(async (req, res) => {
+  const collector = await User.findOne({ _id: req.params.id, role: "collector" }).select(
+    "collectorSuspended"
+  );
+  // Same rule as the public profile endpoint: a suspended collector's
+  // review history stops being reachable through this link too, rather
+  // than one endpoint enforcing it and the other quietly leaving a side
+  // door open to the same data.
+  if (!collector || collector.collectorSuspended) throw new ApiError(404, "Collector not found");
+
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter = { toUser: collector._id, comment: { $exists: true, $ne: "" } };
+
+  const [reviews, total] = await Promise.all([
+    Rating.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("fromUser", "name"),
+    Rating.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: reviews.map((r) => ({
+      id: r._id,
+      score: r.score,
+      comment: r.comment,
+      fromName: r.fromUser?.name?.split(" ")[0] || "A requester",
+      createdAt: r.createdAt,
+    })),
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+  });
+});
+
 // GET /api/pickup/collector/:id/profile  (any authenticated user — this is
 // what a requester sees about the collector on their pickup, so it can't be
 // collector-only the way the leaderboard is).
