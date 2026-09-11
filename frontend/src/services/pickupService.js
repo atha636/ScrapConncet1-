@@ -65,6 +65,13 @@ export const getCollectorProfile = (id) => API.get(`/pickup/collector/${id}/prof
 // one previewing their own share link.
 export const getPublicCollectorProfile = (id) => API.get(`/pickup/collector/${id}/profile/public`);
 
+// No auth needed (see the backend route) — used by both the authenticated
+// CollectorProfileCard's "See all reviews" link and the public share page,
+// which is exactly why it's called with plain, unauthenticated semantics
+// even when a token happens to be attached.
+export const getCollectorReviews = (id, page = 1, limit = 10) =>
+  API.get(`/pickup/collector/${id}/reviews`, { params: { page, limit } });
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });

@@ -26,6 +26,7 @@ const MyRequests = lazy(() => import("../pages/user/MyRequests"));
 
 const CollectorDashboard = lazy(() => import("../pages/collector/Dashboard"));
 const CollectorPublicProfile = lazy(() => import("../pages/collector/PublicProfile"));
+const CollectorReviews = lazy(() => import("../pages/collector/CollectorReviews"));
 const Profile = lazy(() => import("../pages/Profile"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 const AdminPanel = lazy(() => import("../pages/AdminPanel"));
@@ -87,6 +88,7 @@ export default function AppRoutes() {
             "Copy profile link" button (see collector Dashboard) points to,
             meant to be opened by anyone holding the URL. */}
         <Route path="/collector/:id" element={<CollectorPublicProfile />} />
+        <Route path="/collector/:id/reviews" element={<CollectorReviews />} />
 
         <Route
           path="/admin"
