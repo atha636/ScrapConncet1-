@@ -165,6 +165,12 @@ export default function PublicProfile() {
                       <p className="text-sm text-inkSoft leading-snug">{review.comment}</p>
                     </div>
                   ))}
+                  <Link
+                    to={`/collector/${state.profile.id}/reviews`}
+                    className="inline-block text-xs font-semibold text-rust hover:underline"
+                  >
+                    See all reviews →
+                  </Link>
                 </div>
               )}
             </Card>
