@@ -130,8 +130,7 @@ export default function CollectorProfileCard({ collectorId }) {
           ))}
           {/* Always offered once there's at least one written review to
               show — the teaser above is capped at RECENT_REVIEWS_LIMIT
-              server-side, so there's no reliable count here to gate this
-              on; the full reviews page itself is what tells the person
+            
               whether there's actually more beyond what they've already
               seen. */}
           <Link
