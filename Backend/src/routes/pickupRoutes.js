@@ -25,6 +25,7 @@ const {
   getPublicCollectorProfile,
   getCollectorReviews,
 } = require("../controllers/collectorStatsController");
+const { getRequesterProfile } = require("../controllers/requesterStatsController");
 const {
   createRecurring,
   getMyRecurring,
@@ -96,6 +97,13 @@ const collectorReviewsLimiter = rateLimit({
   message: { success: false, message: "Too many requests, please slow down" },
 });
 router.get("/collector/:id/reviews", collectorReviewsLimiter, getCollectorReviews);
+
+// The mirror image of the collector routes above — what a collector sees
+// about a requester, not the other way around. Auth only, no public
+// variant: unlike a collector's profile, there's no "share this outside
+// the app" use case for a requester's own stats, so this doesn't need the
+// rate-limiter/public-endpoint machinery the collector routes above do.
+router.get("/requester/:id/profile", auth, getRequesterProfile);
 
 router.patch(
   "/:id/accept",
