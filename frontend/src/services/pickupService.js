@@ -72,6 +72,10 @@ export const getPublicCollectorProfile = (id) => API.get(`/pickup/collector/${id
 export const getCollectorReviews = (id, page = 1, limit = 10) =>
   API.get(`/pickup/collector/${id}/reviews`, { params: { page, limit } });
 
+// The mirror of getCollectorProfile — what a collector sees about a
+// requester (see Dashboard's "Requested by X" line on available jobs).
+export const getRequesterProfile = (id) => API.get(`/pickup/requester/${id}/profile`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });

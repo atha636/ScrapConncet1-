@@ -23,6 +23,7 @@ import { hasUserRated } from "../../utils/ratings";
 import MapModal from "../../components/map/MapModal";
 import MapThumbnail from "../../components/map/MapThumbnail";
 import PickupDetailModal from "../../components/pickup/PickupDetailModal";
+import RequesterProfileModal from "../../components/pickup/RequesterProfileModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
@@ -106,6 +107,7 @@ export default function CollectorDashboard() {
   const [ratePickup, setRatePickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
   const [mapPickup, setMapPickup] = useState(null);
+  const [requesterProfileId, setRequesterProfileId] = useState(null);
   const [detailsPickup, setDetailsPickup] = useState(null);
   const [reportPickup, setReportPickup] = useState(null);
   const [completingPickup, setCompletingPickup] = useState(null);
@@ -608,7 +610,17 @@ export default function CollectorDashboard() {
                                   View map
                                 </button>
                               </div>
-                              {item.user?.name && <div className="text-xs text-inkSoft mt-1">Requested by {item.user.name}</div>}
+                              {item.user?.name && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRequesterProfileId(item.user._id);
+                                  }}
+                                  className="text-xs text-inkSoft mt-1 hover:text-rust hover:underline"
+                                >
+                                  Requested by {item.user.name}
+                                </button>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
@@ -960,6 +972,12 @@ export default function CollectorDashboard() {
           lng={mapPickup?.location?.lng}
           address={mapPickup?.location?.address}
           label={mapPickup?.scrapType}
+        />
+
+        <RequesterProfileModal
+          requesterId={requesterProfileId}
+          open={!!requesterProfileId}
+          onClose={() => setRequesterProfileId(null)}
         />
 
         <PickupDetailModal
