@@ -157,6 +157,18 @@ export default function CollectorDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.openPickupId]);
 
+  // Mirrors the openPickupId effect above — the badge_earned notification
+  // click (see NotificationBell) lands here wanting the Wallet tab open
+  // specifically, since that's where badges are actually shown, rather
+  // than the "available" tab this dashboard otherwise defaults to.
+  useEffect(() => {
+    const openTab = location.state?.openTab;
+    if (!openTab) return;
+    navigate(location.pathname, { replace: true, state: {} });
+    setTab(openTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.openTab]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");

@@ -36,6 +36,14 @@ const userSchema = new mongoose.Schema(
     collectorSuspended: { type: Boolean, default: false },
     collectorSuspendedAt: { type: Date, default: null },
 
+    // Snapshot of which badge ids (see utils/badges.js) this collector has
+    // already been notified about — badges themselves are always computed
+    // fresh from live stats, never stored, but this one small list is what
+    // lets badgeNotifier tell "newly earned" apart from "already has it"
+    // without recomputing history. Meaningless for role "user"/"admin",
+    // same reasoning as collectorPreferences below.
+    earnedBadgeIds: { type: [String], default: undefined },
+
     // Lets a collector narrow which live "new pickup" events actually
     // reach them (toast/list) to scrap types they actually want and a
     // radius they're willing to travel, instead of every pending pickup

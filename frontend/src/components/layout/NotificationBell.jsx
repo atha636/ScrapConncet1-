@@ -35,6 +35,15 @@ const TYPE_STYLE = {
       </svg>
     ),
   },
+  // No line-drawn icon here on purpose — badgeNotifier.js already prefixes
+  // the notification text with the badge's own emoji (see badges.js), so
+  // this slot echoes that same emoji rather than adding a second, generic
+  // "achievement" glyph that would just compete with it.
+  badge_earned: {
+    bg: "bg-amber/15",
+    fg: "text-amber-dark",
+    icon: <span className="text-sm leading-none">🏆</span>,
+  },
 };
 
 const listStagger = {
@@ -81,6 +90,11 @@ export default function NotificationBell() {
 
     if (n.type === "new_message" && n.pickup) {
       setChatPickup(n.pickup);
+      return;
+    }
+
+    if (n.type === "badge_earned") {
+      navigate("/collector", { state: { openTab: "wallet" } });
       return;
     }
 
