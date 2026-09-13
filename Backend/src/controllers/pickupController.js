@@ -5,6 +5,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimatePrice } = require("../utils/pricing");
 const notifyUser = require("../utils/notifyUser");
+const syncCollectorBadges = require("../utils/badgeNotifier");
 
 const STATUS_LABELS = {
   accepted: "accepted",
@@ -208,6 +209,15 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
     pickupId: pickup._id,
   });
 
+  // Fire-and-forget — accepting this job may have just crossed the
+  // fast-responder threshold or grown the accept-time sample enough to
+  // surface it for the first time (see badgeNotifier.js). Never awaited
+  // into the response: a badge check failing should never make Accept
+  // itself fail.
+  syncCollectorBadges(req.io, req.user.id).catch((err) =>
+    console.error("Badge sync after accept failed:", err.message)
+  );
+
   res.json(pickup);
 });
 
@@ -332,6 +342,15 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[nextStatus] || nextStatus}`,
     pickupId: pickup._id,
   });
+
+  if (nextStatus === "completed") {
+    // Fire-and-forget, same reasoning as acceptPickup's own call — a
+    // completion just moved completedCount and completionRate, either of
+    // which could newly cross a badge threshold.
+    syncCollectorBadges(req.io, pickup.collector).catch((err) =>
+      console.error("Badge sync after completion failed:", err.message)
+    );
+  }
 
   res.json(pickup);
 });

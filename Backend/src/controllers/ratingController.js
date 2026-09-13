@@ -4,6 +4,7 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { MIN_RATINGS_FOR_GATE, SUSPENSION_THRESHOLD } = require("../utils/ratingGate");
+const syncCollectorBadges = require("../utils/badgeNotifier");
 
 // GET /api/pickup/:id/rating
 // Returns whatever ratings already exist for this pickup — lets the
@@ -84,6 +85,15 @@ exports.submitRating = asyncHandler(async (req, res) => {
   }
 
   await User.findByIdAndUpdate(toUser, { $set: update });
+
+  if (target.role === "collector") {
+    // Fire-and-forget — this rating may have just crossed the top-rated
+    // threshold (see badgeNotifier.js). A rating submission succeeding
+    // should never hinge on whether a badge check afterward goes smoothly.
+    syncCollectorBadges(req.io, toUser).catch((err) =>
+      console.error("Badge sync after rating failed:", err.message)
+    );
+  }
 
   res.status(201).json(rating);
 });
