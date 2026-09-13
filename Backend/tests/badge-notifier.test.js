@@ -106,12 +106,18 @@ describe("syncCollectorBadges", () => {
     const notifications = await Notification.find({ recipient: collector._id, type: "badge_earned" }).sort({
       createdAt: 1,
     });
-    expect(notifications).toHaveLength(2);
+    // All 10 pickups completed with none cancelled also means a 100%
+    // completion rate — enough to clear the Reliable badge's threshold at
+    // the same moment, so this legitimately fires three notifications, not
+    // two. (An earlier version of this test only expected two and was
+    // simply wrong about what real behavior should be here.)
+    expect(notifications).toHaveLength(3);
     expect(notifications[0].text).toContain("First pickup");
     expect(notifications[1].text).toContain("10 pickups");
+    expect(notifications[2].text).toContain("Reliable");
 
     const updated = await User.findById(collector._id);
-    expect(updated.earnedBadgeIds).toEqual(["pickups_10"]);
+    expect(updated.earnedBadgeIds.sort()).toEqual(["pickups_10", "reliable"].sort());
   });
 
   test("is a no-op for a non-collector user", async () => {

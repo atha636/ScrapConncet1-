@@ -35,8 +35,18 @@ async function syncCollectorBadges(io, collectorId) {
     currentIds.length !== previousIds.size || currentIds.some((id) => !previousIds.has(id));
   if (!idsChanged) return;
 
-  collector.earnedBadgeIds = currentIds;
-  await collector.save();
+  // findByIdAndUpdate rather than collector.earnedBadgeIds = ...; collector.save()
+  // — the document above was fetched purely to read a couple of fields, not
+  // to hold onto across the getCollectorBadgeState() await in between. Using
+  // .save() on it re-checks Mongoose's version key (__v) against whatever's
+  // currently in the database, which throws if the document changed (or was
+  // deleted) anywhere else during that gap — a real possibility here, since
+  // this whole function is deliberately fire-and-forget and can end up
+  // racing other writes to the same user. An atomic update sidesteps that
+  // entirely: it doesn't care what changed in between, and doing nothing if
+  // the user is gone by now is exactly the right behavior for a best-effort
+  // notification.
+  await User.findByIdAndUpdate(collectorId, { earnedBadgeIds: currentIds });
 
   for (const badge of newlyEarned) {
     await notifyUser(io, collectorId, {
