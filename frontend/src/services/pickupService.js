@@ -72,6 +72,10 @@ export const getCollectorReviews = (id, page = 1, limit = 10) =>
 // requester (see Dashboard's "Requested by X" line on available jobs).
 export const getRequesterProfile = (id) => API.get(`/pickup/requester/${id}/profile`);
 
+// The collector's own locked/unlocked badge catalog with progress — see
+// backend's getMyAchievements, self-only (no id param needed or accepted).
+export const getMyAchievements = () => API.get(`/pickup/collector/achievements`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
