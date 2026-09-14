@@ -24,6 +24,7 @@ const {
   getCollectorProfile,
   getPublicCollectorProfile,
   getCollectorReviews,
+  getMyAchievements,
 } = require("../controllers/collectorStatsController");
 const { getRequesterProfile } = require("../controllers/requesterStatsController");
 const {
@@ -59,6 +60,7 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
+router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
 
 // Any authenticated user (not collector-only, unlike the routes above) —
 // this is what a requester sees about the collector on their own pickup.

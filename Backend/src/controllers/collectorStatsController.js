@@ -5,6 +5,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { computeStreak } = require("../utils/streak");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
+const { getBadgeProgress } = require("../utils/badges");
 
 const WINDOW_DAYS = 7;
 const TOP_N = 10;
@@ -225,4 +226,33 @@ exports.getPublicCollectorProfile = asyncHandler(async (req, res) => {
   const profile = await buildCollectorProfile(req.params.id, { public: true });
   if (!profile) throw new ApiError(404, "Collector not found");
   res.json(profile);
+});
+
+// GET /api/pickup/collector/achievements  (collector only, self only — no
+// :id param, always req.user.id).
+//
+// Deliberately scoped to "my own achievements" rather than "any collector's
+// achievements by id": the earned badges on a profile are fine to show a
+// stranger (see buildCollectorProfile's `badges` field, shared on both the
+// authenticated and public payloads), but *progress toward a locked one* —
+// "4 of 10 ratings toward Top Rated" — is a level of detail about someone
+// else's business that nobody but that collector has a reason to see.
+exports.getMyAchievements = asyncHandler(async (req, res) => {
+  const collector = await User.findById(req.user.id).select("rating ratingCount");
+  if (!collector) throw new ApiError(404, "Collector not found");
+
+  const { avgAcceptMinutes, completionRate, completedCount } = await getCollectorBadgeState(
+    collector._id,
+    collector
+  );
+
+  res.json(
+    getBadgeProgress({
+      completedCount,
+      rating: collector.rating,
+      ratingCount: collector.ratingCount,
+      avgAcceptMinutes,
+      completionRate,
+    })
+  );
 });

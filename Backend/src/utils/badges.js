@@ -61,8 +61,76 @@ function computeBadges({ completedCount, rating, ratingCount, avgAcceptMinutes, 
   return badges;
 }
 
+/**
+ * The full-catalog counterpart to computeBadges above — where that
+ * function returns only what's currently earned (highest milestone tier
+ * only, one entry per other badge), this returns every badge in the
+ * catalog with an `earned` flag and, where the underlying stat is a plain
+ * count, a `current`/`target` pair a progress bar can render directly.
+ * Meant for a collector looking at their own achievements panel and
+ * wanting to see what's next, not for anything shown to a stranger — see
+ * getMyAchievements's own comment for why this stays auth'd to the
+ * collector themselves rather than exposed by :id.
+ *
+ * Every milestone tier is included (not just the next locked one) so the
+ * panel reads as a track record — earlier tiers stay visible and checked
+ * off rather than disappearing once superseded.
+ *
+ * @param {object} stats - same shape as computeBadges accepts
+ * @returns {Array<{id: string, label: string, icon: string, earned: boolean, current?: number, target?: number, hint?: string}>}
+ */
+function getBadgeProgress({ completedCount, rating, ratingCount, avgAcceptMinutes, completionRate }) {
+  const progress = PICKUP_MILESTONES.map((m) => ({
+    id: m.id,
+    label: m.label,
+    icon: m.icon,
+    earned: completedCount >= m.threshold,
+    current: Math.min(completedCount, m.threshold),
+    target: m.threshold,
+  }));
+
+  // ratingCount is the only part of "top rated" that's a plain count a bar
+  // can represent — the rating-value half of the requirement is stated in
+  // the hint instead, since "4.2 of 4.5 stars" isn't the kind of progress
+  // that only moves in one direction the way a count does.
+  progress.push({
+    id: "top_rated",
+    label: "Top rated",
+    icon: "⭐",
+    earned: ratingCount >= MIN_RATINGS_FOR_TOP_RATED && rating >= TOP_RATED_THRESHOLD,
+    current: Math.min(ratingCount, MIN_RATINGS_FOR_TOP_RATED),
+    target: MIN_RATINGS_FOR_TOP_RATED,
+    hint: `${TOP_RATED_THRESHOLD}+ average rating over ${MIN_RATINGS_FOR_TOP_RATED}+ ratings`,
+  });
+
+  // No current/target for these two — "average minutes" and "% completed"
+  // aren't counts that climb toward a target the way completedCount or
+  // ratingCount do (an accept-time average can move in either direction
+  // pickup to pickup), so a hint-only description is the honest
+  // representation rather than a progress bar implying a false sense of
+  // steady, one-way progress.
+  progress.push({
+    id: "fast_responder",
+    label: "Fast responder",
+    icon: "⚡",
+    earned: avgAcceptMinutes != null && avgAcceptMinutes <= FAST_RESPONDER_MAX_MINUTES,
+    hint: `Average accept time under ${FAST_RESPONDER_MAX_MINUTES} min`,
+  });
+
+  progress.push({
+    id: "reliable",
+    label: "Reliable",
+    icon: "✅",
+    earned: completionRate != null && completionRate >= RELIABLE_MIN_RATE,
+    hint: `${Math.round(RELIABLE_MIN_RATE * 100)}%+ completion rate`,
+  });
+
+  return progress;
+}
+
 module.exports = {
   computeBadges,
+  getBadgeProgress,
   PICKUP_MILESTONES,
   MIN_RATINGS_FOR_TOP_RATED,
   TOP_RATED_THRESHOLD,
