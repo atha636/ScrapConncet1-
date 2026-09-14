@@ -26,7 +26,7 @@ const {
   getCollectorReviews,
   getMyAchievements,
 } = require("../controllers/collectorStatsController");
-const { getRequesterProfile } = require("../controllers/requesterStatsController");
+const { getRequesterProfile, getMyReputation } = require("../controllers/requesterStatsController");
 const {
   createRecurring,
   getMyRecurring,
@@ -106,6 +106,13 @@ router.get("/collector/:id/reviews", collectorReviewsLimiter, getCollectorReview
 // the app" use case for a requester's own stats, so this doesn't need the
 // rate-limiter/public-endpoint machinery the collector routes above do.
 router.get("/requester/:id/profile", auth, getRequesterProfile);
+
+// Self-only — the requester's own "My Reputation" panel (see Profile.jsx).
+// Third segment is "reputation", not "profile", so this never collides
+// with the :id route above no matter the declaration order (see this
+// handler's own comment in requesterStatsController.js for why that
+// matters).
+router.get("/requester/me/reputation", auth, role("user"), getMyReputation);
 
 router.patch(
   "/:id/accept",

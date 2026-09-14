@@ -1,9 +1,32 @@
-const Pickup = require("../models/Pickup");
 const User = require("../models/User");
+const Rating = require("../models/Rating");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
-const { buildReliabilityStats } = require("../utils/reliabilityStats");
-const { computeBadges } = require("../utils/badges");
+const { getRequesterBadgeState } = require("../services/requesterBadgeState");
+
+// How many of a requester's most recent written reviews (left by
+// collectors about them) to surface — same limit and same reasoning as
+// collectorStatsController's RECENT_REVIEWS_LIMIT: a preview, not a full
+// history, so this stays small.
+const RECENT_REVIEWS_LIMIT = 3;
+
+async function fetchRecentReviews(requesterId) {
+  const reviews = await Rating.find({
+    toUser: requesterId,
+    comment: { $exists: true, $ne: "" },
+  })
+    .sort({ createdAt: -1 })
+    .limit(RECENT_REVIEWS_LIMIT)
+    .populate("fromUser", "name");
+
+  return reviews.map((r) => ({
+    id: r._id,
+    score: r.score,
+    comment: r.comment,
+    fromName: r.fromUser?.name || "A collector",
+    createdAt: r.createdAt,
+  }));
+}
 
 // The symmetric counterpart to collectorStatsController's collector
 // profile — this is what a collector sees about a requester, surfaced from
@@ -21,65 +44,11 @@ exports.getRequesterProfile = asyncHandler(async (req, res) => {
   );
   if (!requester) throw new ApiError(404, "Requester not found");
 
-  const completedCount = await Pickup.countDocuments({
-    user: requester._id,
-    status: "completed",
-  });
-
-  // Mirrors buildCollectorProfile's own aggregation (see
-  // collectorStatsController.js) with one deliberate difference: a
-  // requester cancelling a still-*pending* request (no collector assigned
-  // yet) costs nobody anything and shouldn't touch this number — only a
-  // cancellation that happened after a collector had already committed to
-  // the job counts against them, hence the `collector: { $ne: null }`
-  // match up front rather than matching every pickup this requester ever
-  // created.
-  const [reliabilityRaw] = await Pickup.aggregate([
-    { $match: { user: requester._id, collector: { $ne: null } } },
-    {
-      $addFields: {
-        cancelledByThisRequesterEntry: {
-          $arrayElemAt: [
-            {
-              $filter: {
-                input: "$statusHistory",
-                cond: {
-                  $and: [
-                    { $eq: ["$$this.status", "cancelled"] },
-                    { $eq: ["$$this.changedBy", requester._id] },
-                  ],
-                },
-              },
-            },
-            0,
-          ],
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        completedCount: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
-        requesterCancelledCount: {
-          $sum: { $cond: [{ $ifNull: ["$cancelledByThisRequesterEntry", false] }, 1, 0] },
-        },
-      },
-    },
-  ]);
-
-  // Reused as-is from the collector side — the function itself only cares
-  // about "completed vs. this-party-cancelled" counts, nothing collector-
-  // specific in its logic. avgAcceptMinutes has no requester equivalent
-  // (there's no "accepting" step on this side of a pickup), so the accept-
-  // time inputs are just zeroed out, which buildReliabilityStats already
-  // turns into a null avgAcceptMinutes below the sample floor — exactly
-  // the "not applicable" result wanted here.
-  const reliability = buildReliabilityStats({
-    totalAcceptMinutes: 0,
-    acceptedCount: 0,
-    completedCount: reliabilityRaw?.completedCount || 0,
-    collectorCancelledCount: reliabilityRaw?.requesterCancelledCount || 0,
-  });
+  const { completedCount, completionRate, badges } = await getRequesterBadgeState(
+    requester._id,
+    requester
+  );
+  const recentReviews = await fetchRecentReviews(requester._id);
 
   res.json({
     id: requester._id,
@@ -88,17 +57,47 @@ exports.getRequesterProfile = asyncHandler(async (req, res) => {
     ratingCount: requester.ratingCount,
     completedCount,
     memberSince: requester.createdAt,
-    completionRate: reliability.completionRate,
+    completionRate,
     // avgAcceptMinutes and the streak flame are collector-only concepts
     // (see CollectorProfileCard) — deliberately absent here rather than
     // sent as an always-null field a requester-facing UI would have no use
     // for.
-    badges: computeBadges({
-      completedCount,
-      rating: requester.rating,
-      ratingCount: requester.ratingCount,
-      avgAcceptMinutes: null,
-      completionRate: reliability.completionRate,
-    }),
+    badges,
+    recentReviews,
+  });
+});
+
+// GET /api/pickup/requester/me/reputation  (requester only, self only — no
+// :id param, always req.user.id).
+//
+// Third URL segment is "reputation", not "profile", so this can never
+// collide with the /requester/:id/profile route above regardless of
+// declaration order — a request for literal path "me" would otherwise risk
+// being swallowed by :id if these two routes shared the same final
+// segment and got declared in the wrong order (exactly the trap
+// getMyAchievements' own routing comment calls out on the collector side).
+//
+// This is the "My Reputation" panel on a requester's own Profile page —
+// the same rating/completion-rate/badges/reviews a collector already sees
+// about them (see getRequesterProfile above), just for the requester
+// themselves rather than someone deciding whether to accept their job.
+exports.getMyReputation = asyncHandler(async (req, res) => {
+  const requester = await User.findById(req.user.id).select("name rating ratingCount createdAt");
+  if (!requester) throw new ApiError(404, "Requester not found");
+
+  const { completedCount, completionRate, badges } = await getRequesterBadgeState(
+    requester._id,
+    requester
+  );
+  const recentReviews = await fetchRecentReviews(requester._id);
+
+  res.json({
+    rating: requester.rating,
+    ratingCount: requester.ratingCount,
+    completedCount,
+    memberSince: requester.createdAt,
+    completionRate,
+    badges,
+    recentReviews,
   });
 });
