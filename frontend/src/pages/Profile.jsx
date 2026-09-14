@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import Card from "../components/ui/Card";
 import ErrorBox from "../components/common/ErrorBox";
 import DeleteAccountModal from "../components/profile/DeleteAccountModal";
+import MyReputationCard from "../components/profile/MyReputationCard";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { isPushSupported, getPushStatus, enablePush, disablePush } from "../lib/push";
 
@@ -221,6 +222,15 @@ export default function Profile() {
           </form>
         </Card>
       </motion.div>
+
+      {/* My reputation — requester-only; a collector has their own
+          equivalent (leaderboard, achievements, streak) on their own
+          dashboard instead, so this doesn't render for that role. */}
+      {user?.role === "user" && (
+        <motion.div variants={fadeUp}>
+          <MyReputationCard />
+        </motion.div>
+      )}
 
       {/* Push notifications */}
       <motion.div variants={fadeUp}>

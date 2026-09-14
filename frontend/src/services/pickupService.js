@@ -76,6 +76,10 @@ export const getRequesterProfile = (id) => API.get(`/pickup/requester/${id}/prof
 // backend's getMyAchievements, self-only (no id param needed or accepted).
 export const getMyAchievements = () => API.get(`/pickup/collector/achievements`);
 
+// The requester-side mirror of getMyAchievements — self-only, no id param.
+// Used by Profile.jsx's "My Reputation" card, shown to requesters only.
+export const getMyReputation = () => API.get(`/pickup/requester/me/reputation`);
+
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
