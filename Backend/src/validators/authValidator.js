@@ -14,6 +14,11 @@ const registerSchema = z.object({
     .regex(/[0-9]/, "Password must contain a number"),
   phone: z.string().trim().min(7).max(20).optional(),
   wantsToBeCollector: z.boolean().optional().default(false),
+  // Optional — format is loose on purpose (the controller looks it up and
+  // silently ignores anything that doesn't match a real user's code,
+  // rather than the validator rejecting the whole registration over a
+  // stale or mistyped invite link).
+  referralCode: z.string().trim().toUpperCase().max(20).optional(),
 });
 
 const loginSchema = z.object({

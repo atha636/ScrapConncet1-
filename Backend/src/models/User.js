@@ -44,6 +44,20 @@ const userSchema = new mongoose.Schema(
     // same reasoning as collectorPreferences below.
     earnedBadgeIds: { type: [String], default: undefined },
 
+    // Every user gets one, regardless of role — anyone can refer anyone
+    // (see referralController.js). Generated lazily on first visit to the
+    // referrals page rather than at registration for every account,
+    // because backfilling this for every pre-existing user at once isn't
+    // something a schema change alone can do — see
+    // utils/referralCode.js's ensureReferralCode for where that
+    // lazy-generation actually happens.
+    referralCode: { type: String, unique: true, sparse: true },
+    // Set once, at registration, if a valid code was provided — this is
+    // what a Referral document's `referee` field points back to, but it's
+    // kept here too as a cheap denormalized reference (e.g. for showing
+    // "you were referred by X" on a profile) without a join.
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
     // Lets a collector narrow which live "new pickup" events actually
     // reach them (toast/list) to scrap types they actually want and a
     // radius they're willing to travel, instead of every pending pickup

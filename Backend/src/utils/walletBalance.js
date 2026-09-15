@@ -23,8 +23,16 @@ async function getAvailableBalance(collectorId, excludeRequestId = null) {
   if (excludeRequestId) pendingMatch._id = { $ne: excludeRequestId };
 
   const [earningsAgg, payoutsAgg, pendingAgg] = await Promise.all([
+    // "earning" and "referral_bonus" are both credits into the wallet —
+    // grouped together here so a referral bonus is real, withdrawable
+    // money, not a number that only shows up somewhere cosmetic. Kept as
+    // two distinct transaction types rather than merging them at write
+    // time so getSummary's own pickup-earnings figures (a collector's
+    // "how much have you earned from jobs" stat) can stay scoped to
+    // "earning" alone — see that function's own comment on why mixing
+    // transaction kinds there would misrepresent what's being shown.
     Transaction.aggregate([
-      { $match: { collector: id, type: "earning" } },
+      { $match: { collector: id, type: { $in: ["earning", "referral_bonus"] } } },
       { $group: { _id: null, sum: { $sum: "$amount" } } },
     ]),
     Transaction.aggregate([

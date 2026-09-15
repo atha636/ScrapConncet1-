@@ -113,6 +113,7 @@ function createApp() {
   app.use("/api/push", require("./routes/pushRoutes"));
   app.use("/api/export", require("./routes/exportRoutes"));
   app.use("/api/wallet", require("./routes/walletRoutes"));
+  app.use("/api/referrals", require("./routes/referralRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

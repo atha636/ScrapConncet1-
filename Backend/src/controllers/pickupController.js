@@ -6,6 +6,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const { estimatePrice } = require("../utils/pricing");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
+const { activateReferralIfEligible } = require("../utils/referralActivation");
 
 const STATUS_LABELS = {
   accepted: "accepted",
@@ -349,6 +350,20 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     // which could newly cross a badge threshold.
     syncCollectorBadges(req.io, pickup.collector).catch((err) =>
       console.error("Badge sync after completion failed:", err.message)
+    );
+
+    // Checked for both parties on this pickup, not just the collector —
+    // this same completion event could be either person's first-ever
+    // pickup, and either one could be the referee half of a pending
+    // Referral (see activateReferralIfEligible's own comment on why the
+    // check differs by role). Fire-and-forget for the same reason as
+    // every other post-completion side effect here: a missed referral
+    // activation should never threaten the completion itself.
+    activateReferralIfEligible(req.io, pickup.collector).catch((err) =>
+      console.error("Referral activation (collector) failed:", err.message)
+    );
+    activateReferralIfEligible(req.io, pickup.user).catch((err) =>
+      console.error("Referral activation (requester) failed:", err.message)
     );
   }
 

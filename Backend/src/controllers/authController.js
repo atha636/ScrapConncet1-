@@ -8,19 +8,28 @@ const { generateToken: generateSecureToken, hashToken } = require("../utils/toke
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/sendEmail");
 const { googleClient, hasGoogleConfig } = require("../config/googleAuth");
 const notifyUser = require("../utils/notifyUser");
+const Referral = require("../models/Referral");
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const RESET_TTL_MS = 60 * 60 * 1000; // 1h
 
 // POST /api/auth/register
 exports.register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, wantsToBeCollector } = req.body;
+  const { name, email, password, phone, wantsToBeCollector, referralCode } = req.body;
 
   const existing = await User.findOne({ email });
   if (existing) throw new ApiError(409, "Email already registered");
 
   const hashed = await bcrypt.hash(password, 12);
   const { raw: verifyRaw, hash: verifyHash } = generateSecureToken();
+
+  // Looked up before creating the new user so a bad/expired code just
+  // silently doesn't attach a referral rather than failing registration
+  // outright — see the validator's own comment on why this is treated as
+  // "best effort," not a hard requirement.
+  const referrer = referralCode
+    ? await User.findOne({ referralCode: referralCode.toUpperCase() }).select("_id")
+    : null;
 
   const user = await User.create({
     name,
@@ -30,7 +39,18 @@ exports.register = asyncHandler(async (req, res) => {
     role: wantsToBeCollector ? "collector" : "user",
     verificationTokenHash: verifyHash,
     verificationTokenExpires: new Date(Date.now() + VERIFICATION_TTL_MS),
+    referredBy: referrer?._id || null,
   });
+
+  if (referrer) {
+    // Best-effort, same as the verification email below — a failure here
+    // (which realistically only happens if this exact person was somehow
+    // already referred, guarded by Referral's unique `referee` index)
+    // shouldn't undo an otherwise-successful registration.
+    await Referral.create({ referrer: referrer._id, referee: user._id }).catch((err) =>
+      console.error("Failed to create referral record:", err.message)
+    );
+  }
 
   // Best-effort — registration succeeds even if the email fails to send
   // (e.g. Resend not configured yet). The user can request a resend later.
