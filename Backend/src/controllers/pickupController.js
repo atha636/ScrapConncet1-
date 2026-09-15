@@ -7,6 +7,14 @@ const { estimatePrice } = require("../utils/pricing");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
 const { activateReferralIfEligible } = require("../utils/referralActivation");
+const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
+
+// Upper bound on stops fed into the optimizer. 2-opt compares every pair
+// of stops on every pass, so cost grows quadratically — fine for the
+// realistic case (a collector juggling a handful of active jobs), but this
+// caps the pathological one rather than letting a single request burn CPU
+// on hundreds of stops.
+const MAX_ROUTE_STOPS = 50;
 
 const STATUS_LABELS = {
   accepted: "accepted",
@@ -168,6 +176,71 @@ exports.getCollectorJobs = asyncHandler(async (req, res) => {
   ]);
 
   res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+});
+
+// GET /api/pickup/collector/route?lat=&lng=  (collector only)
+//
+// Orders this collector's *active* jobs into an efficient visiting
+// sequence from wherever they are right now. Deliberately scoped to
+// accepted/in_progress only — a completed or cancelled job isn't
+// somewhere they still need to drive to, and including them would pad the
+// route with stops that are already done.
+//
+// Unpaginated on purpose, unlike getCollectorJobs above: a route is only
+// meaningful as a whole. Handing back page 1 of a route would produce an
+// ordering that changes the moment you look at page 2, which is worse than
+// useless. In practice a collector's active-job count is small enough that
+// this is a non-issue; MAX_ROUTE_STOPS below bounds the pathological case.
+exports.getCollectorRoute = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new ApiError(400, "Your current location is required to plan a route");
+  }
+
+  const jobs = await Pickup.find({
+    collector: req.user.id,
+    status: { $in: ["accepted", "in_progress"] },
+  })
+    .limit(MAX_ROUTE_STOPS)
+    .populate("user", "name phone");
+
+  const start = { lat, lng };
+  const stops = jobs.map((job) => ({
+    id: String(job._id),
+    lat: job.location.lat,
+    lng: job.location.lng,
+  }));
+
+  const { ordered, totalKm, naiveKm, savedKm } = optimizeRoute(start, stops);
+
+  // Re-attached after optimizing rather than carried through it — the
+  // optimizer only ever needs coordinates, so keeping full Mongoose
+  // documents out of its inner loops (which compare every pair of stops,
+  // repeatedly) keeps it working on plain numbers.
+  const jobsById = Object.fromEntries(jobs.map((j) => [String(j._id), j]));
+
+  res.json({
+    stops: ordered.map((stop, index) => {
+      const job = jobsById[stop.id];
+      return {
+        order: index + 1,
+        pickup: job,
+        // Distance from the previous stop (or from the collector's own
+        // position, for the first one) — this is the per-leg number a
+        // collector actually reads while driving, not a running total.
+        legKm: Number(
+          (index === 0
+            ? haversineKm(start, stop)
+            : haversineKm(ordered[index - 1], stop)
+          ).toFixed(2)
+        ),
+      };
+    }),
+    totalKm: Number(totalKm.toFixed(2)),
+    naiveKm: Number(naiveKm.toFixed(2)),
+    savedKm: Number(savedKm.toFixed(2)),
+  });
 });
 
 // PATCH /api/pickup/:id/accept  (collector only)

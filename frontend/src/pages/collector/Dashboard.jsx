@@ -29,6 +29,7 @@ import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
+import RoutePlanner from "../../components/collector/RoutePlanner";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -668,6 +669,7 @@ export default function CollectorDashboard() {
                   </Card>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
+                    <RoutePlanner coords={myCoords} onOpenPickup={setDetailsPickup} />
                     {activeJobs.map((item) => {
                       const action = NEXT_ACTION[item.status];
                       return (

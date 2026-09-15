@@ -13,6 +13,7 @@ const {
   getMyRequests,
   getAvailable,
   getCollectorJobs,
+  getCollectorRoute,
   acceptPickup,
   updateStatus,
   cancelByRequester,
@@ -59,6 +60,7 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
+router.get("/collector/route", auth, role("collector"), getCollectorRoute);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
 
