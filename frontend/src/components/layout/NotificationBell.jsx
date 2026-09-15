@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import useNotifications from "../../hooks/useNotifications";
 import { useAuth } from "../../context/AuthContext";
 import ChatBox from "../chat/ChatBox";
+import { isNotificationSoundMuted, setNotificationSoundMuted } from "../../utils/notificationSound";
 
 // Each notification type gets its own colored badge so the list is scannable
 // at a glance, not just a wall of identical rust-colored icons.
@@ -75,6 +76,10 @@ export default function NotificationBell() {
   const { items, unreadCount, loading, markRead, markAllRead } = useNotifications();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  // Read lazily from localStorage on mount (see notificationSound.js) so
+  // the toggle reflects whatever the person last chose, rather than
+  // defaulting to "unmuted" and flickering once the real value loads.
+  const [soundMuted, setSoundMuted] = useState(isNotificationSoundMuted);
   const [chatPickup, setChatPickup] = useState(null);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -171,11 +176,36 @@ export default function NotificationBell() {
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-line">
                 <span className="font-display font-semibold text-sm text-ink">Notifications</span>
-                {unreadCount > 0 && (
-                  <motion.button whileTap={{ scale: 0.95 }} onClick={markAllRead} className="text-xs font-semibold text-rust hover:underline">
-                    Mark all read
-                  </motion.button>
-                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const next = !soundMuted;
+                      setSoundMuted(next);
+                      setNotificationSoundMuted(next);
+                    }}
+                    title={soundMuted ? "Unmute notification sound" : "Mute notification sound"}
+                    className="text-inkFaint hover:text-rust transition-colors"
+                  >
+                    {soundMuted ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                        <line x1="23" y1="9" x2="17" y2="15" />
+                        <line x1="17" y1="9" x2="23" y2="15" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      </svg>
+                    )}
+                  </button>
+                  {unreadCount > 0 && (
+                    <motion.button whileTap={{ scale: 0.95 }} onClick={markAllRead} className="text-xs font-semibold text-rust hover:underline">
+                      Mark all read
+                    </motion.button>
+                  )}
+                </div>
               </div>
 
               <div className="max-h-96 overflow-y-auto">

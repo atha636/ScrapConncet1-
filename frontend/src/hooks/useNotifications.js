@@ -8,6 +8,7 @@ import {
 import useSocket from "./useSocket";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
+import { playNotificationSound } from "../utils/notificationSound";
 
 // Mirrors NotificationBell's own per-type styling so a toast and its
 // eventual entry in the bell dropdown read as the same event, not two
@@ -16,12 +17,16 @@ const TOAST_TYPE = {
   pickup_accepted: "success",
   status_update: "info",
   new_message: "info",
+  badge_earned: "success",
+  referral_reward: "success",
 };
 
 function toastTitle(n) {
   if (n.type === "pickup_accepted") return "Pickup accepted";
   if (n.type === "status_update") return "Status updated";
   if (n.type === "new_message") return "New message";
+  if (n.type === "badge_earned") return "Badge unlocked";
+  if (n.type === "referral_reward") return "Referral update";
   return "Notification";
 }
 
@@ -53,6 +58,7 @@ export default function useNotifications() {
   useSocket("notification", (notification) => {
     setItems((prev) => [notification, ...prev].slice(0, 20));
     setUnreadCount((prev) => prev + 1);
+    playNotificationSound();
 
     // The bell badge alone is easy to miss — a toast surfaces the event
     // the moment it happens, without requiring the user to notice a
