@@ -7,6 +7,7 @@ import Card from "../components/ui/Card";
 import ErrorBox from "../components/common/ErrorBox";
 import DeleteAccountModal from "../components/profile/DeleteAccountModal";
 import MyReputationCard from "../components/profile/MyReputationCard";
+import ReferralCard from "../components/profile/ReferralCard";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { isPushSupported, getPushStatus, enablePush, disablePush } from "../lib/push";
 
@@ -231,6 +232,13 @@ export default function Profile() {
           <MyReputationCard />
         </motion.div>
       )}
+
+      {/* Referrals — every role, unlike the reputation card above: anyone
+          can invite anyone, the reward just differs by the referrer's own
+          role (see referralActivation.js). */}
+      <motion.div variants={fadeUp}>
+        <ReferralCard />
+      </motion.div>
 
       {/* Push notifications */}
       <motion.div variants={fadeUp}>

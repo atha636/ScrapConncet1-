@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { registerUser } from "../../services/authService";
+import { validateReferralCode } from "../../services/referralService";
 import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import AuthSidePanel from "../../components/auth/AuthSidePanel";
@@ -32,17 +33,42 @@ export default function Register() {
   const presetRole = ROLE_FROM_PARAM[searchParams.get("role")];
   const [step, setStep] = useState(presetRole !== undefined ? "form" : "choose");
 
+  // Captured from the invite link (/register?ref=ABC12345) and passed
+  // straight through to registerUser with the rest of the form — the
+  // backend silently ignores anything that doesn't match a real code, so
+  // there's nothing to validate here beyond showing who invited them.
+  const referralCode = (searchParams.get("ref") || "").toUpperCase();
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
     wantsToBeCollector: presetRole ?? false,
+    ...(referralCode ? { referralCode } : {}),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [referrerName, setReferrerName] = useState(null);
+
+  // Purely cosmetic — turns a bare code in the URL into "Sanjay invited
+  // you". Failing silently is correct here: an unrecognized code still
+  // lets registration proceed normally (see the backend validator's own
+  // comment), so there's nothing to warn about, just nothing to show.
+  useEffect(() => {
+    if (!referralCode) return;
+    let cancelled = false;
+    validateReferralCode(referralCode)
+      .then((res) => {
+        if (!cancelled && res.data.valid) setReferrerName(res.data.referrerName);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [referralCode]);
 
   // Same reasoning as Login — an already-signed-in visitor should never see
   // the signup form, just land on their own dashboard. All hooks above run
@@ -211,6 +237,18 @@ export default function Register() {
                 </div>
                 <span className="text-xs font-semibold text-rust shrink-0">Change</span>
               </button>
+
+              {/* Only shown once the code resolved to a real account —
+                  an unrecognized code stays silent rather than warning,
+                  since registration works either way. */}
+              {referrerName && (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-ticket border border-dashed border-rust/30 bg-rust/[0.04] mb-5">
+                  <span className="leading-none">🎁</span>
+                  <span className="text-xs text-inkSoft">
+                    <span className="font-semibold text-ink">{referrerName}</span> invited you to ScrapConnect
+                  </span>
+                </div>
+              )}
 
               <form onSubmit={handleRegister} className="ticket p-7 pt-6">
                 <AnimatePresence>

@@ -44,6 +44,14 @@ const TYPE_STYLE = {
     fg: "text-amber-dark",
     icon: <span className="text-sm leading-none">🏆</span>,
   },
+  // Same emoji-in-slot approach as badge_earned above — referralActivation
+  // already prefixes the text with 🎉, so this echoes it rather than
+  // introducing a competing generic glyph.
+  referral_reward: {
+    bg: "bg-rust/10",
+    fg: "text-rust",
+    icon: <span className="text-sm leading-none">🎁</span>,
+  },
 };
 
 const listStagger = {
@@ -95,6 +103,13 @@ export default function NotificationBell() {
 
     if (n.type === "badge_earned") {
       navigate("/collector", { state: { openTab: "wallet" } });
+      return;
+    }
+
+    // Referrals live on the shared Profile page for every role, so unlike
+    // badge_earned above this doesn't need a role-dependent destination.
+    if (n.type === "referral_reward") {
+      navigate("/profile");
       return;
     }
 
