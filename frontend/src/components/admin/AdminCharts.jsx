@@ -62,7 +62,7 @@ function ChartTooltip({ active, payload, label, formatter }) {
   );
 }
 
-export default function AdminCharts({ series, stats }) {
+export default function AdminCharts({ series, stats, growthStats }) {
   const pieData = stats
     ? [
         { name: "Pending", value: stats.pendingCount },
@@ -183,6 +183,114 @@ export default function AdminCharts({ series, stats }) {
           )}
         </Card>
       </motion.div>
+
+      {/* Growth & trust — everything built on top of the core pickup flow
+          (referrals, badges, collector reliability) that has no other
+          admin-facing view. Kept as its own section below the pickup
+          volume/revenue/status charts above, since these are a snapshot of
+          current state rather than a 30-day trend the way those are. */}
+      {growthStats && (
+        <>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <motion.div variants={fadeUp}>
+              <Card className="p-5">
+                <div className="text-xs font-semibold text-inkFaint uppercase tracking-wide mb-1">
+                  Referral conversion
+                </div>
+                <div className="font-display font-bold text-2xl text-ink">
+                  {growthStats.referrals.conversionRate == null
+                    ? "—"
+                    : `${Math.round(growthStats.referrals.conversionRate * 100)}%`}
+                </div>
+                <div className="text-xs text-inkSoft mt-1">
+                  {growthStats.referrals.completed} of {growthStats.referrals.total} referred signups activated
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={fadeUp}>
+              <Card className="p-5">
+                <div className="text-xs font-semibold text-inkFaint uppercase tracking-wide mb-1">
+                  Referral rewards paid
+                </div>
+                <div className="font-display font-bold text-2xl text-ink">
+                  {formatPrice(growthStats.referrals.totalRewardPaid)}
+                </div>
+                <div className="text-xs text-inkSoft mt-1">
+                  {growthStats.referrals.pending} referral{growthStats.referrals.pending === 1 ? "" : "s"} still
+                  pending
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={fadeUp}>
+              <Card className="p-5">
+                <div className="text-xs font-semibold text-inkFaint uppercase tracking-wide mb-1">
+                  Typical collector reliability
+                </div>
+                <div className="font-display font-bold text-2xl text-ink">
+                  {growthStats.reliability.avgCompletionRate == null
+                    ? "—"
+                    : `${Math.round(growthStats.reliability.avgCompletionRate * 100)}%`}
+                </div>
+                <div className="text-xs text-inkSoft mt-1">
+                  Averaged across {growthStats.reliability.collectorsWithEnoughHistory} collector
+                  {growthStats.reliability.collectorsWithEnoughHistory === 1 ? "" : "s"} with enough history
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+
+          <motion.div variants={fadeUp}>
+            <Card className="p-5">
+              <h3 className="font-display font-semibold text-ink mb-4">Collectors by pickup milestone</h3>
+              {growthStats.badges.milestones.every((m) => m.count === 0) ? (
+                <p className="text-sm text-inkFaint text-center py-10">
+                  No collector has reached a milestone yet.
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={growthStats.badges.milestones}
+                    margin={{ left: -20, right: 10, top: 5, bottom: 0 }}
+                  >
+                    <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                      axisLine={{ stroke: COLORS.line }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 11, fill: COLORS.inkSoft }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      content={<ChartTooltip formatter={(v) => `${v} collector${v === 1 ? "" : "s"}`} />}
+                    />
+                    <Bar dataKey="count" fill={COLORS.rust} radius={[3, 3, 0, 0]} animationDuration={700} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-dashed border-line text-sm">
+                <span className="text-inkSoft">
+                  <span className="font-semibold text-ink">{growthStats.badges.topRated}</span> Top rated
+                </span>
+                <span className="text-inkSoft">
+                  <span className="font-semibold text-ink">{growthStats.badges.fastResponder}</span> Fast
+                  responder
+                </span>
+                <span className="text-inkSoft">
+                  <span className="font-semibold text-ink">{growthStats.badges.reliable}</span> Reliable
+                </span>
+              </div>
+            </Card>
+          </motion.div>
+        </>
+      )}
     </motion.div>
   );
 }

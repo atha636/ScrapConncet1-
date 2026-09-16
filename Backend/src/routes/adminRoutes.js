@@ -16,11 +16,13 @@ const {
   getAllPickups,
 } = require("../controllers/adminController");
 const { getDisputes, resolveDispute } = require("../controllers/disputeController");
+const { getGrowthStats } = require("../controllers/adminGrowthController");
 
 // Every route here requires an authenticated admin — enforced per-route
 // (not just at the router level) so each stays explicit and self-contained.
 router.get("/stats", auth, role("admin"), getStats);
 router.get("/analytics", auth, role("admin"), getAnalytics);
+router.get("/growth-stats", auth, role("admin"), getGrowthStats);
 router.get("/users", auth, role("admin"), getUsers);
 router.patch("/users/:id/deactivate", auth, role("admin"), deactivateUser);
 router.patch("/users/:id/activate", auth, role("admin"), activateUser);

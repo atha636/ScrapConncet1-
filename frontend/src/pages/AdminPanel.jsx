@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   getAdminStats,
   getAdminAnalytics,
+  getAdminGrowthStats,
   getAdminUsers,
   deactivateUser,
   activateUser,
@@ -71,6 +72,7 @@ export default function AdminPanel() {
   const [tab, setTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [series, setSeries] = useState([]);
+  const [growthStats, setGrowthStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [searching, setSearching] = useState(false);
@@ -92,9 +94,14 @@ export default function AdminPanel() {
   }, []);
 
   const loadAnalytics = useCallback(async () => {
-    const [statsRes, analyticsRes] = await Promise.all([getAdminStats(), getAdminAnalytics()]);
+    const [statsRes, analyticsRes, growthRes] = await Promise.all([
+      getAdminStats(),
+      getAdminAnalytics(),
+      getAdminGrowthStats(),
+    ]);
     setStats(statsRes.data);
     setSeries(analyticsRes.data.series);
+    setGrowthStats(growthRes.data);
   }, []);
 
   const loadUsers = useCallback(async (search = "") => {
@@ -330,7 +337,7 @@ export default function AdminPanel() {
               </motion.div>
             )}
 
-            {tab === "analytics" && <AdminCharts series={series} stats={stats} />}
+            {tab === "analytics" && <AdminCharts series={series} stats={stats} growthStats={growthStats} />}
 
             {tab === "users" && (
               <div>
