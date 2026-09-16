@@ -5,6 +5,7 @@ import {
   getAvailable,
   getCollectorJobs,
   acceptPickup,
+  batchAcceptPickups,
   updateStatus,
   getPickupById,
   SCRAP_TYPES,
@@ -110,6 +111,12 @@ export default function CollectorDashboard() {
   const [ratedIds, setRatedIds] = useState(new Set());
   const [mapPickup, setMapPickup] = useState(null);
   const [requesterProfileId, setRequesterProfileId] = useState(null);
+  // Available-tab batch selection — a Set rather than an array since
+  // toggling one id in and out is the only mutation this ever does, and a
+  // Set makes both "is this one selected" and "remove this one" O(1)
+  // instead of an indexOf scan on every render.
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchAccepting, setBatchAccepting] = useState(false);
   const [detailsPickup, setDetailsPickup] = useState(null);
   const [reportPickup, setReportPickup] = useState(null);
   const [completingPickup, setCompletingPickup] = useState(null);
@@ -319,11 +326,60 @@ export default function CollectorDashboard() {
   // Any pickup updated (by this collector or another) -> reconcile both lists
   useSocket("updatePickup", (updated) => {
     setAvailable((prev) => prev.filter((p) => p._id !== updated._id));
+    // If another collector just took this one out from under a pending
+    // selection, drop it from the selection too — otherwise "Accept N
+    // selected" would keep counting a job that's no longer accept-able at
+    // all.
+    setSelectedIds((prev) => {
+      if (!prev.has(updated._id)) return prev;
+      const next = new Set(prev);
+      next.delete(updated._id);
+      return next;
+    });
     setMyJobs((prev) => {
       const exists = prev.some((p) => p._id === updated._id);
       return exists ? prev.map((p) => (p._id === updated._id ? updated : p)) : prev;
     });
   });
+
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBatchAccept = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBatchAccepting(true);
+    try {
+      const res = await batchAcceptPickups(ids);
+      // Every id in the batch is gone from Available now regardless of
+      // outcome — an accepted one moved to My Jobs, and a failed one
+      // means another collector already took it, so it's just as
+      // unavailable to this collector either way.
+      setAvailable((prev) => prev.filter((p) => !ids.includes(p._id)));
+      setMyJobs((prev) => [...res.data.accepted, ...prev]);
+      setSelectedIds(new Set());
+
+      if (res.data.failed.length > 0) {
+        const unavailableCount = res.data.failed.filter((f) => f.reason === "unavailable").length;
+        setError(
+          res.data.accepted.length > 0
+            ? `Accepted ${res.data.accepted.length} of ${ids.length} — ${unavailableCount} ${unavailableCount === 1 ? "was" : "were"} already taken.`
+            : "Those pickups were already taken by another collector."
+        );
+      }
+      if (res.data.accepted.length > 0) setTab("mine");
+    } catch {
+      setError("Couldn't accept the selected pickups — try again.");
+    } finally {
+      setBatchAccepting(false);
+    }
+  };
 
   const handleAccept = async (id) => {
     setActingId(id);
@@ -552,6 +608,34 @@ export default function CollectorDashboard() {
           </div>
         )}
 
+        {tab === "available" && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="sticky top-2 z-10 mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-ticket border border-rust/30 bg-rust/[0.06]"
+          >
+            <span className="text-sm font-semibold text-ink">
+              {selectedIds.size} pickup{selectedIds.size === 1 ? "" : "s"} selected
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs font-semibold text-inkSoft hover:text-ink"
+              >
+                Clear
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleBatchAccept}
+                disabled={batchAccepting || isSuspended}
+                className="btn-primary !py-1.5 !px-3.5 text-sm"
+              >
+                {batchAccepting ? "Accepting…" : `Accept ${selectedIds.size}`}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
         {loading ? (
           <CardSkeleton count={3} withImage />
         ) : (
@@ -584,6 +668,21 @@ export default function CollectorDashboard() {
                           className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
                         >
                           <div className="flex gap-4">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleSelected(item._id); }}
+                              aria-label={selectedIds.has(item._id) ? "Deselect" : "Select"}
+                              className={`shrink-0 self-start mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                selectedIds.has(item._id)
+                                  ? "bg-rust border-rust text-surface"
+                                  : "border-line hover:border-rust/50"
+                              }`}
+                            >
+                              {selectedIds.has(item._id) && (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </button>
                             {item.image ? (
                               <img
                                 src={item.image}

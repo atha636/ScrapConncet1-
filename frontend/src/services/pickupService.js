@@ -16,6 +16,12 @@ export const getCollectorJobs = (params = {}) => API.get("/pickup/collector/jobs
 
 export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 
+// Accepts several pending pickups in one request — see RoutePlanner's
+// sibling feature (both live in the collector Dashboard's job-browsing
+// flow). Partial success: check response.data.failed for any that were
+// already taken by someone else between selection and submit.
+export const batchAcceptPickups = (ids) => API.patch(`/pickup/collector/batch-accept`, { ids });
+
 // `photoFile` is only meaningful (and required by the backend) when
 // `status` is "completed" — every other transition still sends a plain
 // JSON body exactly as before.
