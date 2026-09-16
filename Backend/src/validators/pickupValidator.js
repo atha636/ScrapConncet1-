@@ -22,4 +22,15 @@ const updateStatusSchema = z.object({
   status: z.enum(["accepted", "in_progress", "completed", "cancelled"]),
 });
 
-module.exports = { createPickupSchema, updateStatusSchema };
+const objectIdLike = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid pickup id");
+
+// Capped well above any realistic single batch (a collector reviewing a
+// screenful of nearby jobs) — this exists to bound request size, not to
+// reflect a real expected count.
+const MAX_BATCH_ACCEPT = 20;
+
+const batchAcceptSchema = z.object({
+  ids: z.array(objectIdLike).min(1, "Select at least one pickup").max(MAX_BATCH_ACCEPT),
+});
+
+module.exports = { createPickupSchema, updateStatusSchema, batchAcceptSchema, MAX_BATCH_ACCEPT };

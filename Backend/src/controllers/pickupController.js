@@ -295,6 +295,81 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   res.json(pickup);
 });
 
+// PATCH /api/pickup/collector/batch-accept  (collector only)
+//
+// Accepts multiple pending pickups in one request — the natural next step
+// after browsing a batch of nearby jobs (see RoutePlanner/the Available
+// tab's geo-sorted list) rather than tapping Accept, waiting, tapping
+// Accept again for each one individually.
+//
+// Deliberately partial-success, not all-or-nothing: by the time a
+// collector has reviewed a screenful of jobs and tapped "Accept 4", a few
+// seconds have passed — long enough for another collector to have taken
+// one of them. Failing the whole batch over one already-gone pickup would
+// throw away the 3 that were still fine, so each id is attempted
+// independently and the response reports exactly which succeeded and
+// which didn't, the same way a real "add multiple items to cart" flow
+// would.
+exports.batchAcceptPickups = asyncHandler(async (req, res) => {
+  const collectorUser = await User.findById(req.user.id);
+  if (collectorUser?.collectorSuspended) {
+    throw new ApiError(
+      403,
+      "Your account is suspended from accepting new pickups due to low ratings. Contact support."
+    );
+  }
+
+  const { ids } = req.body;
+  const accepted = [];
+  const failed = [];
+
+  // Sequential, not Promise.all — these are atomic per-document updates
+  // with no cross-document contention risk, so there's no correctness
+  // reason to run them concurrently, and sequential keeps this simple to
+  // reason about and easy to bound (MAX_BATCH_ACCEPT already caps total
+  // work either way).
+  for (const id of ids) {
+    // Same atomic findOneAndUpdate as the single-accept path above — see
+    // that handler's own comment for why this, not a read-then-write, is
+    // what actually makes concurrent accepts safe.
+    const pickup = await Pickup.findOneAndUpdate(
+      { _id: id, status: "pending" },
+      {
+        $set: { collector: req.user.id, status: "accepted" },
+        $push: { statusHistory: { status: "accepted", changedBy: req.user.id } },
+      },
+      { new: true }
+    ).populate("user", "name");
+
+    if (!pickup) {
+      const exists = await Pickup.exists({ _id: id });
+      failed.push({ id, reason: exists ? "unavailable" : "not_found" });
+      continue;
+    }
+
+    accepted.push(pickup);
+    req.io.emit("updatePickup", pickup);
+    await notifyUser(req.io, pickup.user, {
+      type: "pickup_accepted",
+      text: `${collectorUser.name} accepted your ${pickup.scrapType} pickup request`,
+      pickupId: pickup._id,
+    });
+  }
+
+  // Once for the whole batch, not once per accepted pickup — badge state
+  // (accept-time average, milestone counts) only needs to reflect where
+  // things landed after everything settled, not every intermediate step
+  // along the way. Only worth checking at all if something actually got
+  // accepted.
+  if (accepted.length > 0) {
+    syncCollectorBadges(req.io, req.user.id).catch((err) =>
+      console.error("Badge sync after batch accept failed:", err.message)
+    );
+  }
+
+  res.json({ accepted, failed });
+});
+
 // PATCH /api/pickup/:id/cancel  (requester only, must own the request)
 exports.cancelByRequester = asyncHandler(async (req, res) => {
   // Atomic, scoped by both ownership and current status in the filter

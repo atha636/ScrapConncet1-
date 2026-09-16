@@ -4,7 +4,7 @@ const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 const upload = require("../middleware/upload");
 const validate = require("../middleware/validate");
-const { createPickupSchema, updateStatusSchema } = require("../validators/pickupValidator");
+const { createPickupSchema, updateStatusSchema, batchAcceptSchema } = require("../validators/pickupValidator");
 const { createDisputeSchema } = require("../validators/disputeValidator");
 const { createRecurringSchema } = require("../validators/recurringPickupValidator");
 
@@ -15,6 +15,7 @@ const {
   getCollectorJobs,
   getCollectorRoute,
   acceptPickup,
+  batchAcceptPickups,
   updateStatus,
   cancelByRequester,
   getPickupById,
@@ -122,6 +123,12 @@ router.patch(
   role("collector"),
   acceptPickup
 );
+
+// Distinct literal second segment ("batch-accept") from "/:id/accept"
+// above ("accept") — the two can never collide regardless of declaration
+// order, the same non-collision reasoning used throughout this file for
+// the /collector/* routes.
+router.patch("/collector/batch-accept", auth, role("collector"), validate(batchAcceptSchema), batchAcceptPickups);
 router.patch(
   "/:id/status",
   auth,
