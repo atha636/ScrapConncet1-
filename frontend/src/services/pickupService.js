@@ -22,6 +22,9 @@ export const acceptPickup = (id) => API.patch(`/pickup/${id}/accept`);
 // already taken by someone else between selection and submit.
 export const batchAcceptPickups = (ids) => API.patch(`/pickup/collector/batch-accept`, { ids });
 
+export const getMyAvailability = () => API.get(`/pickup/collector/availability`);
+export const updateMyAvailability = (payload) => API.patch(`/pickup/collector/availability`, payload);
+
 // `photoFile` is only meaningful (and required by the backend) when
 // `status` is "completed" — every other transition still sends a plain
 // JSON body exactly as before.

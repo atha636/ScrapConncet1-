@@ -31,6 +31,8 @@ import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
+import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
+import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -374,8 +376,8 @@ export default function CollectorDashboard() {
         );
       }
       if (res.data.accepted.length > 0) setTab("mine");
-    } catch {
-      setError("Couldn't accept the selected pickups — try again.");
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't accept the selected pickups — try again.");
     } finally {
       setBatchAccepting(false);
     }
@@ -494,8 +496,13 @@ export default function CollectorDashboard() {
   return (
     <MotionConfig reducedMotion="user">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
-        <p className="text-sm text-inkSoft mb-6">Pick up nearby scrap and manage your jobs.</p>
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-ink mb-1">Collector dashboard</h1>
+            <p className="text-sm text-inkSoft">Pick up nearby scrap and manage your jobs.</p>
+          </div>
+          <AvailabilityToggle />
+        </div>
 
         {isSuspended && (
           <div className="mb-5">
@@ -894,6 +901,7 @@ export default function CollectorDashboard() {
                 ) : (
                   <>
                     <ShareProfileButton collectorId={user?._id || user?.id} />
+                    <WorkingHoursCard />
                     <AchievementsPanel />
                     <LeaderboardPanel />
 
