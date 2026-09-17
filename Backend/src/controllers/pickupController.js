@@ -8,6 +8,7 @@ const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
 const { activateReferralIfEligible } = require("../utils/referralActivation");
 const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
+const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
 
 // Upper bound on stops fed into the optimizer. 2-opt compares every pair
 // of stops on every pass, so cost grows quadratically — fine for the
@@ -252,6 +253,12 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
       "Your account is suspended from accepting new pickups due to low ratings. Contact support."
     );
   }
+  // A distinct message from the suspension one above — this is the
+  // collector's own choice (paused, or outside their set hours), not a
+  // platform-imposed restriction, so it shouldn't read like a penalty.
+  if (!isCollectorAvailableNow(collectorUser)) {
+    throw new ApiError(403, "You're currently marked as unavailable. Resume availability to accept pickups.");
+  }
 
   // Atomic find-and-update, scoped to status: "pending" in the filter itself
   // — not a separate read-then-write. Two collectors tapping "Accept" on the
@@ -317,6 +324,9 @@ exports.batchAcceptPickups = asyncHandler(async (req, res) => {
       403,
       "Your account is suspended from accepting new pickups due to low ratings. Contact support."
     );
+  }
+  if (!isCollectorAvailableNow(collectorUser)) {
+    throw new ApiError(403, "You're currently marked as unavailable. Resume availability to accept pickups.");
   }
 
   const { ids } = req.body;

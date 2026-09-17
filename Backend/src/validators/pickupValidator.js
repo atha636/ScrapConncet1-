@@ -33,4 +33,44 @@ const batchAcceptSchema = z.object({
   ids: z.array(objectIdLike).min(1, "Select at least one pickup").max(MAX_BATCH_ACCEPT),
 });
 
-module.exports = { createPickupSchema, updateStatusSchema, batchAcceptSchema, MAX_BATCH_ACCEPT };
+const timeString = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm (24-hour)");
+
+const scheduleEntrySchema = z
+  .object({
+    day: z.number().int().min(0).max(6),
+    start: timeString,
+    end: timeString,
+  })
+  // Refined rather than left to collectorAvailability.js to silently
+  // treat as "never available" — an end time that isn't after start is
+  // almost certainly a mistake (e.g. swapped fields), so this rejects it
+  // at the point of saving instead of producing a schedule that quietly
+  // never lets the collector accept anything on that day.
+  .refine((entry) => entry.start < entry.end, {
+    message: "End time must be after start time",
+    path: ["end"],
+  });
+
+const updateAvailabilitySchema = z.object({
+  paused: z.boolean().optional(),
+  scheduleEnabled: z.boolean().optional(),
+  // At most one entry per weekday — validated here rather than relying on
+  // "last one wins" behavior wherever this array gets read, which would
+  // silently discard a duplicate instead of telling the collector they
+  // set the same day twice.
+  schedule: z
+    .array(scheduleEntrySchema)
+    .max(7)
+    .refine((entries) => new Set(entries.map((e) => e.day)).size === entries.length, {
+      message: "Each day can only appear once in the schedule",
+    })
+    .optional(),
+});
+
+module.exports = {
+  createPickupSchema,
+  updateStatusSchema,
+  batchAcceptSchema,
+  MAX_BATCH_ACCEPT,
+  updateAvailabilitySchema,
+};

@@ -4,7 +4,13 @@ const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 const upload = require("../middleware/upload");
 const validate = require("../middleware/validate");
-const { createPickupSchema, updateStatusSchema, batchAcceptSchema } = require("../validators/pickupValidator");
+const {
+  createPickupSchema,
+  updateStatusSchema,
+  batchAcceptSchema,
+  updateAvailabilitySchema,
+} = require("../validators/pickupValidator");
+const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
 const { createRecurringSchema } = require("../validators/recurringPickupValidator");
 
@@ -129,6 +135,21 @@ router.patch(
 // order, the same non-collision reasoning used throughout this file for
 // the /collector/* routes.
 router.patch("/collector/batch-accept", auth, role("collector"), validate(batchAcceptSchema), batchAcceptPickups);
+
+// Self-only — a collector's own working-hours/pause settings, checked by
+// acceptPickup and batchAcceptPickups above (see
+// utils/collectorAvailability.js). Same 2-segment literal shape as
+// /collector/jobs, /collector/leaderboard, /collector/achievements — no
+// collision risk with the /:id/* routes for the same reason those don't
+// collide either.
+router.get("/collector/availability", auth, role("collector"), getMyAvailability);
+router.patch(
+  "/collector/availability",
+  auth,
+  role("collector"),
+  validate(updateAvailabilitySchema),
+  updateMyAvailability
+);
 router.patch(
   "/:id/status",
   auth,

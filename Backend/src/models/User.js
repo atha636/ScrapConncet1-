@@ -36,6 +36,39 @@ const userSchema = new mongoose.Schema(
     collectorSuspended: { type: Boolean, default: false },
     collectorSuspendedAt: { type: Date, default: null },
 
+    // Manual on/off switch, independent of the weekly schedule below — a
+    // collector can be paused (going on leave, sick day) regardless of
+    // whether they've set up a schedule at all, and a schedule doesn't
+    // override an explicit pause. See utils/collectorAvailability.js for
+    // how the two combine into a single "can accept jobs right now"
+    // answer.
+    collectorPaused: { type: Boolean, default: false },
+
+    // Optional weekly working hours. `enabled: false` (the default) means
+    // no schedule restriction applies at all — only the manual pause
+    // above matters — so a collector who never visits this setting isn't
+    // silently locked out. When enabled, a day with no entry in
+    // `schedule` is treated as a day off.
+    availabilitySchedule: {
+      enabled: { type: Boolean, default: false },
+      schedule: [
+        {
+          _id: false,
+          // 0 = Sunday .. 6 = Saturday, matching JS Date#getDay() and
+          // Intl.DateTimeFormat's own weekday numbering, so no reindexing
+          // is needed when comparing against "today" later.
+          day: { type: Number, min: 0, max: 6, required: true },
+          // "HH:mm" 24-hour, checked in Asia/Kolkata local time (see
+          // collectorAvailability.js) — this app is India-only (₹
+          // pricing throughout), so a single fixed timezone is a
+          // deliberate simplification rather than storing a per-user IANA
+          // zone for a case that doesn't arise yet.
+          start: { type: String, required: true },
+          end: { type: String, required: true },
+        },
+      ],
+    },
+
     // Snapshot of which badge ids (see utils/badges.js) this collector has
     // already been notified about — badges themselves are always computed
     // fresh from live stats, never stored, but this one small list is what
