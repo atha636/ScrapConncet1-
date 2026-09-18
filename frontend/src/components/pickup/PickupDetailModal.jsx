@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { formatPrice } from "../../utils/formatPrice";
 import { formatDistance } from "../../utils/distance";
 import MapThumbnail from "../map/MapThumbnail";
+import useLocationSharing from "../../hooks/useLocationSharing";
 
 const rowStagger = {
   hidden: {},
@@ -13,6 +15,13 @@ const rowItem = {
 };
 
 export default function PickupDetailModal({ pickup, open, onClose, onAccept, onViewMap, onReport, accepting, isSuspended }) {
+  const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
+  // Defaults off every time the modal opens — sharing your live location
+  // is an explicit, per-session opt-in, not something that starts
+  // broadcasting just because an active job happens to be open.
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const { error: locationError } = useLocationSharing(pickup?._id, isTrackable && sharingLocation);
+
   return (
     <AnimatePresence>
       {open && pickup && (
@@ -107,6 +116,26 @@ export default function PickupDetailModal({ pickup, open, onClose, onAccept, onV
                     />
                   </dd>
                 </motion.div>
+
+                {isTrackable && (
+                  <motion.div variants={rowItem} className="flex items-center justify-between">
+                    <dt className="text-inkFaint">Share live location</dt>
+                    <dd>
+                      <button
+                        onClick={() => setSharingLocation((prev) => !prev)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold transition-colors ${
+                          sharingLocation
+                            ? "border-rust/30 bg-rust/10 text-rust"
+                            : "border-line text-inkFaint"
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${sharingLocation ? "bg-rust animate-pulse" : "bg-inkFaint"}`} />
+                        {sharingLocation ? "Sharing" : "Off"}
+                      </button>
+                      {locationError && <p className="text-xs text-danger mt-1 text-right">{locationError}</p>}
+                    </dd>
+                  </motion.div>
+                )}
 
                 {(pickup.contactName || pickup.user?.name) && (
                   <motion.div variants={rowItem} className="flex items-center justify-between">

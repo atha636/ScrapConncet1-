@@ -2,7 +2,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 import MapThumbnail from "../map/MapThumbnail";
+import LiveTrackingMap from "../map/LiveTrackingMap";
 import CollectorProfileCard from "../collector/CollectorProfileCard";
+import useLiveLocation from "../../hooks/useLiveLocation";
 
 const rowStagger = {
   hidden: {},
@@ -24,6 +26,9 @@ export default function RequestDetailModal({
   cancelling,
   alreadyRated,
 }) {
+  const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
+  const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
+
   return (
     <AnimatePresence>
       {open && pickup && (
@@ -108,6 +113,31 @@ export default function RequestDetailModal({
                     <dt className="text-inkFaint mb-1.5">Collector</dt>
                     <dd>
                       <CollectorProfileCard collectorId={pickup.collector._id || pickup.collector.id} />
+                    </dd>
+                  </motion.div>
+                )}
+
+                {isTrackable && pickup.location && (
+                  <motion.div variants={rowItem}>
+                    <dt className="text-inkFaint mb-1.5 flex items-center gap-1.5">
+                      Live tracking
+                      {liveCollectorPosition && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rust">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rust animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </dt>
+                    <dd>
+                      <LiveTrackingMap
+                        destination={pickup.location}
+                        collectorPosition={liveCollectorPosition}
+                      />
+                      {!liveCollectorPosition && (
+                        <p className="text-xs text-inkFaint mt-1.5">
+                          Waiting for the collector to share their location…
+                        </p>
+                      )}
                     </dd>
                   </motion.div>
                 )}
