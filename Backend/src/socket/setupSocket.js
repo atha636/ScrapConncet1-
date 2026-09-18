@@ -1,6 +1,14 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const assertChatAccess = require("../utils/assertChatAccess");
+const assertCanShareLocation = require("../utils/assertCanShareLocation");
+
+// Floor on how often one socket's location updates are actually relayed —
+// a phone's GPS can fire far more often than any UI needs to redraw a pin,
+// and this is the one place that matters for every collector at once, so
+// it's worth capping cheaply here rather than trusting every client to
+// self-throttle correctly.
+const MIN_LOCATION_UPDATE_INTERVAL_MS = 3000;
 
 // How often an already-connected socket gets re-checked against the
 // database for revocation (deactivation, or a password change bumping
@@ -40,6 +48,10 @@ async function isStillValid(decoded) {
  *  - a socket can only join a pickup's chat room if that user is genuinely
  *    the requester or the assigned collector for that pickup — otherwise
  *    anyone who guessed/saw a pickup ID could eavesdrop on a conversation.
+ *  - only a pickup's assigned collector can broadcast live location for
+ *    it, and only while the job is accepted/in_progress (see
+ *    assertCanShareLocation.js) — relayed into that same pickup room, so
+ *    a requester sees it exactly when they'd already be able to chat.
  *
  * newPickup/updatePickup (used by the dashboards) stay as global broadcasts,
  * emitted directly via `io.emit(...)` from the pickup controller — those are
@@ -100,6 +112,34 @@ function setupSocket(io) {
 
     socket.on("leavePickup", (pickupId) => {
       socket.leave(`pickup:${pickupId}`);
+    });
+
+    // Per-socket, not per-user — a collector with two tabs open shouldn't
+    // have one tab's throttle window suppress the other's updates, and
+    // keying by socket.id (rather than a Map that needs its own cleanup)
+    // means this is naturally garbage-collected the moment the closure
+    // itself goes away on disconnect.
+    let lastLocationUpdateAt = 0;
+
+    socket.on("collectorLocationUpdate", async ({ pickupId, lat, lng }) => {
+      const now = Date.now();
+      if (now - lastLocationUpdateAt < MIN_LOCATION_UPDATE_INTERVAL_MS) return;
+
+      if (typeof lat !== "number" || typeof lng !== "number" || Number.isNaN(lat) || Number.isNaN(lng)) {
+        return;
+      }
+
+      try {
+        await assertCanShareLocation(pickupId, socket.user.id);
+        lastLocationUpdateAt = now;
+        // Same room chat already uses (see joinPickup above) — a requester
+        // who has the pickup detail view open is already in this room,
+        // so live location "just works" alongside chat rather than
+        // needing its own separate join step.
+        io.to(`pickup:${pickupId}`).emit("collectorLocation", { pickupId, lat, lng, at: new Date() });
+      } catch {
+        socket.emit("locationError", "Can't share location for this pickup right now");
+      }
     });
 
     socket.on("disconnect", () => {
