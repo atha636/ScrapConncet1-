@@ -204,4 +204,113 @@ describe("ChatBox", () => {
     // The raw encoded text itself shouldn't leak through as a plain bubble
     expect(screen.queryByText(/📍 Live location:/)).not.toBeInTheDocument();
   });
+
+  test("renders an image message as an actual image, not text", () => {
+    mockUsePickupChat.mockReturnValue({
+      messages: [
+        {
+          _id: "m1",
+          text: "",
+          image: "https://example.com/photo.jpg",
+          sender: { _id: "other1", name: "Raj" },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+    });
+    renderChatBox();
+
+    const img = screen.getByAltText("Shared");
+    expect(img).toHaveAttribute("src", "https://example.com/photo.jpg");
+  });
+
+  test("shows a single check for an unread own message and a double check once read", () => {
+    const { rerender } = renderChatBox();
+    mockUsePickupChat.mockReturnValue({
+      messages: [
+        { _id: "m1", text: "Hi", sender: { _id: "me1", name: "Priya" }, createdAt: new Date().toISOString(), readAt: null },
+      ],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+    });
+    rerender(
+      <AuthProvider>
+        <ChatBox pickupId="pickup123456" open onClose={vi.fn()} />
+      </AuthProvider>
+    );
+    // Single check = one polyline in the receipt icon.
+    let polylines = document.querySelectorAll("polyline");
+    expect(polylines.length).toBe(1);
+
+    mockUsePickupChat.mockReturnValue({
+      messages: [
+        {
+          _id: "m1",
+          text: "Hi",
+          sender: { _id: "me1", name: "Priya" },
+          createdAt: new Date().toISOString(),
+          readAt: new Date().toISOString(),
+        },
+      ],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+    });
+    rerender(
+      <AuthProvider>
+        <ChatBox pickupId="pickup123456" open onClose={vi.fn()} />
+      </AuthProvider>
+    );
+    polylines = document.querySelectorAll("polyline");
+    expect(polylines.length).toBe(2);
+  });
+
+  test("does not show a read receipt on the other party's message", () => {
+    mockUsePickupChat.mockReturnValue({
+      messages: [
+        {
+          _id: "m1",
+          text: "Hi",
+          sender: { _id: "other1", name: "Raj" },
+          createdAt: new Date().toISOString(),
+          readAt: new Date().toISOString(),
+        },
+      ],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+    });
+    renderChatBox();
+    expect(document.querySelectorAll("polyline").length).toBe(0);
+  });
+
+  test("shows a typing indicator when the other party is typing", () => {
+    mockUsePickupChat.mockReturnValue({
+      messages: [],
+      loading: false,
+      error: "",
+      sending: false,
+      send: vi.fn(),
+      otherPartyTyping: true,
+    });
+    renderChatBox();
+    // The typing bubble renders three pulsing dot spans with no text —
+    // check via the dot markup itself since there's no accessible name.
+    const dots = document.querySelectorAll(".bg-inkFaint.rounded-full");
+    expect(dots.length).toBeGreaterThan(0);
+  });
+
+  test("does not throw when notifyTyping isn't provided by the hook mock", () => {
+    mockUsePickupChat.mockReturnValue({ messages: [], loading: false, error: "", sending: false, send: vi.fn() });
+    renderChatBox();
+    const input = screen.getByPlaceholderText("Type a message…");
+    expect(() => fireEvent.change(input, { target: { value: "Hello" } })).not.toThrow();
+  });
 });

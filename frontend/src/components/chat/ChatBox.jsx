@@ -33,15 +33,37 @@ function LoadingDots() {
 
 export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
   const { user } = useAuth();
-  const { messages, loading, error, sending, send } = usePickupChat(pickupId, open);
+  const currentUserId = user?._id || user?.id;
+  const { messages, loading, error, sending, send, otherPartyTyping, notifyTyping = () => {} } = usePickupChat(
+    pickupId,
+    open,
+    currentUserId
+  );
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
   const quickReplies = user?.role === "collector" ? QUICK_REPLIES_COLLECTOR : QUICK_REPLIES_REQUESTER;
-  const [text, setText] = useState(""); 
+  const [text, setText] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, otherPartyTyping]);
+
+  // The object URL is only ever needed for as long as this exact file is
+  // the pending attachment — revoked on every change (including unmount)
+  // so picking several images in a row, or closing the chat mid-attach,
+  // doesn't leak one blob URL per pick.
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   // Fire once a coordinate actually resolves, so "Share location" is a
   // single tap rather than "tap, wait, tap again" — the button itself
@@ -58,9 +80,26 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim() || sending) return;
-    send(text);
+    if ((!text.trim() && !imageFile) || sending) return;
+    // Only passed as a second argument when there's actually a file —
+    // keeps a plain text send's call shape exactly as before (a single
+    // argument), which is also what the existing ChatBox test suite's
+    // toHaveBeenCalledWith assertions expect.
+    if (imageFile) send(text, imageFile);
+    else send(text);
     setText("");
+    setImageFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    if (e.target.value) notifyTyping();
+  };
+
+  const handlePickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setImageFile(file);
   };
 
   const handleQuickReply = (phrase) => {
@@ -136,6 +175,16 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
                         {!mine && (
                           <span className="text-[11px] text-inkFaint font-mono px-1">{m.sender?.name}</span>
                         )}
+                        {m.image && (
+                          <a href={m.image} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={m.image}
+                              alt="Shared"
+                              className="max-w-full rounded-ticket border border-line"
+                              style={{ maxHeight: 200 }}
+                            />
+                          </a>
+                        )}
                         {location ? (
                           <a
                             href={location.mapsUrl}
@@ -159,24 +208,75 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
                             </span>
                           </a>
                         ) : (
-                          <div
-                            className={`px-3.5 py-2 rounded-ticket text-sm leading-snug ${
-                              mine
-                                ? "bg-rust text-surface rounded-br-sm"
-                                : "bg-surfaceRaised border border-line text-ink rounded-bl-sm"
-                            }`}
-                          >
-                            {m.text}
-                          </div>
+                          m.text && (
+                            <div
+                              className={`px-3.5 py-2 rounded-ticket text-sm leading-snug ${
+                                mine
+                                  ? "bg-rust text-surface rounded-br-sm"
+                                  : "bg-surfaceRaised border border-line text-ink rounded-bl-sm"
+                              }`}
+                            >
+                              {m.text}
+                            </div>
+                          )
                         )}
-                        <span className="text-[10px] text-inkFaint font-mono px-1">
+                        <span className="flex items-center gap-1 text-[10px] text-inkFaint font-mono px-1">
                           {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {/* Read receipt — only shown on the sender's own
+                              messages, since seeing "seen" on someone
+                              else's message would mean nothing to you. A
+                              single check means sent-but-unread; a double
+                              check (in rust, matching the sent-bubble
+                              color) means the other party has opened the
+                              conversation since. */}
+                          {mine && (
+                            <svg
+                              width="13"
+                              height="9"
+                              viewBox="0 0 16 11"
+                              fill="none"
+                              stroke={m.readAt ? "#c05621" : "currentColor"}
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="1 5.5 4.5 9 10.5 1.5" />
+                              {m.readAt && <polyline points="5.5 5.5 9 9 15 1.5" />}
+                            </svg>
+                          )}
                         </span>
                       </div>
                     </motion.div>
                   );
                 })
               )}
+
+              {/* Typing indicator — its own bubble on the other side's
+                  column, reusing LoadingDots' pulsing-dot animation rather
+                  than inventing a second one, just laid out inline instead
+                  of centered. */}
+              <AnimatePresence>
+                {otherPartyTyping && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    className="flex justify-start"
+                  >
+                    <div className="px-3.5 py-2.5 rounded-ticket rounded-bl-sm bg-surfaceRaised border border-line flex items-center gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-inkFaint"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div ref={bottomRef} />
             </div>
 
@@ -228,12 +328,47 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
               <p className="px-4 pb-1.5 -mt-1 text-[11px] text-danger bg-surfaceRaised">{locError}</p>
             )}
 
+            {/* Pending image attachment preview — shown above the composer
+                so it's clear what "send" will actually attach, with a way
+                to back out before it goes anywhere. */}
+            {imagePreviewUrl && (
+              <div className="flex items-center gap-2 px-3 pt-2 bg-surfaceRaised">
+                <img src={imagePreviewUrl} alt="" className="w-12 h-12 rounded-md object-cover border border-line" />
+                <button
+                  type="button"
+                  onClick={() => setImageFile(null)}
+                  className="text-xs font-semibold text-inkFaint hover:text-danger"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
             {/* Composer */}
             <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 pb-3 pt-1.5 bg-surfaceRaised">
               <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePickImage}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a photo"
+                className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center text-inkFaint hover:text-rust hover:bg-rust/[0.06] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+              </button>
+              <input
                 type="text"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={handleTextChange}
                 placeholder="Type a message…"
                 maxLength={1000}
                 className="field-input flex-1"
@@ -241,7 +376,7 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 type="submit"
-                disabled={!text.trim() || sending}
+                disabled={(!text.trim() && !imageFile) || sending}
                 className="btn-primary !px-4 !py-2.5"
               >
                 <motion.svg
