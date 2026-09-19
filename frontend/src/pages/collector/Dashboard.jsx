@@ -780,7 +780,10 @@ export default function CollectorDashboard() {
                       const action = NEXT_ACTION[item.status];
                       return (
                         <motion.div key={item._id} variants={listItem} layout>
-                          <Card className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap">
+                          <Card
+                            onClick={() => setDetailsPickup(item)}
+                            className="p-5 pt-6 flex items-center justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
+                          >
                             <div className="flex gap-4">
                               {item.image && (
                                 <img
@@ -797,7 +800,7 @@ export default function CollectorDashboard() {
                             <div className="flex items-center gap-3">
                               <StatusStamp status={item.status} />
                               <button
-                                onClick={() => setChatPickup(item)}
+                                onClick={(e) => { e.stopPropagation(); setChatPickup(item); }}
                                 className="text-xs font-semibold text-rust hover:underline flex items-center gap-1"
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -806,7 +809,7 @@ export default function CollectorDashboard() {
                                 Chat
                               </button>
                               <button
-                                onClick={() => setReportPickup(item)}
+                                onClick={(e) => { e.stopPropagation(); setReportPickup(item); }}
                                 className="text-xs font-semibold text-inkFaint hover:text-danger"
                               >
                                 Report
@@ -814,11 +817,11 @@ export default function CollectorDashboard() {
                               {action && (
                                 <motion.button
                                   whileTap={{ scale: 0.96 }}
-                                  onClick={() =>
-                                    action.next === "completed"
-                                      ? setCompletingPickup(item)
-                                      : handleAdvance(item._id, action.next)
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (action.next === "completed") setCompletingPickup(item);
+                                    else handleAdvance(item._id, action.next);
+                                  }}
                                   disabled={actingId === item._id}
                                   className="btn-primary !py-2 !px-4 text-sm"
                                 >
@@ -848,7 +851,10 @@ export default function CollectorDashboard() {
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
                     {pastJobs.map((item) => (
                       <motion.div key={item._id} variants={listItem}>
-                        <Card className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap">
+                        <Card
+                          onClick={() => setDetailsPickup(item)}
+                          className="p-4 pt-5 flex items-center justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
+                        >
                           <div className="flex gap-4">
                             {item.image && (
                               <img
@@ -863,14 +869,14 @@ export default function CollectorDashboard() {
                             <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
                             <StatusStamp status={item.status} />
                             <button
-                              onClick={() => setReportPickup(item)}
+                              onClick={(e) => { e.stopPropagation(); setReportPickup(item); }}
                               className="text-xs font-semibold text-inkFaint hover:text-danger"
                             >
                               Report
                             </button>
                             {item.status === "completed" && item.user && !ratedIds.has(item._id) && (
                               <button
-                                onClick={() => setRatePickup(item)}
+                                onClick={(e) => { e.stopPropagation(); setRatePickup(item); }}
                                 className="text-xs font-semibold text-amber-dark hover:underline flex items-center gap-1"
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
