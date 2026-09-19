@@ -142,6 +142,25 @@ function setupSocket(io) {
       }
     });
 
+    // Typing indicators — ephemeral, no DB involved at all. Relayed with
+    // socket.to() (excludes the sender) rather than io.to() (which
+    // includes them) — unlike collectorLocation above, echoing this back
+    // to the person doing the typing would be pointless, not just
+    // redundant. Gated on socket.rooms rather than re-running
+    // assertChatAccess on every keystroke: the only way a socket is in
+    // this room at all is having already passed that check via joinPickup
+    // above, so checking room membership here is just as correct and
+    // avoids a DB round-trip per keystroke.
+    socket.on("typing", (pickupId) => {
+      if (!socket.rooms.has(`pickup:${pickupId}`)) return;
+      socket.to(`pickup:${pickupId}`).emit("typing", { pickupId, userId: socket.user.id });
+    });
+
+    socket.on("stopTyping", (pickupId) => {
+      if (!socket.rooms.has(`pickup:${pickupId}`)) return;
+      socket.to(`pickup:${pickupId}`).emit("stopTyping", { pickupId, userId: socket.user.id });
+    });
+
     socket.on("disconnect", () => {
       clearInterval(revalidate);
     });
