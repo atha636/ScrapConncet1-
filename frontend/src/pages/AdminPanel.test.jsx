@@ -291,7 +291,7 @@ describe("AdminPanel", () => {
     await waitFor(() =>
       expect(adminService.resolveDispute).toHaveBeenCalledWith("d1", { status: "dismissed", resolutionNotes: undefined })
     );
-  });
+  }); 
 
   test("switching to the All pickups tab loads and renders pickups", async () => {
     render(<AdminPanel />);
