@@ -302,6 +302,173 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   res.json(pickup);
 });
 
+// POST /api/pickup/:id/offer  (collector only)
+//
+// Opens (or re-opens, after a decline) a price negotiation on a still-
+// "pending" pickup instead of the collector's only choice being accept
+// the system price as-is or skip the job entirely.
+//
+// Atomic, same pattern as acceptPickup: the filter itself only matches a
+// pickup with no *other* collector currently negotiating on it, so two
+// collectors racing to open a negotiation on the same pickup can't both
+// land — one gets negotiation.collector set, the other gets null back and
+// a clear 409, exactly like acceptPickup's own race.
+exports.proposeOffer = asyncHandler(async (req, res) => {
+  const { amount, note } = req.body;
+
+  const pickup = await Pickup.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      status: "pending",
+      $or: [
+        { "negotiation.status": "none" },
+        { "negotiation.status": "declined" },
+        { "negotiation.collector": req.user.id },
+      ],
+    },
+    {
+      $set: { "negotiation.status": "pending", "negotiation.collector": req.user.id },
+      $push: { "negotiation.offers": { amount, note, offeredBy: "collector" } },
+    },
+    { new: true }
+  );
+
+  if (!pickup) {
+    const existing = await Pickup.findById(req.params.id);
+    if (!existing) throw new ApiError(404, "Pickup not found");
+    if (existing.status !== "pending") {
+      throw new ApiError(409, "This pickup is no longer open for offers");
+    }
+    throw new ApiError(409, "Another collector is already negotiating this pickup");
+  }
+
+  req.io.emit("updatePickup", pickup);
+
+  await notifyUser(req.io, pickup.user, {
+    type: "price_offer",
+    text: `A collector offered ₹${amount} for your ${pickup.scrapType} pickup (listed at ₹${pickup.price})`,
+    pickupId: pickup._id,
+  });
+
+  res.json(pickup);
+});
+
+// PATCH /api/pickup/:id/offer  (the requester, or the negotiating collector)
+//
+// Responds to the other party's most recent offer. Which role the caller
+// must be is derived from who made the last offer — you can only accept,
+// decline, or counter an offer the *other* side made, never your own.
+exports.respondToOffer = asyncHandler(async (req, res) => {
+  const { action, amount, note } = req.body;
+
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+
+  const isRequester = String(pickup.user) === String(req.user.id);
+  const isNegotiatingCollector =
+    pickup.negotiation.collector && String(pickup.negotiation.collector) === String(req.user.id);
+
+  if (!isRequester && !isNegotiatingCollector) {
+    throw new ApiError(403, "You're not a party to this negotiation");
+  }
+
+  if (pickup.status !== "pending" || pickup.negotiation.status !== "pending") {
+    throw new ApiError(400, "There's no active offer to respond to");
+  }
+
+  const lastOffer = pickup.negotiation.offers[pickup.negotiation.offers.length - 1];
+  const callerRole = isRequester ? "requester" : "collector";
+  if (lastOffer.offeredBy === callerRole) {
+    throw new ApiError(400, "Waiting on the other party to respond to your last offer");
+  }
+
+  // DECLINE — ends this negotiation and frees the pickup up for any
+  // collector (including this one) to propose a fresh offer, or for the
+  // original system price to still be accepted the normal way.
+  if (action === "decline") {
+    const updated = await Pickup.findOneAndUpdate(
+      { _id: pickup._id, "negotiation.status": "pending" },
+      { $set: { "negotiation.status": "declined", "negotiation.collector": null } },
+      { new: true }
+    );
+
+    req.io.emit("updatePickup", updated);
+    const otherPartyId = isRequester ? pickup.negotiation.collector : pickup.user;
+    await notifyUser(req.io, otherPartyId, {
+      type: "price_offer",
+      text: `Your offer on the ${pickup.scrapType} pickup was declined`,
+      pickupId: pickup._id,
+    });
+
+    return res.json(updated);
+  }
+
+  // COUNTER — pushes a new offer from the caller's side; negotiation stays
+  // open and the turn passes back to the other party.
+  if (action === "counter") {
+    const updated = await Pickup.findOneAndUpdate(
+      { _id: pickup._id, "negotiation.status": "pending" },
+      { $push: { "negotiation.offers": { amount, note, offeredBy: callerRole } } },
+      { new: true }
+    );
+
+    req.io.emit("updatePickup", updated);
+    const otherPartyId = isRequester ? pickup.negotiation.collector : pickup.user;
+    await notifyUser(req.io, otherPartyId, {
+      type: "price_offer",
+      text: `Countered at ₹${amount} on the ${pickup.scrapType} pickup`,
+      pickupId: pickup._id,
+    });
+
+    return res.json(updated);
+  }
+
+  // ACCEPT — closes the negotiation and, in the same atomic step, does
+  // what acceptPickup normally does: assigns the collector, flips the
+  // pickup to "accepted", and locks in the agreed price. Filtered on both
+  // pickup.status and negotiation.status still being "pending" so this
+  // can't double-fire if the request is retried after a slow response.
+  const updated = await Pickup.findOneAndUpdate(
+    { _id: pickup._id, status: "pending", "negotiation.status": "pending" },
+    {
+      $set: {
+        status: "accepted",
+        collector: pickup.negotiation.collector,
+        price: lastOffer.amount,
+        "negotiation.status": "accepted",
+      },
+      $push: { statusHistory: { status: "accepted", changedBy: req.user.id } },
+    },
+    { new: true }
+  ).populate("collector", "name");
+
+  if (!updated) {
+    throw new ApiError(409, "This pickup was already accepted or is no longer available");
+  }
+
+  req.io.emit("updatePickup", updated);
+
+  const otherPartyId = isRequester ? updated.collector._id : updated.user;
+  await notifyUser(req.io, otherPartyId, {
+    type: isRequester ? "pickup_accepted" : "price_offer",
+    text: isRequester
+      ? `${updated.collector.name} accepted your ${updated.scrapType} pickup at ₹${updated.price}`
+      : `Your offer of ₹${updated.price} on the ${updated.scrapType} pickup was accepted`,
+    pickupId: updated._id,
+  });
+
+  // Same fire-and-forget badge check as the normal accept path — this is
+  // still an acceptance from the collector's perspective, just one that
+  // arrived via negotiation instead of the plain Accept button.
+  if (!isRequester) {
+    syncCollectorBadges(req.io, req.user.id).catch((err) =>
+      console.error("Badge sync after offer-accept failed:", err.message)
+    );
+  }
+
+  res.json(updated);
+});
+
 // PATCH /api/pickup/collector/batch-accept  (collector only)
 //
 // Accepts multiple pending pickups in one request — the natural next step

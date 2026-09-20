@@ -9,6 +9,8 @@ const {
   updateStatusSchema,
   batchAcceptSchema,
   updateAvailabilitySchema,
+  proposeOfferSchema,
+  respondOfferSchema,
 } = require("../validators/pickupValidator");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
@@ -25,6 +27,8 @@ const {
   updateStatus,
   cancelByRequester,
   getPickupById,
+  proposeOffer,
+  respondToOffer,
 } = require("../controllers/pickupController");
 const { createDispute } = require("../controllers/disputeController");
 const {
@@ -135,6 +139,16 @@ router.patch(
 // order, the same non-collision reasoning used throughout this file for
 // the /collector/* routes.
 router.patch("/collector/batch-accept", auth, role("collector"), validate(batchAcceptSchema), batchAcceptPickups);
+
+// Price negotiation — proposeOffer opens/reopens a negotiation
+// (collector-only, since a requester never needs to "open" one on their
+// own pickup), respondToOffer is used by either side to accept, decline,
+// or counter whichever offer is currently theirs to respond to (role and
+// turn are both derived server-side in the controller, not trusted from
+// the request). Same literal-segment reasoning as batch-accept above:
+// "offer" never collides with "/:id/accept" or "/:id/status".
+router.post("/:id/offer", auth, role("collector"), validate(proposeOfferSchema), proposeOffer);
+router.patch("/:id/offer", auth, role("user", "collector"), validate(respondOfferSchema), respondToOffer);
 
 // Self-only — a collector's own working-hours/pause settings, checked by
 // acceptPickup and batchAcceptPickups above (see
