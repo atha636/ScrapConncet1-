@@ -67,10 +67,42 @@ const updateAvailabilitySchema = z.object({
     .optional(),
 });
 
+// Reasonable ceiling on a counter-offer — high enough to never block a
+// legitimate high-value e-waste/metal load, low enough to catch an
+// obvious fat-fingered entry (e.g. an extra zero) before it ever reaches
+// the other party.
+const MAX_OFFER_AMOUNT = 100000;
+
+// POST /api/pickup/:id/offer — a collector opening (or re-opening after a
+// decline) a negotiation on a pending pickup.
+const proposeOfferSchema = z.object({
+  amount: numberLike.pipe(z.number().min(1, "Offer must be at least ₹1").max(MAX_OFFER_AMOUNT)),
+  note: z.string().trim().max(200).optional(),
+});
+
+// PATCH /api/pickup/:id/offer — either side responding to the other's
+// most recent offer. `amount`/`note` are only read (and required) when
+// action is "counter" — enforced with .refine below rather than making
+// them unconditionally required, since "accept"/"decline" carry no offer
+// of their own.
+const respondOfferSchema = z
+  .object({
+    action: z.enum(["accept", "decline", "counter"]),
+    amount: numberLike.pipe(z.number().min(1, "Offer must be at least ₹1").max(MAX_OFFER_AMOUNT)).optional(),
+    note: z.string().trim().max(200).optional(),
+  })
+  .refine((data) => data.action !== "counter" || typeof data.amount === "number", {
+    message: "Amount is required to counter",
+    path: ["amount"],
+  });
+
 module.exports = {
   createPickupSchema,
   updateStatusSchema,
   batchAcceptSchema,
   MAX_BATCH_ACCEPT,
   updateAvailabilitySchema,
+  proposeOfferSchema,
+  respondOfferSchema,
+  MAX_OFFER_AMOUNT,
 };

@@ -62,6 +62,39 @@ const pickupSchema = new mongoose.Schema(
     isUrgent: { type: Boolean, default: false },
     urgentAt: { type: Date, default: null },
 
+    // Price negotiation — lets a collector counter the system-estimated
+    // price on a still-"pending" pickup instead of only ever accepting it
+    // as-is, and lets the requester counter back. Deliberately its own
+    // subdocument rather than reusing `price`/`statusHistory`: the
+    // pickup's top-level `status` only changes once (pending -> accepted)
+    // when a negotiation resolves, but the back-and-forth of offers needs
+    // its own independent state machine to get there.
+    //
+    // Scoped to a single collector at a time (`negotiation.collector`) —
+    // a pickup can only be in one active negotiation, so a second
+    // collector proposing an offer while one is already in flight is
+    // rejected at the controller layer (see pickupController.proposeOffer)
+    // rather than silently overwriting the first collector's offer.
+    negotiation: {
+      status: {
+        type: String,
+        enum: ["none", "pending", "accepted", "declined"],
+        default: "none",
+      },
+      collector: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      offers: [
+        {
+          amount: { type: Number, required: true, min: 0 },
+          note: { type: String, trim: true, maxlength: 200, default: "" },
+          // Who made this particular offer — not the same as "who the
+          // collector/requester on the pickup is", since either side can
+          // be the one proposing at any point in the back-and-forth.
+          offeredBy: { type: String, enum: ["collector", "requester"], required: true },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     status: {
       type: String,
       enum: ["pending", "accepted", "in_progress", "completed", "cancelled"],
