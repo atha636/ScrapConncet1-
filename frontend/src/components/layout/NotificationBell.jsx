@@ -53,6 +53,15 @@ const TYPE_STYLE = {
     fg: "text-rust",
     icon: <span className="text-sm leading-none">🎁</span>,
   },
+  // A negotiation update (a new offer, counter, decline, or the
+  // negotiated accept) — its own tag/coin color so it reads as distinct
+  // from status_update at a glance, since both can otherwise fire in
+  // quick succession during a back-and-forth.
+  price_offer: {
+    bg: "bg-amber/15",
+    fg: "text-amber-dark",
+    icon: <span className="text-sm leading-none">💰</span>,
+  },
 };
 
 const listStagger = {
@@ -115,6 +124,18 @@ export default function NotificationBell() {
     // badge_earned above this doesn't need a role-dependent destination.
     if (n.type === "referral_reward") {
       navigate("/profile");
+      return;
+    }
+
+    // A negotiation update is only really useful opened straight at the
+    // pickup in question — landing on a generic dashboard would mean
+    // hunting through Available/My Requests for the one that just
+    // changed. Reuses the same openPickupId hand-off Dashboard.jsx and
+    // MyRequests.jsx already read from a push-notification click.
+    if (n.type === "price_offer" && n.pickup) {
+      navigate(user?.role === "collector" ? "/collector" : "/my-requests", {
+        state: { openPickupId: n.pickup._id },
+      });
       return;
     }
 
