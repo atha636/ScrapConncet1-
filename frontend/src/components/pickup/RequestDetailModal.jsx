@@ -4,6 +4,7 @@ import { formatPrice } from "../../utils/formatPrice";
 import MapThumbnail from "../map/MapThumbnail";
 import LiveTrackingMap from "../map/LiveTrackingMap";
 import CollectorProfileCard from "../collector/CollectorProfileCard";
+import OfferPanel from "./OfferPanel";
 import useLiveLocation from "../../hooks/useLiveLocation";
 
 const rowStagger = {
@@ -25,6 +26,9 @@ export default function RequestDetailModal({
   onReport,
   cancelling,
   alreadyRated,
+  onRespondOffer,
+  offerSubmitting,
+  offerError,
 }) {
   const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
   const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
@@ -177,6 +181,18 @@ export default function RequestDetailModal({
                   </motion.div>
                 )}
               </motion.dl>
+
+              {pickup.status === "pending" && (
+                <div className="mt-4">
+                  <OfferPanel
+                    pickup={pickup}
+                    role="requester"
+                    onRespond={onRespondOffer}
+                    submitting={offerSubmitting}
+                    error={offerError}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="px-5 py-4 border-t border-line bg-surfaceRaised shrink-0 flex flex-wrap justify-end gap-2.5">

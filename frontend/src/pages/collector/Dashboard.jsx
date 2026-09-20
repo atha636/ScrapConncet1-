@@ -8,6 +8,8 @@ import {
   batchAcceptPickups,
   updateStatus,
   getPickupById,
+  proposeOffer,
+  respondToOffer,
   SCRAP_TYPES,
 } from "../../services/pickupService";
 import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
@@ -120,6 +122,8 @@ export default function CollectorDashboard() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchAccepting, setBatchAccepting] = useState(false);
   const [detailsPickup, setDetailsPickup] = useState(null);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [offerError, setOfferError] = useState("");
   const [reportPickup, setReportPickup] = useState(null);
   const [completingPickup, setCompletingPickup] = useState(null);
   const [completingError, setCompletingError] = useState("");
@@ -327,7 +331,17 @@ export default function CollectorDashboard() {
 
   // Any pickup updated (by this collector or another) -> reconcile both lists
   useSocket("updatePickup", (updated) => {
-    setAvailable((prev) => prev.filter((p) => p._id !== updated._id));
+    // A pickup only actually leaves the Available feed once it's no
+    // longer "pending" — a negotiation offer/counter/decline broadcasts
+    // this same event while the pickup is still open, so unconditionally
+    // filtering it out here would make an in-progress negotiation vanish
+    // from every collector's list mid-conversation instead of just
+    // refreshing in place.
+    setAvailable((prev) => {
+      if (updated.status !== "pending") return prev.filter((p) => p._id !== updated._id);
+      const exists = prev.some((p) => p._id === updated._id);
+      return exists ? prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)) : prev;
+    });
     // If another collector just took this one out from under a pending
     // selection, drop it from the selection too — otherwise "Accept N
     // selected" would keep counting a job that's no longer accept-able at
@@ -342,6 +356,10 @@ export default function CollectorDashboard() {
       const exists = prev.some((p) => p._id === updated._id);
       return exists ? prev.map((p) => (p._id === updated._id ? updated : p)) : prev;
     });
+    // Keep the open detail modal in sync too — otherwise a live counter-
+    // offer from the requester wouldn't show up until the modal was
+    // closed and reopened.
+    setDetailsPickup((prev) => (prev && prev._id === updated._id ? updated : prev));
   });
 
   const toggleSelected = (id) => {
@@ -402,6 +420,45 @@ export default function CollectorDashboard() {
     }
   };
 
+  const handleProposeOffer = async (amount, note) => {
+    if (!detailsPickup) return;
+    setOfferSubmitting(true);
+    setOfferError("");
+    try {
+      const res = await proposeOffer(detailsPickup._id, amount, note);
+      setAvailable((prev) => prev.map((p) => (p._id === res.data._id ? res.data : p)));
+      setDetailsPickup(res.data);
+    } catch (err) {
+      setOfferError(err.response?.data?.message || "Couldn't send that offer — try again.");
+    } finally {
+      setOfferSubmitting(false);
+    }
+  };
+
+  const handleRespondOffer = async (action, amount, note) => {
+    if (!detailsPickup) return;
+    setOfferSubmitting(true);
+    setOfferError("");
+    try {
+      const res = await respondToOffer(detailsPickup._id, action, amount, note);
+      if (res.data.status === "accepted") {
+        // Same follow-through as a plain Accept — this pickup is now this
+        // collector's job, so it moves out of Available and into My jobs
+        // exactly like handleAccept does.
+        setAvailable((prev) => prev.filter((p) => p._id !== res.data._id));
+        setMyJobs((prev) => [res.data, ...prev]);
+        setDetailsPickup(null);
+        setTab("mine");
+      } else {
+        setAvailable((prev) => prev.map((p) => (p._id === res.data._id ? res.data : p)));
+        setDetailsPickup(res.data);
+      }
+    } catch (err) {
+      setOfferError(err.response?.data?.message || "Couldn't respond to that offer — try again.");
+    } finally {
+      setOfferSubmitting(false);
+    }
+  };
   const handleAdvance = async (id, next, photoFile) => {
     setActingId(id);
     try {
@@ -1112,7 +1169,7 @@ export default function CollectorDashboard() {
         <PickupDetailModal
           pickup={detailsPickup}
           open={!!detailsPickup}
-          onClose={() => setDetailsPickup(null)}
+          onClose={() => { setDetailsPickup(null); setOfferError(""); }}
           onViewMap={() => { setMapPickup(detailsPickup); setDetailsPickup(null); }}
           onAccept={async () => {
             const ok = await handleAccept(detailsPickup._id);
@@ -1120,6 +1177,10 @@ export default function CollectorDashboard() {
           }}
           accepting={actingId === detailsPickup?._id}
           isSuspended={isSuspended}
+          onProposeOffer={handleProposeOffer}
+          onRespondOffer={handleRespondOffer}
+          offerSubmitting={offerSubmitting}
+          offerError={offerError}
         />
 
         <NotifyPreferencesModal

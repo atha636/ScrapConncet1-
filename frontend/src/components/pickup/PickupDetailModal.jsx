@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { formatPrice } from "../../utils/formatPrice";
 import { formatDistance } from "../../utils/distance";
 import MapThumbnail from "../map/MapThumbnail";
+import OfferPanel from "./OfferPanel";
 import useLocationSharing from "../../hooks/useLocationSharing";
 
 const rowStagger = {
@@ -14,7 +15,20 @@ const rowItem = {
   show: { opacity: 1, x: 0, transition: { duration: 0.18 } },
 };
 
-export default function PickupDetailModal({ pickup, open, onClose, onAccept, onViewMap, onReport, accepting, isSuspended }) {
+export default function PickupDetailModal({
+  pickup,
+  open,
+  onClose,
+  onAccept,
+  onViewMap,
+  onReport,
+  accepting,
+  isSuspended,
+  onProposeOffer,
+  onRespondOffer,
+  offerSubmitting,
+  offerError,
+}) {
   const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
   // Defaults off every time the modal opens — sharing your live location
   // is an explicit, per-session opt-in, not something that starts
@@ -189,6 +203,19 @@ export default function PickupDetailModal({ pickup, open, onClose, onAccept, onV
                   </motion.div>
                 )}
               </motion.dl>
+
+              {pickup.status === "pending" && (
+                <div className="mt-4">
+                  <OfferPanel
+                    pickup={pickup}
+                    role="collector"
+                    onPropose={onProposeOffer}
+                    onRespond={onRespondOffer}
+                    submitting={offerSubmitting}
+                    error={offerError}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="px-5 py-4 border-t border-line bg-surfaceRaised shrink-0 flex justify-end gap-3">

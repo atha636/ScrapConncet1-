@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getMyRequests, cancelPickup, exportMyRequests } from "../../services/pickupService";
+import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -53,6 +53,8 @@ export default function MyRequests() {
   const [exporting, setExporting] = useState(false);
   const [detailsPickup, setDetailsPickup] = useState(null);
   const [reportPickup, setReportPickup] = useState(null);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [offerError, setOfferError] = useState("");
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -123,6 +125,21 @@ export default function MyRequests() {
       return false;
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleRespondOffer = async (action, amount, note) => {
+    if (!detailsPickup) return;
+    setOfferSubmitting(true);
+    setOfferError("");
+    try {
+      const res = await respondToOffer(detailsPickup._id, action, amount, note);
+      setItems((prev) => prev.map((p) => (p._id === res.data._id ? res.data : p)));
+      setDetailsPickup(res.data);
+    } catch (err) {
+      setOfferError(err.response?.data?.message || "Couldn't respond to that offer — try again.");
+    } finally {
+      setOfferSubmitting(false);
     }
   };
 
@@ -291,7 +308,7 @@ export default function MyRequests() {
       <RequestDetailModal
         pickup={detailsPickup}
         open={!!detailsPickup}
-        onClose={() => setDetailsPickup(null)}
+        onClose={() => { setDetailsPickup(null); setOfferError(""); }}
         onChat={() => { setChatPickup(detailsPickup); setDetailsPickup(null); }}
         onRate={() => { setRatePickup(detailsPickup); setDetailsPickup(null); }}
         onReport={() => { setReportPickup(detailsPickup); setDetailsPickup(null); }}
@@ -301,6 +318,9 @@ export default function MyRequests() {
         }}
         cancelling={cancellingId === detailsPickup?._id}
         alreadyRated={ratedIds.has(detailsPickup?._id)}
+        onRespondOffer={handleRespondOffer}
+        offerSubmitting={offerSubmitting}
+        offerError={offerError}
       />
 
       <ReportIssueModal

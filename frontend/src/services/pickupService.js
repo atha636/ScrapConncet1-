@@ -98,3 +98,13 @@ export const getMyReputation = () => API.get(`/pickup/requester/me/reputation`);
 export const cancelPickup = (id) => API.patch(`/pickup/${id}/cancel`);
 
 export const exportMyRequests = () => API.get("/export/my-requests", { responseType: "blob" });
+
+// Price negotiation — proposeOffer opens/reopens a negotiation (collector
+// only), respondToOffer is used by either side to accept, decline, or
+// counter whichever offer is currently theirs to respond to. `amount`/
+// `note` are only meaningful (and required by the backend) when
+// action === "counter" — accept/decline ignore them if passed.
+export const proposeOffer = (id, amount, note) => API.post(`/pickup/${id}/offer`, { amount, note });
+
+export const respondToOffer = (id, action, amount, note) =>
+  API.patch(`/pickup/${id}/offer`, { action, amount, note });
