@@ -3,7 +3,7 @@ const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
-const { estimatePrice } = require("../utils/pricing");
+const { estimateItemsPrice } = require("../utils/pricing");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
 const { activateReferralIfEligible } = require("../utils/referralActivation");
@@ -32,17 +32,16 @@ const paginate = (query) => {
 
 // POST /api/pickup/request
 exports.createPickup = asyncHandler(async (req, res) => {
-  const { scrapType, estimatedWeightKg, contactName, contactPhone, lat, lng, address } = req.body;
+  const { items, contactName, contactPhone, lat, lng, address } = req.body;
 
   const pickup = await Pickup.create({
     user: req.user.id,
-    scrapType,
-    estimatedWeightKg,
+    items,
     contactName,
     contactPhone,
     image: req.file?.path || req.file?.secure_url || null,
     location: { lat, lng, address },
-    price: estimatePrice(scrapType, estimatedWeightKg),
+    price: estimateItemsPrice(items),
     statusHistory: [{ status: "pending", changedBy: req.user.id }],
   });
 

@@ -22,4 +22,16 @@ function estimatePrice(scrapType, estimatedWeightKg) {
   return Math.max(MIN_PRICE, Math.round(rate * weight));
 }
 
-module.exports = { estimatePrice, BASE_RATE_PER_KG };
+/**
+ * Estimates the total price for a mixed-load pickup — one MIN_PRICE floor
+ * per item (not one floor for the whole load), so a pickup with a tiny
+ * scrap of glass tossed in alongside a proper load of metal still prices
+ * that glass fairly instead of it getting rounded into nothing by the
+ * dominant item.
+ * @param {Array<{scrapType: string, estimatedWeightKg?: number}>} items
+ */
+function estimateItemsPrice(items) {
+  return items.reduce((total, item) => total + estimatePrice(item.scrapType, item.estimatedWeightKg), 0);
+}
+
+module.exports = { estimatePrice, estimateItemsPrice, BASE_RATE_PER_KG };
