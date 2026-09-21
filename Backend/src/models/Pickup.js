@@ -9,6 +9,35 @@ const pickupSchema = new mongoose.Schema(
 
     scrapType: { type: String, enum: SCRAP_TYPES, required: true },
     estimatedWeightKg: { type: Number, min: 0 },
+
+    // The actual line items for this pickup — one pickup, several kinds
+    // of scrap (e.g. metal + plastic + an old charger), instead of a
+    // requester having to file a separate pickup per type for what is
+    // physically one pile in one location. `scrapType`/`estimatedWeightKg`
+    // above are kept and kept in sync (see the pre-save hook below)
+    // rather than removed, so every existing scrapType-based reader —
+    // collector type-preference filters, badge/analytics grouping, CSV
+    // export, dispute and notification text, the recurring-pickup
+    // spawner — keeps working unmodified: `scrapType` becomes "the first
+    // item's type" and `estimatedWeightKg` becomes "the summed weight
+    // across items". A caller that never adopts `items` at all (the
+    // recurring-pickup job, still: see spawnRecurringPickups.js) still
+    // works too — the same hook synthesizes a single-entry `items` array
+    // from `scrapType`/`estimatedWeightKg` the other direction, so any
+    // items-aware reader never has to special-case an old-style pickup.
+    //
+    // Not `required: true` at the schema level for the same reason
+    // contactName/contactPhone above aren't — enforced at the Zod
+    // validator layer only (see createPickupSchema), so a pickup that
+    // predates this field doesn't fail validation the next time an
+    // unrelated update (e.g. escalateStalePickups) calls .save() on it.
+    items: [
+      {
+        scrapType: { type: String, enum: SCRAP_TYPES, required: true },
+        estimatedWeightKg: { type: Number, min: 0 },
+      },
+    ],
+
     image: { type: String, default: null },
 
     // Uploaded by the collector at the moment they mark the pickup
@@ -123,6 +152,20 @@ pickupSchema.pre("save", function (next) {
       this.geo = { type: "Point", coordinates: [this.location.lng, this.location.lat] };
     }
   }
+
+  // Keep items <-> scrapType/estimatedWeightKg in sync — see the comment
+  // on `items` above for why both directions matter. `items` wins when
+  // both are present and items just changed, since createPickup always
+  // sets items going forward and scrapType/estimatedWeightKg are the
+  // derived, legacy-compatibility view of it — not the other way around.
+  if (this.isModified("items") && this.items && this.items.length > 0) {
+    this.scrapType = this.items[0].scrapType;
+    const totalWeight = this.items.reduce((sum, it) => sum + (it.estimatedWeightKg || 0), 0);
+    this.estimatedWeightKg = totalWeight > 0 ? totalWeight : undefined;
+  } else if (this.isNew && (!this.items || this.items.length === 0) && this.scrapType) {
+    this.items = [{ scrapType: this.scrapType, estimatedWeightKg: this.estimatedWeightKg }];
+  }
+
   next();
 });
 

@@ -5,9 +5,40 @@ const numberLike = z
   .union([z.number(), z.string()])
   .transform((v) => Number(v));
 
-const createPickupSchema = z.object({
+// A single line item within a mixed-load pickup — metal, plastic, an
+// old charger, etc., each with its own weight so estimateItemsPrice can
+// price the load accurately instead of one blended guess.
+const scrapItemSchema = z.object({
   scrapType: z.enum(SCRAP_TYPES),
   estimatedWeightKg: numberLike.pipe(z.number().min(0)).optional(),
+});
+
+// Reasonable ceiling on how many distinct items one pickup can carry —
+// high enough for a genuine mixed-load garage clearout, low enough that
+// this stays "one pile in one place," not a substitute for filing
+// several separate pickups at different times.
+const MAX_ITEMS_PER_PICKUP = 8;
+
+// createPickup is a multipart/form-data request (it also carries the
+// optional image file via upload.single("image")), so `items` arrives as
+// a JSON-encoded string field rather than a real array — this
+// preprocesses it back into one before the array/object validation below
+// ever runs. A value that's already a real array (e.g. a JSON request
+// with no file) passes through untouched, so this validator works
+// whichever way a given client happens to send it.
+const itemsField = z.preprocess((val) => {
+  if (typeof val === "string") {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return val; // let the array check below produce the real error
+    }
+  }
+  return val;
+}, z.array(scrapItemSchema).min(1, "Add at least one item").max(MAX_ITEMS_PER_PICKUP, `A pickup can hold at most ${MAX_ITEMS_PER_PICKUP} items`));
+
+const createPickupSchema = z.object({
+  items: itemsField,
   // Every pickup needs a confirmed, working contact — see the comment on
   // Pickup.contactName/contactPhone for why this isn't just read off the
   // account's own (optional) profile phone instead.
@@ -98,6 +129,7 @@ const respondOfferSchema = z
 
 module.exports = {
   createPickupSchema,
+  MAX_ITEMS_PER_PICKUP,
   updateStatusSchema,
   batchAcceptSchema,
   MAX_BATCH_ACCEPT,
