@@ -2,6 +2,13 @@ import API from "./api";
 
 export const SCRAP_TYPES = ["metal", "plastic", "paper", "e-waste", "glass", "other"];
 
+// Mirrors Backend/src/validators/pickupValidator.js's MAX_ITEMS_PER_PICKUP —
+// kept here rather than fetched from the server since it only changes
+// when the backend validator does, and duplicating one constant is
+// simpler than a round trip just to render an "Add item" button's
+// disabled state.
+export const MAX_ITEMS_PER_PICKUP = 8;
+
 // FormData in, because image upload is multipart.
 export const createPickup = (formData) =>
   API.post("/pickup/request", formData, {

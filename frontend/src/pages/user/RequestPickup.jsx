@@ -1,23 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES } from "../../services/pickupService";
+import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP } from "../../services/pickupService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
+import { SCRAP_TYPE_LABELS as TYPE_LABELS } from "../../utils/pickupItems";
 import Card from "../../components/ui/Card";
 import ErrorBox from "../../components/common/ErrorBox";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
-
-const TYPE_LABELS = {
-  metal: "Metal",
-  plastic: "Plastic",
-  paper: "Paper",
-  "e-waste": "E-waste",
-  glass: "Glass",
-  other: "Other",
-};
 
 const staggerContainer = {
   hidden: {},
@@ -36,8 +28,7 @@ export default function RequestPickup() {
   const { showToast } = useToast();
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 
-  const [scrapType, setScrapType] = useState("metal");
-  const [weight, setWeight] = useState("");
+  const [items, setItems] = useState([{ scrapType: "metal", weight: "" }]);
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
   const [repeat, setRepeat] = useState(false);
@@ -92,6 +83,18 @@ export default function RequestPickup() {
     }
   };
 
+  const updateItem = (idx, patch) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  };
+
+  const addItem = () => {
+    setItems((prev) => (prev.length >= MAX_ITEMS_PER_PICKUP ? prev : [...prev, { scrapType: "metal", weight: "" }]));
+  };
+
+  const removeItem = (idx) => {
+    setItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -107,8 +110,10 @@ export default function RequestPickup() {
     try {
       setSubmitting(true);
       const form = new FormData();
-      form.append("scrapType", scrapType);
-      if (weight) form.append("estimatedWeightKg", weight);
+      form.append(
+        "items",
+        JSON.stringify(items.map((it) => ({ scrapType: it.scrapType, estimatedWeightKg: it.weight || undefined })))
+      );
       form.append("contactName", contactName.trim());
       form.append("contactPhone", contactPhone.trim());
       form.append("lat", coords.lat);
@@ -123,10 +128,16 @@ export default function RequestPickup() {
         // has already succeeded by this point — a failure setting up the
         // recurring template shouldn't block navigation or make it look
         // like the whole submission failed. Surface it as a toast instead.
+        //
+        // Recurring templates only carry a single scrapType/weight (see
+        // Backend/src/models/RecurringPickup.js) — a repeating pickup is
+        // deliberately kept simpler than a one-off, so a multi-item
+        // request here only repeats its first item. The form's own note
+        // below tells the requester that up front.
         try {
           await createRecurring({
-            scrapType,
-            estimatedWeightKg: weight || undefined,
+            scrapType: items[0].scrapType,
+            estimatedWeightKg: items[0].weight || undefined,
             contactName: contactName.trim(),
             contactPhone: contactPhone.trim(),
             lat: coords.lat,
@@ -180,49 +191,76 @@ export default function RequestPickup() {
               )}
             </AnimatePresence>
 
-            {/* Scrap type */}
+            {/* Items */}
             <motion.div variants={fadeUp}>
-              <label className="field-label">Scrap type</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {SCRAP_TYPES.map((t) => (
-                  <motion.button
-                    key={t}
-                    type="button"
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => setScrapType(t)}
-                    className={`relative py-2.5 rounded-ticket text-sm font-medium border-1.5 transition-colors ${
-                      scrapType === t
-                        ? "border-rust text-rust"
-                        : "border-line text-inkSoft bg-surfaceRaised"
-                    }`}
-                    style={{ borderWidth: "1.5px" }}
+              <div className="flex items-center justify-between mb-1">
+                <label className="field-label !mb-0">What are you scrapping?</label>
+                {items.length > 1 && (
+                  <span className="text-xs text-inkFaint">
+                    {items.length} items
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-inkFaint mb-2.5">
+                Add every kind of scrap in this pile — one pickup, one collector, one trip.
+              </p>
+
+              <div className="space-y-2.5">
+                {items.map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-2"
                   >
-                    {scrapType === t && (
-                      <motion.span
-                        layoutId="scrap-type-highlight"
-                        className="absolute inset-0 rounded-ticket bg-rust/[0.07]"
-                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                      />
-                    )}
-                    <span className="relative">{TYPE_LABELS[t]}</span>
-                  </motion.button>
+                    <select
+                      className="field-input flex-1"
+                      value={item.scrapType}
+                      onChange={(e) => updateItem(idx, { scrapType: e.target.value })}
+                    >
+                      {SCRAP_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="kg (optional)"
+                      className="field-input w-32 shrink-0"
+                      value={item.weight}
+                      onChange={(e) => updateItem(idx, { weight: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      disabled={items.length <= 1}
+                      className="shrink-0 w-9 h-9 flex items-center justify-center rounded-ticket border-1.5 border-line text-inkFaint hover:border-danger hover:text-danger disabled:opacity-30 disabled:hover:border-line disabled:hover:text-inkFaint transition-colors"
+                      style={{ borderWidth: "1.5px" }}
+                      aria-label="Remove item"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </motion.div>
                 ))}
               </div>
+
+              {items.length < MAX_ITEMS_PER_PICKUP && (
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="mt-2.5 text-sm font-semibold text-rust hover:underline"
+                >
+                  + Add another item
+                </button>
+              )}
             </motion.div>
 
-            {/* Weight */}
-            <motion.div variants={fadeUp}>
-              <label className="field-label">Estimated weight (kg) — optional</label>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="e.g. 5"
-                className="field-input"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-              />
-            </motion.div>
 
             {/* Contact */}
             <motion.div variants={fadeUp}>
@@ -377,6 +415,11 @@ export default function RequestPickup() {
                     <p className="text-xs text-inkFaint mt-2 mb-2">
                       We'll automatically request a new pickup with these same details on schedule —
                       pause or cancel it anytime from My requests.
+                      {items.length > 1 && (
+                        <>
+                          {" "}Repeats only re-request {TYPE_LABELS[items[0].scrapType]}, the first item above.
+                        </>
+                      )}
                     </p>
                     <div className="flex gap-2">
                       {RECURRING_FREQUENCIES.map((f) => (

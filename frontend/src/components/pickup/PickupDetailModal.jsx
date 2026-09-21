@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { formatPrice } from "../../utils/formatPrice";
 import { formatDistance } from "../../utils/distance";
+import { getPickupItems, formatTotalWeight, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
 import MapThumbnail from "../map/MapThumbnail";
 import OfferPanel from "./OfferPanel";
 import useLocationSharing from "../../hooks/useLocationSharing";
@@ -35,6 +36,13 @@ export default function PickupDetailModal({
   // broadcasting just because an active job happens to be open.
   const [sharingLocation, setSharingLocation] = useState(false);
   const { error: locationError } = useLocationSharing(pickup?._id, isTrackable && sharingLocation);
+
+  // Null-safe (returns [] for a null pickup, e.g. while the modal is
+  // closed) — computed unconditionally here rather than inside the
+  // AnimatePresence block below so the JSX doesn't need an IIFE just to
+  // introduce these two local names.
+  const pickupItems = getPickupItems(pickup);
+  const totalWeight = formatTotalWeight(pickupItems);
 
   return (
     <AnimatePresence>
@@ -76,13 +84,17 @@ export default function PickupDetailModal({
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
                   src={pickup.image}
-                  alt={pickup.scrapType}
+                  alt={pickupItems.length === 1 ? pickupItems[0].scrapType : "Scrap pickup"}
                   className="w-full h-48 object-cover rounded-md border border-line mb-4"
                 />
               )}
 
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="font-display text-xl font-bold text-ink capitalize">{pickup.scrapType}</h2>
+                <h2 className="font-display text-xl font-bold text-ink capitalize">
+                  {pickupItems.length === 1
+                    ? SCRAP_TYPE_LABELS[pickupItems[0].scrapType] || pickupItems[0].scrapType
+                    : `${pickupItems.length} items`}
+                </h2>
                 {pickup.isUrgent && (
                   <motion.span
                     animate={{ opacity: [1, 0.55, 1] }}
@@ -93,8 +105,19 @@ export default function PickupDetailModal({
                   </motion.span>
                 )}
               </div>
-              {pickup.estimatedWeightKg && (
-                <p className="text-sm text-inkSoft mb-4">Approx. {pickup.estimatedWeightKg}kg</p>
+              {totalWeight && <p className="text-sm text-inkSoft mb-1">Approx. {totalWeight}</p>}
+              {pickupItems.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {pickupItems.map((it, i) => (
+                    <span
+                      key={i}
+                      className="text-xs font-medium px-2 py-1 rounded-full bg-surfaceRaised border border-line text-inkSoft"
+                    >
+                      {SCRAP_TYPE_LABELS[it.scrapType] || it.scrapType}
+                      {it.estimatedWeightKg ? ` · ${it.estimatedWeightKg}kg` : ""}
+                    </span>
+                  ))}
+                </div>
               )}
 
               <div className="border-t border-dashed border-line my-4" />

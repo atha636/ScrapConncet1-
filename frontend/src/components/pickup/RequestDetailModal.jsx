@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
+import { getPickupItems, formatTotalWeight, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
 import MapThumbnail from "../map/MapThumbnail";
 import LiveTrackingMap from "../map/LiveTrackingMap";
 import CollectorProfileCard from "../collector/CollectorProfileCard";
@@ -32,6 +33,11 @@ export default function RequestDetailModal({
 }) {
   const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
   const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
+
+  // Null-safe (returns [] for a null pickup, e.g. while the modal is
+  // closed) — see the matching comment in PickupDetailModal.jsx.
+  const pickupItems = getPickupItems(pickup);
+  const totalWeight = formatTotalWeight(pickupItems);
 
   return (
     <AnimatePresence>
@@ -73,17 +79,32 @@ export default function RequestDetailModal({
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
                   src={pickup.image}
-                  alt={pickup.scrapType}
+                  alt={pickupItems.length === 1 ? pickupItems[0].scrapType : "Scrap pickup"}
                   className="w-full h-48 object-cover rounded-md border border-line mb-4"
                 />
               )}
 
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="font-display text-xl font-bold text-ink capitalize">{pickup.scrapType}</h2>
+                <h2 className="font-display text-xl font-bold text-ink capitalize">
+                  {pickupItems.length === 1
+                    ? SCRAP_TYPE_LABELS[pickupItems[0].scrapType] || pickupItems[0].scrapType
+                    : `${pickupItems.length} items`}
+                </h2>
                 <StatusStamp status={pickup.status} />
               </div>
-              {pickup.estimatedWeightKg && (
-                <p className="text-sm text-inkSoft mb-4">Approx. {pickup.estimatedWeightKg}kg</p>
+              {totalWeight && <p className="text-sm text-inkSoft mb-1">Approx. {totalWeight}</p>}
+              {pickupItems.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {pickupItems.map((it, i) => (
+                    <span
+                      key={i}
+                      className="text-xs font-medium px-2 py-1 rounded-full bg-surfaceRaised border border-line text-inkSoft"
+                    >
+                      {SCRAP_TYPE_LABELS[it.scrapType] || it.scrapType}
+                      {it.estimatedWeightKg ? ` · ${it.estimatedWeightKg}kg` : ""}
+                    </span>
+                  ))}
+                </div>
               )}
 
               <div className="border-t border-dashed border-line my-4" />
