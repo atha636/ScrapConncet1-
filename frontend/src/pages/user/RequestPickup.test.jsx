@@ -15,6 +15,7 @@ const mockCreatePickup = vi.fn();
 const mockCreateRecurring = vi.fn();
 vi.mock("../../services/pickupService", () => ({
   SCRAP_TYPES: ["metal", "plastic", "paper", "e-waste", "glass", "other"],
+  MAX_ITEMS_PER_PICKUP: 8,
   RECURRING_FREQUENCIES: ["weekly", "biweekly", "monthly"],
   createPickup: (...args) => mockCreatePickup(...args),
   createRecurring: (...args) => mockCreateRecurring(...args),
@@ -49,6 +50,14 @@ function renderPage() {
   );
 }
 
+function itemRowSelects() {
+  return screen.getAllByRole("combobox");
+}
+
+function itemRowWeightInputs() {
+  return screen.getAllByPlaceholderText("kg (optional)");
+}
+
 describe("RequestPickup", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
@@ -65,17 +74,35 @@ describe("RequestPickup", () => {
     localStorage.setItem("user", JSON.stringify({ _id: "u1", name: "Priya", phone: "9876500000", role: "user" }));
   });
 
-  test("defaults to 'Metal' selected among the scrap type options", () => {
+  test("starts with a single item row defaulted to Metal", () => {
     renderPage();
-    const metalButton = screen.getByRole("button", { name: "Metal" });
-    expect(metalButton.className).toContain("border-rust");
+    const selects = itemRowSelects();
+    expect(selects).toHaveLength(1);
+    expect(selects[0]).toHaveValue("metal");
   });
 
-  test("clicking a different scrap type selects it", () => {
+  test("changing the scrap type dropdown updates that item's selection", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Plastic" }));
-    expect(screen.getByRole("button", { name: "Plastic" }).className).toContain("border-rust");
-    expect(screen.getByRole("button", { name: "Metal" }).className).not.toContain("border-rust");
+    fireEvent.change(itemRowSelects()[0], { target: { value: "plastic" } });
+    expect(itemRowSelects()[0]).toHaveValue("plastic");
+  });
+
+  test("'Add another item' appends a new row, and the remove button drops one", () => {
+    renderPage();
+    expect(itemRowSelects()).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Add another item" }));
+    expect(itemRowSelects()).toHaveLength(2);
+
+    // The remove ("×") button is disabled while only one row remains — the
+    // first click above should have re-enabled both rows' remove buttons.
+    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    expect(removeButtons).toHaveLength(2);
+    expect(removeButtons[0]).not.toBeDisabled();
+
+    fireEvent.click(removeButtons[1]);
+    expect(itemRowSelects()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Remove item" })).toBeDisabled();
   });
 
   test("blocks submission and shows an error when no location has been captured", async () => {
@@ -106,7 +133,7 @@ describe("RequestPickup", () => {
     ).toBeInTheDocument();
   });
 
-  test("submits the form with scrap type, coordinates, and weight, then navigates to My Requests", async () => {
+  test("submits the form with items (scrap type + weight), coordinates, and contact, then navigates to My Requests", async () => {
     mockGeolocationSuccess(12.34, 56.78);
     mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
     renderPage();
@@ -114,22 +141,45 @@ describe("RequestPickup", () => {
     fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
     await screen.findByText(/Location captured/);
 
-    fireEvent.click(screen.getByRole("button", { name: "Plastic" }));
-    fireEvent.change(screen.getByPlaceholderText("e.g. 5"), { target: { value: "3.5" } });
+    fireEvent.change(itemRowSelects()[0], { target: { value: "plastic" } });
+    fireEvent.change(itemRowWeightInputs()[0], { target: { value: "3.5" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
 
     await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
 
     const submittedForm = mockCreatePickup.mock.calls[0][0];
-    expect(submittedForm.get("scrapType")).toBe("plastic");
-    expect(submittedForm.get("estimatedWeightKg")).toBe("3.5");
+    expect(JSON.parse(submittedForm.get("items"))).toEqual([{ scrapType: "plastic", estimatedWeightKg: "3.5" }]);
     expect(submittedForm.get("contactName")).toBe("Priya");
     expect(submittedForm.get("contactPhone")).toBe("9876500000");
     expect(submittedForm.get("lat")).toBe("12.34");
     expect(submittedForm.get("lng")).toBe("56.78");
 
     expect(mockNavigate).toHaveBeenCalledWith("/my-requests");
+  });
+
+  test("submits every row when multiple items are added", async () => {
+    mockGeolocationSuccess(12.34, 56.78);
+    mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
+    await screen.findByText(/Location captured/);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Add another item" }));
+    fireEvent.change(itemRowSelects()[0], { target: { value: "metal" } });
+    fireEvent.change(itemRowWeightInputs()[0], { target: { value: "10" } });
+    fireEvent.change(itemRowSelects()[1], { target: { value: "paper" } });
+    fireEvent.change(itemRowWeightInputs()[1], { target: { value: "5" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
+    const items = JSON.parse(mockCreatePickup.mock.calls[0][0].get("items"));
+    expect(items).toEqual([
+      { scrapType: "metal", estimatedWeightKg: "10" },
+      { scrapType: "paper", estimatedWeightKg: "5" },
+    ]);
   });
 
   test("checking 'Repeat this pickup' also calls createRecurring with the same details and chosen frequency", async () => {
@@ -141,7 +191,7 @@ describe("RequestPickup", () => {
     fireEvent.click(screen.getByRole("button", { name: /share my location/i }));
     await screen.findByText(/Location captured/);
 
-    fireEvent.click(screen.getByRole("button", { name: "Plastic" }));
+    fireEvent.change(itemRowSelects()[0], { target: { value: "plastic" } });
     fireEvent.click(screen.getByLabelText("Repeat this pickup"));
     fireEvent.click(screen.getByRole("button", { name: "monthly" }));
 
@@ -221,7 +271,7 @@ describe("RequestPickup", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  test("does not include an optional weight field when left blank", async () => {
+  test("omits estimatedWeightKg from an item when its weight is left blank", async () => {
     mockGeolocationSuccess();
     mockCreatePickup.mockResolvedValue({ data: { _id: "p1" } });
     renderPage();
@@ -231,8 +281,8 @@ describe("RequestPickup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
 
     await waitFor(() => expect(mockCreatePickup).toHaveBeenCalledTimes(1));
-    const submittedForm = mockCreatePickup.mock.calls[0][0];
-    expect(submittedForm.has("estimatedWeightKg")).toBe(false);
+    const items = JSON.parse(mockCreatePickup.mock.calls[0][0].get("items"));
+    expect(items).toEqual([{ scrapType: "metal" }]);
   });
 
   describe("photo picker", () => {
