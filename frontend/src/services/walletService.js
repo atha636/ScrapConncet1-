@@ -9,3 +9,7 @@ export const getTransactions = (params = {}) => API.get("/wallet/transactions", 
 export const requestPayout = (amount) => API.post("/wallet/payout", { amount });
 
 export const getMyPayouts = () => API.get("/wallet/payouts");
+
+export const getPayoutDetails = () => API.get("/wallet/payout-details");
+
+export const updatePayoutDetails = (payload) => API.patch("/wallet/payout-details", payload);

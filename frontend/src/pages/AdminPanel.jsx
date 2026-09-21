@@ -442,6 +442,24 @@ export default function AdminPanel() {
                               Requested {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                               {p.processedBy?.name && ` · ${p.status} by ${p.processedBy.name}`}
                             </div>
+                            {/*
+                              Unmasked, unlike the collector's own view of
+                              this same data (see PayoutDetailsCard.jsx) —
+                              this is exactly what admin needs to actually
+                              send the transfer, and it's a snapshot taken
+                              at request time (see PayoutRequest.js), so
+                              it stays correct even if the collector has
+                              since changed their saved details.
+                            */}
+                            {p.payoutSnapshot ? (
+                              <div className="text-xs text-ink font-mono mt-1.5 bg-surfaceRaised border border-dashed border-line rounded-md px-2 py-1 inline-block">
+                                {p.payoutSnapshot.method === "upi"
+                                  ? `UPI: ${p.payoutSnapshot.upiId}`
+                                  : `${p.payoutSnapshot.bankAccountNumber} · ${p.payoutSnapshot.bankIfsc} · ${p.payoutSnapshot.bankAccountHolder}`}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-danger mt-1.5">No payout details on file for this request</div>
+                            )}
                           </div>
                           <div className="flex items-center gap-3">
                             <span

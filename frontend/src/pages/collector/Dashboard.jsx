@@ -12,8 +12,9 @@ import {
   respondToOffer,
   SCRAP_TYPES,
 } from "../../services/pickupService";
-import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts } from "../../services/walletService";
+import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts, getPayoutDetails } from "../../services/walletService";
 import EarningsChart from "../../components/wallet/EarningsChart";
+import PayoutDetailsCard, { maskUpi, maskAccountNumber } from "../../components/wallet/PayoutDetailsCard";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -140,6 +141,7 @@ export default function CollectorDashboard() {
   const [txTotalPages, setTxTotalPages] = useState(1);
   const [loadingMoreTx, setLoadingMoreTx] = useState(false);
   const [myPayouts, setMyPayouts] = useState([]);
+  const [payoutDetails, setPayoutDetails] = useState(null);
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [payoutError, setPayoutError] = useState("");
@@ -241,14 +243,21 @@ export default function CollectorDashboard() {
   useEffect(() => {
     if (tab !== "wallet" || wallet) return;
     setWalletLoading(true);
-    Promise.all([getWalletSummary(), getEarningsTrend(), getTransactions({ limit: 20, page: 1 }), getMyPayouts()])
-      .then(([summaryRes, trendRes, txRes, payoutsRes]) => {
+    Promise.all([
+      getWalletSummary(),
+      getEarningsTrend(),
+      getTransactions({ limit: 20, page: 1 }),
+      getMyPayouts(),
+      getPayoutDetails(),
+    ])
+      .then(([summaryRes, trendRes, txRes, payoutsRes, payoutDetailsRes]) => {
         setWallet(summaryRes.data);
         setEarningsTrend(trendRes.data.series);
         setWalletTx(txRes.data.data);
         setTxPage(txRes.data.page);
         setTxTotalPages(txRes.data.totalPages);
         setMyPayouts(payoutsRes.data);
+        setPayoutDetails(payoutDetailsRes.data);
       })
       .catch(() => setError("Couldn't load your wallet."))
       .finally(() => setWalletLoading(false));
@@ -1023,6 +1032,9 @@ export default function CollectorDashboard() {
                       </div>
                     )}
 
+                    {/* Payout destination */}
+                    <PayoutDetailsCard details={payoutDetails} onSaved={setPayoutDetails} />
+
                     {/* Request payout */}
                     <Card className="p-5 mb-6">
                       <h3 className="font-display font-semibold text-ink text-sm mb-3">Request a payout</h3>
@@ -1042,12 +1054,22 @@ export default function CollectorDashboard() {
                         <motion.button
                           whileTap={{ scale: 0.97 }}
                           type="submit"
-                          disabled={payoutSubmitting || !payoutAmount || myPayouts.some((p) => p.status === "pending")}
+                          disabled={
+                            payoutSubmitting ||
+                            !payoutAmount ||
+                            !payoutDetails ||
+                            myPayouts.some((p) => p.status === "pending")
+                          }
                           className="btn-primary !py-2.5"
                         >
                           {payoutSubmitting ? "Submitting…" : "Request payout"}
                         </motion.button>
                       </form>
+                      {!payoutDetails && (
+                        <p className="text-xs text-inkFaint mt-2">
+                          Add where payouts should go above before requesting one.
+                        </p>
+                      )}
                       {myPayouts.some((p) => p.status === "pending") && (
                         <p className="text-xs text-inkFaint mt-2">
                           You already have a payout request pending review.
@@ -1068,6 +1090,14 @@ export default function CollectorDashboard() {
                                     {new Date(p.createdAt).toLocaleDateString("en-IN", {
                                       day: "numeric", month: "short", year: "numeric",
                                     })}
+                                    {p.payoutSnapshot && (
+                                      <>
+                                        {" · "}
+                                        {p.payoutSnapshot.method === "upi"
+                                          ? maskUpi(p.payoutSnapshot.upiId)
+                                          : maskAccountNumber(p.payoutSnapshot.bankAccountNumber)}
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                                 <span
