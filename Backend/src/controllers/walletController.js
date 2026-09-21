@@ -1,12 +1,47 @@
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
 const PayoutRequest = require("../models/PayoutRequest");
+const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { getAvailableBalance } = require("../utils/walletBalance");
 const { MIN_PAYOUT_AMOUNT } = require("../utils/payoutRules");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// GET /api/wallet/payout-details  (collector only)
+// payoutDetails is `select: false` on the schema (see User.js) precisely
+// so an ordinary fetch never carries it — this is the one route that
+// deliberately opts back in, for the account's own owner only.
+exports.getPayoutDetails = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select("+payoutDetails");
+  res.json(user.payoutDetails || null);
+});
+
+// PATCH /api/wallet/payout-details  (collector only)
+// Replaces the whole payoutDetails object rather than patching individual
+// fields — switching method from "bank" to "upi" (or back) shouldn't
+// leave stale bank details sitting alongside a new UPI ID, half-relevant
+// to neither. The validator already guarantees only the fields for the
+// chosen method are meaningfully populated (see updatePayoutDetailsSchema).
+exports.updatePayoutDetails = asyncHandler(async (req, res) => {
+  const { method, upiId, bankAccountNumber, bankIfsc, bankAccountHolder } = req.body;
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    {
+      $set: {
+        payoutDetails:
+          method === "upi"
+            ? { method, upiId }
+            : { method, bankAccountNumber, bankIfsc: bankIfsc?.toUpperCase(), bankAccountHolder },
+      },
+    },
+    { new: true, runValidators: true }
+  ).select("+payoutDetails");
+
+  res.json(user.payoutDetails);
+});
 
 // GET /api/wallet/summary  (collector only)
 // Every figure here is derived live from the ledger via aggregation — there
@@ -147,8 +182,20 @@ exports.requestPayout = asyncHandler(async (req, res) => {
     throw new ApiError(400, `You can withdraw up to ₹${available} right now.`);
   }
 
+  // A pending request with nowhere to actually send the money isn't
+  // useful to anyone — better to stop it here, with a clear message,
+  // than to have an admin discover the gap while trying to approve it.
+  const user = await User.findById(req.user.id).select("+payoutDetails");
+  if (!user.payoutDetails?.method) {
+    throw new ApiError(400, "Add your UPI ID or bank details before requesting a payout.");
+  }
+
   try {
-    const request = await PayoutRequest.create({ collector: req.user.id, amount });
+    const request = await PayoutRequest.create({
+      collector: req.user.id,
+      amount,
+      payoutSnapshot: user.payoutDetails,
+    });
     res.status(201).json(request);
   } catch (err) {
     if (err.code === 11000) throw new ApiError(409, "You already have a pending payout request.");
