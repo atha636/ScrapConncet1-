@@ -146,13 +146,14 @@ pickupSchema.index({ user: 1, createdAt: -1 });
 pickupSchema.index({ collector: 1, createdAt: -1 });
 pickupSchema.index({ geo: "2dsphere" });
 
-pickupSchema.pre("save", function (next) {
-  if (this.isModified("location.lat") || this.isModified("location.lng") || this.isNew) {
-    if (typeof this.location?.lat === "number" && typeof this.location?.lng === "number") {
-      this.geo = { type: "Point", coordinates: [this.location.lng, this.location.lat] };
-    }
-  }
-
+// Mongoose runs schema validation (including `required` checks) inside
+// pre('validate'), which fires BEFORE pre('save') — so deriving scrapType
+// from items in a pre('save') hook is too late: the `required: true` on
+// scrapType would already have failed by the time this ran. This has to
+// be pre('validate') specifically for that reason, even though it reads
+// a little unusual to do data derivation before validation instead of
+// after.
+pickupSchema.pre("validate", function (next) {
   // Keep items <-> scrapType/estimatedWeightKg in sync — see the comment
   // on `items` above for why both directions matter. `items` wins when
   // both are present and items just changed, since createPickup always
@@ -164,6 +165,16 @@ pickupSchema.pre("save", function (next) {
     this.estimatedWeightKg = totalWeight > 0 ? totalWeight : undefined;
   } else if (this.isNew && (!this.items || this.items.length === 0) && this.scrapType) {
     this.items = [{ scrapType: this.scrapType, estimatedWeightKg: this.estimatedWeightKg }];
+  }
+
+  next();
+});
+
+pickupSchema.pre("save", function (next) {
+  if (this.isModified("location.lat") || this.isModified("location.lng") || this.isNew) {
+    if (typeof this.location?.lat === "number" && typeof this.location?.lng === "number") {
+      this.geo = { type: "Point", coordinates: [this.location.lng, this.location.lat] };
+    }
   }
 
   next();

@@ -214,26 +214,44 @@ export default function RequestPickup() {
                     transition={{ duration: 0.2 }}
                     className="flex items-center gap-2"
                   >
-                    <select
-                      className="field-input flex-1"
-                      value={item.scrapType}
-                      onChange={(e) => updateItem(idx, { scrapType: e.target.value })}
-                    >
-                      {SCRAP_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {TYPE_LABELS[t]}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="kg (optional)"
-                      className="field-input w-32 shrink-0"
-                      value={item.weight}
-                      onChange={(e) => updateItem(idx, { weight: e.target.value })}
-                    />
+                    {/*
+                      Both fields sit inside their own wrapper div rather
+                      than taking `w-32`/`flex-1` directly, because
+                      `.field-input` (index.css) hard-codes `width: 100%`
+                      at equal CSS specificity to a Tailwind width utility
+                      declared on the same element — same-specificity, and
+                      `.field-input` sits later in the built stylesheet
+                      (after @tailwind utilities), so it silently wins the
+                      cascade and the utility is ignored. Sizing the
+                      *wrapper* instead means `width: 100%` resolves
+                      against the wrapper's own box, which is what we
+                      actually want, instead of fighting the wrapper's
+                      Tailwind width for the same property.
+                    */}
+                    <div className="flex-1 min-w-0">
+                      <select
+                        className="field-input w-full"
+                        value={item.scrapType}
+                        onChange={(e) => updateItem(idx, { scrapType: e.target.value })}
+                      >
+                        {SCRAP_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {TYPE_LABELS[t]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-32 shrink-0">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="kg (optional)"
+                        className="field-input w-full"
+                        value={item.weight}
+                        onChange={(e) => updateItem(idx, { weight: e.target.value })}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeItem(idx)}

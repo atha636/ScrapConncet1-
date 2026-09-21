@@ -18,15 +18,7 @@ import useDocumentMeta from "../../hooks/useDocumentMeta";
 import { getRatings } from "../../services/ratingService";
 import { useAuth } from "../../context/AuthContext";
 import { hasUserRated } from "../../utils/ratings";
-
-const TYPE_LABELS = {
-  metal: "Metal",
-  plastic: "Plastic",
-  paper: "Paper",
-  "e-waste": "E-waste",
-  glass: "Glass",
-  other: "Other",
-};
+import { getPickupItems, formatItemsLabel, formatTotalWeight } from "../../utils/pickupItems";
 
 const listStagger = {
   hidden: {},
@@ -200,12 +192,16 @@ export default function MyRequests() {
                 >
                   <div className="flex gap-4">
                     {item.image && (
-                      <img src={item.image} alt={item.scrapType} className="w-16 h-16 rounded-md object-cover shrink-0 border border-line" />
+                      <img
+                        src={item.image}
+                        alt={getPickupItems(item).length === 1 ? getPickupItems(item)[0].scrapType : "Scrap pickup"}
+                        className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                      />
                     )}
                     <div>
                       <div className="font-display font-semibold text-ink">
-                        {TYPE_LABELS[item.scrapType] || item.scrapType}
-                        {item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                        {formatItemsLabel(getPickupItems(item))}
+                        {formatTotalWeight(getPickupItems(item)) ? ` · ${formatTotalWeight(getPickupItems(item))}` : ""}
                       </div>
                       <div className="text-xs text-inkFaint mt-0.5 font-mono">
                         #{item._id.slice(-6).toUpperCase()} · {new Date(item.createdAt).toLocaleDateString()}

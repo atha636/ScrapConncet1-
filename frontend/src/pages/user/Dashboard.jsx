@@ -7,6 +7,7 @@ import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
+import { getPickupItems, formatItemsLabel } from "../../utils/pickupItems";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useCountUp from "../../hooks/useCountUp";
 
@@ -114,7 +115,7 @@ export default function Dashboard() {
                     {item.image ? (
                       <img
                         src={item.image}
-                        alt={item.scrapType}
+                        alt={getPickupItems(item).length === 1 ? getPickupItems(item)[0].scrapType : "Scrap pickup"}
                         className="w-14 h-14 rounded-md object-cover shrink-0 border border-line"
                       />
                     ) : (
@@ -125,7 +126,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div>
-                      <div className="font-medium text-ink capitalize">{item.scrapType}</div>
+                      <div className="font-medium text-ink capitalize">{formatItemsLabel(getPickupItems(item))}</div>
                       <div className="text-xs text-inkFaint font-mono mt-0.5">
                         {new Date(item.createdAt).toLocaleDateString()}
                       </div>

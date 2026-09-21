@@ -37,6 +37,7 @@ import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
+import { getPickupItems, formatItemsLabel, formatTotalWeight } from "../../utils/pickupItems";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -762,7 +763,8 @@ export default function CollectorDashboard() {
                             )}
                             <div>
                               <div className="font-display font-semibold text-ink capitalize flex items-center gap-2">
-                                {item.scrapType}{item.estimatedWeightKg ? ` · ${item.estimatedWeightKg}kg` : ""}
+                                {formatItemsLabel(getPickupItems(item))}
+                                {formatTotalWeight(getPickupItems(item)) ? ` · ${formatTotalWeight(getPickupItems(item))}` : ""}
                                 {item.isUrgent && (
                                   <motion.span
                                     animate={{ opacity: [1, 0.55, 1] }}
@@ -850,7 +852,9 @@ export default function CollectorDashboard() {
                                 />
                               )}
                               <div>
-                                <div className="font-display font-semibold text-ink capitalize">{item.scrapType}</div>
+                                <div className="font-display font-semibold text-ink capitalize">
+                                  {formatItemsLabel(getPickupItems(item))}
+                                </div>
                                 {item.user?.name && <div className="text-xs text-inkSoft mt-1">For {item.user.name}</div>}
                               </div>
                             </div>
@@ -920,7 +924,7 @@ export default function CollectorDashboard() {
                                 className="w-12 h-12 rounded-md object-cover shrink-0 border border-line"
                               />
                             )}
-                            <div className="font-medium text-ink capitalize self-center">{item.scrapType}</div>
+                            <div className="font-medium text-ink capitalize self-center">{formatItemsLabel(getPickupItems(item))}</div>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-mono text-sm text-ink">{formatPrice(item.price)}</span>
