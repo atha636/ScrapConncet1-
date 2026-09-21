@@ -9,6 +9,24 @@ const payoutRequestSchema = new mongoose.Schema(
   {
     collector: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true, min: 1 },
+    // A copy of the collector's User.payoutDetails at the exact moment
+    // this request was created — not a live reference to it. Two reasons
+    // this has to be a snapshot rather than something admin looks up on
+    // User at review time: (1) if the collector edits their UPI ID or
+    // bank details after asking for a payout but before admin gets to it,
+    // the reviewer needs to see what was on file *when the collector
+    // asked*, not a value that changed out from under an in-flight
+    // request; (2) it makes every past request self-contained and
+    // auditable on its own — "where did this ₹500 actually get sent"
+    // never depends on the collector's current (possibly since-changed,
+    // possibly since-cleared) payout details still existing.
+    payoutSnapshot: {
+      method: { type: String, enum: ["upi", "bank"], required: true },
+      upiId: { type: String, trim: true },
+      bankAccountNumber: { type: String, trim: true },
+      bankIfsc: { type: String, trim: true },
+      bankAccountHolder: { type: String, trim: true },
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

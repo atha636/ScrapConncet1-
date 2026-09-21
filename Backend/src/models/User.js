@@ -107,6 +107,32 @@ const userSchema = new mongoose.Schema(
       radiusKm: { type: Number, min: 1, max: 100, default: undefined },
     },
 
+    // Where a collector's approved payouts actually get sent — captured
+    // once here as their standing default, then snapshotted onto each
+    // PayoutRequest at the moment it's created (see PayoutRequest.js)
+    // so a later change here never rewrites where money already in
+    // flight for an older request was meant to go, and so admin reviewing
+    // a request always sees exactly what the collector had on file when
+    // they asked, not whatever's current now.
+    //
+    // `select: false` — unlike phone/name, this is genuinely sensitive
+    // and has no reason to ride along on an ordinary User fetch (a
+    // populated `pickup.collector`, a leaderboard row, a public profile).
+    // Only the owning collector's own payout-details routes and the
+    // one payout-request-creation path below ever need it, and both
+    // explicitly `.select("+payoutDetails")` for that.
+    payoutDetails: {
+      type: {
+        method: { type: String, enum: ["upi", "bank"] },
+        upiId: { type: String, trim: true, maxlength: 80 },
+        bankAccountNumber: { type: String, trim: true, maxlength: 30 },
+        bankIfsc: { type: String, trim: true, uppercase: true, maxlength: 11 },
+        bankAccountHolder: { type: String, trim: true, maxlength: 60 },
+      },
+      select: false,
+      default: undefined,
+    },
+
     isVerified: { type: Boolean, default: false },
     verificationTokenHash: { type: String, select: false, default: null },
     verificationTokenExpires: { type: Date, select: false, default: null },
