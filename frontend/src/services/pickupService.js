@@ -98,6 +98,13 @@ export const getMyAchievements = () => API.get(`/pickup/collector/achievements`)
 export const getCollectorRoute = (lat, lng) =>
   API.get(`/pickup/collector/route`, { params: { lat, lng } });
 
+// Suggests a tight cluster of nearby *pending* pickups (not yet accepted
+// by anyone) that this collector could take in one trip — the frontend
+// preselects them and reuses the normal batch-accept flow, it never
+// accepts anything on its own.
+export const getSuggestedBatch = (lat, lng, radiusKm) =>
+  API.get(`/pickup/collector/suggested-batch`, { params: { lat, lng, radiusKm } });
+
 // The requester-side mirror of getMyAchievements — self-only, no id param.
 // Used by Profile.jsx's "My Reputation" card, shown to requesters only.
 export const getMyReputation = () => API.get(`/pickup/requester/me/reputation`);

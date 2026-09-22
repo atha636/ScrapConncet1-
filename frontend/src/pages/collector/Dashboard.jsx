@@ -34,6 +34,7 @@ import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
+import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel";
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
@@ -681,6 +682,14 @@ export default function CollectorDashboard() {
               Notify me for…
             </button>
           </div>
+        )}
+
+        {tab === "available" && (
+          <SuggestedBatchPanel
+            coords={myCoords}
+            selectedIds={selectedIds}
+            onSelect={(ids) => setSelectedIds(new Set(ids))}
+          />
         )}
 
         {tab === "available" && selectedIds.size > 0 && (

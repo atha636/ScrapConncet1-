@@ -144,4 +144,53 @@ function optimizeRoute(start, stops) {
   };
 }
 
-module.exports = { haversineKm, routeLengthKm, nearestNeighbour, twoOptImprove, optimizeRoute };
+/**
+ * Picks a tight, driveable cluster of stops out of a larger candidate pool
+ * and orders it — the piece optimizeRoute doesn't do on its own, since it
+ * always routes *every* stop it's given rather than deciding how many are
+ * worth bundling into one trip.
+ *
+ * Runs the same nearest-neighbour + 2-opt pipeline as optimizeRoute over
+ * every candidate, then walks the resulting order from the start and keeps
+ * taking stops while two things hold: the leg to the next stop is within
+ * `maxLegKm` (so the cluster doesn't stretch across the city just to hit a
+ * count), and the cluster hasn't hit `maxStops` yet. The walk stops at the
+ * first leg that breaks the distance cap rather than skipping over it and
+ * continuing — a suggested run is meant to read as "these are genuinely
+ * close together," not "these are the N closest, wherever they end up."
+ *
+ * @param {{lat: number, lng: number}} start
+ * @param {Array<{id: any, lat: number, lng: number}>} candidates
+ * @param {{maxStops?: number, maxLegKm?: number}} [options]
+ * @returns {{ordered: Array, totalKm: number}} ordered is a prefix of the
+ *   full optimized route, not necessarily all of `candidates`.
+ */
+function buildCluster(start, candidates, { maxStops = 6, maxLegKm = 3 } = {}) {
+  if (!candidates || candidates.length === 0) return { ordered: [], totalKm: 0 };
+
+  const { ordered: fullRoute } = optimizeRoute(start, candidates);
+
+  const cluster = [];
+  let cursor = start;
+  let totalKm = 0;
+
+  for (const stop of fullRoute) {
+    if (cluster.length >= maxStops) break;
+    const legKm = haversineKm(cursor, stop);
+    if (cluster.length > 0 && legKm > maxLegKm) break;
+    cluster.push(stop);
+    totalKm += legKm;
+    cursor = stop;
+  }
+
+  return { ordered: cluster, totalKm };
+}
+
+module.exports = {
+  haversineKm,
+  routeLengthKm,
+  nearestNeighbour,
+  twoOptImprove,
+  optimizeRoute,
+  buildCluster,
+};

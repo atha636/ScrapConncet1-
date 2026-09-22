@@ -25,6 +25,7 @@ const {
   getAvailable,
   getCollectorJobs,
   getCollectorRoute,
+  getSuggestedBatch,
   acceptPickup,
   batchAcceptPickups,
   updateStatus,
@@ -101,6 +102,14 @@ router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 router.get("/available", auth, role("collector"), getAvailable);
 router.get("/collector/jobs", auth, role("collector"), getCollectorJobs);
 router.get("/collector/route", auth, role("collector"), getCollectorRoute);
+
+// Suggests a tight, nearby cluster of *pending* (unaccepted) pickups the
+// collector could accept in one go, ordered into a driveable sequence —
+// distinct from /collector/route above, which only ever orders jobs this
+// collector has already accepted. Same literal-segment reasoning as the
+// other /collector/* routes in this file: "suggested-batch" can't collide
+// with "/:id/..." regardless of declaration order.
+router.get("/collector/suggested-batch", auth, role("collector"), getSuggestedBatch);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
 
