@@ -3,17 +3,7 @@ import { motion } from "framer-motion";
 import Card from "../ui/Card";
 import ErrorBox from "../common/ErrorBox";
 import { updatePayoutDetails } from "../../services/walletService";
-
-export function maskUpi(upiId) {
-  const [handle, bank] = upiId.split("@");
-  if (!bank) return upiId;
-  const visible = handle.slice(0, 2);
-  return `${visible}${"•".repeat(Math.max(handle.length - 2, 3))}@${bank}`;
-}
-
-export function maskAccountNumber(number) {
-  return `${"•".repeat(Math.max(number.length - 4, 0))}${number.slice(-4)}`;
-}
+import { maskUpi, maskAccountNumber } from "../../utils/payoutMask";
 
 // Read-only summary of whatever's currently saved — shown by default so a
 // collector who already set this up isn't re-shown a form (and their full

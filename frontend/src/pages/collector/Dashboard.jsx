@@ -14,7 +14,7 @@ import {
 } from "../../services/pickupService";
 import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts, getPayoutDetails } from "../../services/walletService";
 import EarningsChart from "../../components/wallet/EarningsChart";
-import PayoutDetailsCard, { maskUpi, maskAccountNumber } from "../../components/wallet/PayoutDetailsCard";
+import PayoutDetailsCard from "../../components/wallet/PayoutDetailsCard";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -39,6 +39,7 @@ import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatItemsLabel, formatTotalWeight } from "../../utils/pickupItems";
+import { maskUpi, maskAccountNumber } from "../../utils/payoutMask";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useGeolocation from "../../hooks/useGeolocation";

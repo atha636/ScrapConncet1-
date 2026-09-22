@@ -36,21 +36,21 @@ function token(user) {
 // Credits the collector with `amount` by completing a pickup, exactly the
 // way the real earning flow does it — not a shortcut Transaction.create,
 // so these tests exercise the same path a real payout balance depends on.
-async function creditEarning(amount) {
+async function creditEarning(amount, forCollector = collector) {
   const pickup = await Pickup.create({
     user: requester._id,
-    collector: collector._id,
+    collector: forCollector._id,
     scrapType: "metal",
     estimatedWeightKg: 5,
     location: { lat: 30.7, lng: 76.7, address: "Test" },
     price: amount,
     status: "in_progress",
-    statusHistory: [{ status: "in_progress", changedBy: collector._id }],
+    statusHistory: [{ status: "in_progress", changedBy: forCollector._id }],
   });
 
   await request(app)
     .patch(`/api/pickup/${pickup._id}/status`)
-    .set("Authorization", `Bearer ${token(collector)}`)
+    .set("Authorization", `Bearer ${token(forCollector)}`)
     .field("status", "completed")
     .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 }
@@ -61,6 +61,11 @@ beforeEach(async () => {
     email: "collector@example.com",
     password: "Password123",
     role: "collector",
+    // Payout requests now require this on file (see walletController.js
+    // requestPayout) — without it every request in this suite would 400
+    // before ever reaching the balance/status logic these tests exist to
+    // check.
+    payoutDetails: { method: "upi", upiId: "collector@okhdfc" },
   });
   admin = await User.create({
     name: "Admin",
@@ -145,6 +150,24 @@ describe("POST /api/wallet/payout", () => {
       .send({ amount: 500 });
 
     expect(res.status).toBe(403);
+  });
+
+  test("blocks a payout request when no payout details are on file", async () => {
+    const noDetailsCollector = await User.create({
+      name: "No Details Collector",
+      email: "nodetails@example.com",
+      password: "Password123",
+      role: "collector",
+    });
+    await creditEarning(1000, noDetailsCollector);
+
+    const res = await request(app)
+      .post("/api/wallet/payout")
+      .set("Authorization", `Bearer ${token(noDetailsCollector)}`)
+      .send({ amount: 500 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/UPI ID or bank details/i);
   });
 });
 
