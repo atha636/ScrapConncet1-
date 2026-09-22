@@ -16,7 +16,7 @@ afterAll(async () => {
 });
 
 function fakeIo() {
-  return { emit: jest.fn() };
+  return { emit: jest.fn(), to: jest.fn(() => ({ emit: jest.fn() })) };
 }
 
 // Backdates the *most recent* "accepted" statusHistory entry — not
