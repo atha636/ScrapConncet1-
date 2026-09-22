@@ -35,6 +35,14 @@ const userSchema = new mongoose.Schema(
     // Collector-specific fields
     collectorSuspended: { type: Boolean, default: false },
     collectorSuspendedAt: { type: Date, default: null },
+    // Confirmed no-shows against this collector — incremented by
+    // pickupController.reportNoShow. Reaches NO_SHOW_SUSPENSION_THRESHOLD
+    // (utils/reliabilityRules.js) and this feeds into the exact same
+    // collectorSuspended flag a low rating does, so admin's existing
+    // reinstateCollector flow (adminController.js) already handles
+    // clearing a no-show-triggered suspension too — no parallel
+    // suspend/unsuspend path needed for this.
+    noShowCount: { type: Number, default: 0 },
 
     // Manual on/off switch, independent of the weekly schedule below — a
     // collector can be paused (going on leave, sick day) regardless of

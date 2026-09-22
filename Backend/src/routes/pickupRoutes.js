@@ -3,6 +3,7 @@ const rateLimit = require("express-rate-limit");
 const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 const upload = require("../middleware/upload");
+const uploadMemory = require("../middleware/uploadMemory");
 const validate = require("../middleware/validate");
 const {
   createPickupSchema,
@@ -11,6 +12,7 @@ const {
   updateAvailabilitySchema,
   proposeOfferSchema,
   respondOfferSchema,
+  reportNoShowSchema,
 } = require("../validators/pickupValidator");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
@@ -18,6 +20,7 @@ const { createRecurringSchema } = require("../validators/recurringPickupValidato
 
 const {
   createPickup,
+  estimateFromPhoto,
   getMyRequests,
   getAvailable,
   getCollectorJobs,
@@ -29,6 +32,7 @@ const {
   getPickupById,
   proposeOffer,
   respondToOffer,
+  reportNoShow,
 } = require("../controllers/pickupController");
 const { createDispute } = require("../controllers/disputeController");
 const {
@@ -46,6 +50,30 @@ const {
   deleteRecurring,
 } = require("../controllers/recurringPickupController");
 
+// A real API call per hit (see utils/scrapEstimator.js), unlike almost
+// everything else in this file — its own, much tighter limiter than the
+// app-wide apiLimiter (see app.js), scoped per logged-in user rather than
+// per IP like the public-route limiters elsewhere in this file, since the
+// concern here is cost per account, not anonymous scripted abuse.
+const photoEstimateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: { success: false, message: "Too many photo estimates — try again in a few minutes." },
+});
+
+router.post(
+  "/estimate-from-photo",
+  auth,
+  role("user"),
+  photoEstimateLimiter,
+  uploadMemory.single("image"),
+  estimateFromPhoto
+);
+
 router.post(
   "/request",
   auth,
@@ -57,6 +85,7 @@ router.post(
 
 router.get("/my-requests", auth, role("user"), getMyRequests);
 router.patch("/:id/cancel", auth, role("user"), cancelByRequester);
+router.post("/:id/report-no-show", auth, role("user"), validate(reportNoShowSchema), reportNoShow);
 
 // "Repeat this pickup" — a requester-only template that a cron job (see
 // jobs/spawnRecurringPickups.js) turns into a real Pickup on schedule.

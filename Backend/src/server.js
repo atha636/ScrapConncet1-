@@ -9,6 +9,7 @@ const createApp = require("./app");
 const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
+const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
 const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
@@ -45,6 +46,14 @@ setupSocket(io);
 // collector feed instead of silently going stale.
 cron.schedule("*/5 * * * *", () => {
   escalateStalePickups(io).catch((err) => console.error("Escalation job failed:", err));
+});
+
+// Same cadence as the job above, but the opposite end of a pickup's
+// life — that one flags a pickup nobody has accepted yet; this one flags
+// one a collector accepted but never started, so the requester can
+// report a no-show (see pickupController.reportNoShow).
+cron.schedule("*/5 * * * *", () => {
+  escalateStalledPickups(io).catch((err) => console.error("Stalled-pickup escalation job failed:", err));
 });
 
 // Every hour — weekly/biweekly/monthly schedules only need date-level

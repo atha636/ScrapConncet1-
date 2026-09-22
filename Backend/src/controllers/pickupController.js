@@ -4,11 +4,13 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimateItemsPrice } = require("../utils/pricing");
+const { estimateScrapFromImage } = require("../utils/scrapEstimator");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
 const { activateReferralIfEligible } = require("../utils/referralActivation");
 const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
+const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 
 // Upper bound on stops fed into the optimizer. 2-opt compares every pair
 // of stops on every pass, so cost grows quadratically — fine for the
@@ -29,6 +31,26 @@ const paginate = (query) => {
   const limit = Math.min(50, Math.max(1, parseInt(query.limit) || 10));
   return { page, limit, skip: (page - 1) * limit };
 };
+
+// POST /api/pickup/estimate-from-photo  (user only)
+//
+// Best-effort suggestion, never a hard dependency — createPickup below
+// doesn't call this and works exactly the same with or without it. This
+// exists purely to pre-fill the item list so a requester isn't starting
+// from a blank "Metal, 0kg" row every time; they still review and submit
+// through the normal create-pickup flow afterward, editable at every
+// step (see the frontend's RequestPickup.jsx).
+exports.estimateFromPhoto = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, "Attach a photo to get an estimate");
+
+  const result = await estimateScrapFromImage({ buffer: req.file.buffer, mimeType: req.file.mimetype });
+
+  // Null means "couldn't estimate" (no API key configured, the call
+  // failed, an unparseable response) — not an error the requester needs
+  // to see, just nothing to pre-fill. 200 with an empty result rather
+  // than a 4xx/5xx, since nothing about their request was actually wrong.
+  res.json(result || { items: [], notes: "" });
+});
 
 // POST /api/pickup/request
 exports.createPickup = asyncHandler(async (req, res) => {
@@ -583,6 +605,90 @@ exports.cancelByRequester = asyncHandler(async (req, res) => {
   }
 
   res.json(pickup);
+});
+
+// POST /api/pickup/:id/report-no-show  (requester only)
+//
+// Reopens a pickup whose collector accepted it but never made any
+// progress — reusable path back into the Available pool for a different
+// collector, rather than forcing the requester through cancelByRequester
+// above (which ends the request entirely) just because the first match
+// didn't work out. Only callable once isStalled is already true (set by
+// jobs/escalateStalledPickups.js after STALLED_PICKUP_MINUTES with no
+// status change), so this can't be used to bump a collector who only
+// just accepted.
+exports.reportNoShow = asyncHandler(async (req, res) => {
+  const { note } = req.body;
+
+  // { new: false } deliberately — the return value here is the
+  // PRE-update document, which is what this needs: the collector who
+  // gets the no-show recorded against them is whoever the filter just
+  // matched on, and $set below is about to null that field out. The
+  // filter itself is still what makes this atomic and idempotent (scoped
+  // by ownership + isStalled, same as acceptPickup/cancelByRequester
+  // elsewhere in this file) — a double-tap can't match twice and can't
+  // record two no-shows for one stall.
+  const staleCollectorPickup = await Pickup.findOneAndUpdate(
+    { _id: req.params.id, user: req.user.id, status: "accepted", isStalled: true },
+    {
+      $set: {
+        status: "pending",
+        collector: null,
+        isStalled: false,
+        stalledAt: null,
+        negotiation: { status: "none", collector: null, offers: [] },
+      },
+      $push: { statusHistory: { status: "pending", changedBy: req.user.id } },
+    },
+    { new: false }
+  );
+
+  if (!staleCollectorPickup) {
+    const existing = await Pickup.findById(req.params.id);
+    if (!existing) throw new ApiError(404, "Pickup not found");
+    if (String(existing.user) !== String(req.user.id)) {
+      throw new ApiError(403, "This isn't your pickup request");
+    }
+    if (existing.status !== "accepted") {
+      throw new ApiError(400, "This pickup isn't currently with a collector");
+    }
+    throw new ApiError(400, "This collector hasn't stalled long enough to report yet");
+  }
+
+  const noShowCollectorId = staleCollectorPickup.collector;
+
+  const updatedCollector = await User.findByIdAndUpdate(
+    noShowCollectorId,
+    { $inc: { noShowCount: 1 } },
+    { new: true }
+  );
+
+  // Same gate ratingController.js uses for the rating-based version of
+  // this — never re-suspend (and re-stamp collectorSuspendedAt) someone
+  // who's already suspended, whether that suspension came from a rating
+  // or an earlier no-show.
+  if (!updatedCollector.collectorSuspended && updatedCollector.noShowCount >= NO_SHOW_SUSPENSION_THRESHOLD) {
+    updatedCollector.collectorSuspended = true;
+    updatedCollector.collectorSuspendedAt = new Date();
+    await updatedCollector.save();
+  }
+
+  const reopened = await Pickup.findById(req.params.id);
+  req.io.emit("updatePickup", reopened);
+  // Reopened pickups need to reach every collector's Available feed the
+  // same way a brand-new one does — reuses the exact event createPickup
+  // emits, not just updatePickup, since a collector who never had this
+  // pickup in view (it was never theirs) needs it to appear, not merely
+  // refresh in place.
+  req.io.emit("newPickup", reopened);
+
+  await notifyUser(req.io, noShowCollectorId, {
+    type: "status_update",
+    text: `You were reported as a no-show for the ${reopened.scrapType} pickup${note ? `: "${note}"` : ""} — it's been reopened for another collector`,
+    pickupId: reopened._id,
+  });
+
+  res.json(reopened);
 });
 
 // Reverse lookup for updateStatus below: which current status(es) a pickup

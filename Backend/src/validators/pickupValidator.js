@@ -127,6 +127,15 @@ const respondOfferSchema = z
     path: ["amount"],
   });
 
+// POST /api/pickup/:id/report-no-show — note is optional context for the
+// admin reviewing this collector's suspension, not required for the
+// report to go through, since by the time this is even callable
+// (pickup.isStalled must already be true — see the controller) the stall
+// itself is the evidence.
+const reportNoShowSchema = z.object({
+  note: z.string().trim().max(500).optional(),
+});
+
 module.exports = {
   createPickupSchema,
   MAX_ITEMS_PER_PICKUP,
@@ -137,4 +146,5 @@ module.exports = {
   proposeOfferSchema,
   respondOfferSchema,
   MAX_OFFER_AMOUNT,
+  reportNoShowSchema,
 };

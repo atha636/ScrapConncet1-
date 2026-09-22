@@ -91,6 +91,18 @@ const pickupSchema = new mongoose.Schema(
     isUrgent: { type: Boolean, default: false },
     urgentAt: { type: Date, default: null },
 
+    // Set by the escalateStalledPickups cron job (see src/jobs) when a
+    // pickup has sat "accepted" too long with no progress — the collector
+    // took the job but never moved it to "in_progress". Distinct from
+    // isUrgent above, which is about a pickup nobody has accepted at all;
+    // this is about one that HAS a collector who's gone quiet. Gates
+    // whether the requester can call reportNoShow (pickupController.js) —
+    // the button only appears, and the endpoint only accepts the report,
+    // once this is true, so a collector who accepted five minutes ago
+    // can't be reported on impulse.
+    isStalled: { type: Boolean, default: false },
+    stalledAt: { type: Date, default: null },
+
     // Price negotiation — lets a collector counter the system-estimated
     // price on a still-"pending" pickup instead of only ever accepting it
     // as-is, and lets the requester counter back. Deliberately its own
