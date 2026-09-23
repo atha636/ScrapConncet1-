@@ -16,18 +16,24 @@ import { formatPrice } from "../../utils/formatPrice";
  * just a smarter way of arriving at a selection.
  */
 export default function SuggestedBatchPanel({ coords, onSelect, selectedIds }) {
-  const [state, setState] = useState({ status: "idle", data: null });
+  // Keyed by the exact coords a result belongs to, rather than a separate
+  // "loading" flag set synchronously at the top of the effect — setting
+  // state synchronously inside an effect body (before any async work has
+  // actually happened) triggers an avoidable extra render, which is what
+  // react-hooks/set-state-in-effect flags. Deriving "is this stale" from
+  // whether `coords` still matches `result.coords` gets the same loading
+  // UI without ever calling setState outside the async callbacks below.
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
     if (!coords) return;
     let cancelled = false;
-    setState({ status: "loading", data: null });
     getSuggestedBatch(coords.lat, coords.lng)
       .then((res) => {
-        if (!cancelled) setState({ status: "ready", data: res.data });
+        if (!cancelled) setResult({ coords, status: "ready", data: res.data });
       })
       .catch(() => {
-        if (!cancelled) setState({ status: "error", data: null });
+        if (!cancelled) setResult({ coords, status: "error", data: null });
       });
     return () => {
       cancelled = true;
@@ -37,12 +43,14 @@ export default function SuggestedBatchPanel({ coords, onSelect, selectedIds }) {
   // Same reasoning as RoutePlanner — no position, nothing to cluster
   // from, and the backend 400s without coordinates anyway.
   if (!coords) return null;
-  if (state.status === "idle" || state.status === "loading") {
+
+  const isStale = !result || result.coords !== coords;
+  if (isStale || result.status === "loading") {
     return <div className="h-24 rounded-ticket bg-line/30 animate-pulse mb-4" />;
   }
-  if (state.status === "error") return null;
+  if (result.status === "error") return null;
 
-  const { stops, ids, totalKm, candidatesInRadius } = state.data;
+  const { stops, ids, totalKm, candidatesInRadius } = result.data;
 
   // Nothing pending nearby at all — distinct from "plenty nearby, too
   // spread out," which still deserves an explanation rather than silence.
