@@ -5,6 +5,7 @@ import { formatDistance } from "../../utils/distance";
 import { getPickupItems, formatTotalWeight, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
 import MapThumbnail from "../map/MapThumbnail";
 import OfferPanel from "./OfferPanel";
+import DisputeStatusPanel from "./DisputeStatusPanel";
 import useLocationSharing from "../../hooks/useLocationSharing";
 
 const rowStagger = {
@@ -239,6 +240,8 @@ export default function PickupDetailModal({
                   />
                 </div>
               )}
+
+              {pickup.status !== "pending" && <DisputeStatusPanel pickupId={pickup._id} />}
             </div>
 
             <div className="px-5 py-4 border-t border-line bg-surfaceRaised shrink-0 flex justify-end gap-3">

@@ -35,7 +35,7 @@ const {
   respondToOffer,
   reportNoShow,
 } = require("../controllers/pickupController");
-const { createDispute } = require("../controllers/disputeController");
+const { createDispute, getPickupDisputes } = require("../controllers/disputeController");
 const {
   getLeaderboard,
   getCollectorProfile,
@@ -225,6 +225,10 @@ router.post(
   validate(createDisputeSchema),
   createDispute
 );
+
+// Read side of the same feature — either party can check what's
+// happened to a report they filed or were named in, not just file one.
+router.get("/:id/disputes", auth, role("user", "collector"), getPickupDisputes);
 
 // Deliberately declared LAST among this file's GET routes — Express
 // matches routes in declaration order, not by specificity, so a bare

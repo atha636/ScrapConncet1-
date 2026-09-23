@@ -55,6 +55,37 @@ exports.createDispute = asyncHandler(async (req, res) => {
   res.status(201).json(dispute);
 });
 
+// GET /api/pickup/:id/disputes  (requester or the assigned collector)
+//
+// Neither party to a pickup has ever had a way to check what happened
+// after filing a report — createDispute above returns the freshly-created
+// document once, and after that it only ever surfaces again in the admin
+// queue. This is the read side that was missing: the same "reviewing →
+// resolved/dismissed" status a report actually moves through, visible to
+// the two people who filed it or it was filed against, not just admin.
+exports.getPickupDisputes = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+
+  const isRequester = String(pickup.user) === String(req.user.id);
+  const isCollector = pickup.collector && String(pickup.collector) === String(req.user.id);
+  if (!isRequester && !isCollector) {
+    throw new ApiError(403, "You weren't a party to this pickup");
+  }
+
+  // Every dispute on this pickup necessarily has one of its two parties
+  // as reportedBy and the other as reportedAgainst — the membership check
+  // above already establishes the requester is one of those two, so no
+  // further filtering is needed to keep this scoped to disputes they're
+  // actually entitled to see.
+  const disputes = await Dispute.find({ pickup: pickup._id })
+    .sort({ createdAt: -1 })
+    .populate("reportedBy", "name role")
+    .populate("resolvedBy", "name");
+
+  res.json(disputes);
+});
+
 // GET /api/admin/disputes
 exports.getDisputes = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);

@@ -90,6 +90,11 @@ export const DISPUTE_REASONS = [
 
 export const createDispute = (pickupId, data) => API.post(`/pickup/${pickupId}/dispute`, data);
 
+// Read side — either party checks what's happened to a report they filed
+// or were named in (open → resolved/dismissed, plus admin's resolution
+// notes once there are any), rather than never hearing back after filing.
+export const getPickupDisputes = (pickupId) => API.get(`/pickup/${pickupId}/disputes`);
+
 export const RECURRING_FREQUENCIES = ["weekly", "biweekly", "monthly"];
 
 export const createRecurring = (data) => API.post("/pickup/recurring", data);
