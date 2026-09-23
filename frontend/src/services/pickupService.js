@@ -142,6 +142,13 @@ export const getCollectorRoute = (lat, lng) =>
 export const getSuggestedBatch = (lat, lng, radiusKm) =>
   API.get(`/pickup/collector/suggested-batch`, { params: { lat, lng, radiusKm } });
 
+// Coarse grid of {lat, lng, count} cells showing where pending demand is
+// clustering nearby — never individual pickup coordinates, see the
+// backend controller's own comment on why binning is also the privacy
+// layer here.
+export const getDemandHeatmap = (lat, lng, radiusKm) =>
+  API.get(`/pickup/collector/demand-heatmap`, { params: { lat, lng, radiusKm } });
+
 // The requester-side mirror of getMyAchievements — self-only, no id param.
 // Used by Profile.jsx's "My Reputation" card, shown to requesters only.
 export const getMyReputation = () => API.get(`/pickup/requester/me/reputation`);

@@ -301,6 +301,84 @@ exports.getSuggestedBatch = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+// Side length of each heatmap cell — coarse enough that a cell never
+// reads as "this one specific house," fine enough to still show real
+// shape (which street, which block) rather than one blob over an entire
+// neighbourhood. Binning also does double duty as the privacy layer here:
+// the response only ever carries a cell center and a count, never an
+// individual pickup's actual coordinates.
+const HEATMAP_CELL_KM = 0.5;
+const KM_PER_LAT_DEGREE = 110.574;
+
+// GET /api/pickup/collector/demand-heatmap?lat=&lng=&radiusKm=  (collector only)
+//
+// getAvailable and getSuggestedBatch both answer "what can I do right
+// now" — this answers a different question a collector can't get from
+// either: "where should I even be." Bins pending pickups near the given
+// point into a coarse grid and returns each cell's center and count, so
+// a collector positioning themselves for the day can see where demand is
+// clustering before anything is even accept-able yet.
+exports.getDemandHeatmap = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new ApiError(400, "Your current location is required to show demand nearby");
+  }
+
+  const radiusKm = Math.min(50, Math.max(1, parseFloat(req.query.radiusKm) || 15));
+
+  touchCollectorLocation(req.user.id, lat, lng);
+
+  const activeRequesterIds = await User.find({ isActive: true }).distinct("_id");
+
+  const pending = await Pickup.aggregate([
+    {
+      $geoNear: {
+        near: { type: "Point", coordinates: [lng, lat] },
+        distanceField: "distanceMeters",
+        maxDistance: radiusKm * 1000,
+        query: { status: "pending", user: { $in: activeRequesterIds } },
+        spherical: true,
+      },
+    },
+    // No per-request detail is needed past this point — just enough to
+    // bin — so there's no $lookup/populate here the way getAvailable and
+    // findSuggestedBatch both need for their own, per-pickup-detail
+    // purposes.
+    { $project: { "location.lat": 1, "location.lng": 1 } },
+    { $limit: 500 },
+  ]);
+
+  // Longitude degrees-per-km shrinks toward the poles (meridians converge),
+  // so it has to be computed from this specific latitude rather than
+  // reused as a constant the way KM_PER_LAT_DEGREE is — treating it as
+  // fixed would silently distort cell width the further a collector is
+  // from the equator.
+  const latStep = HEATMAP_CELL_KM / KM_PER_LAT_DEGREE;
+  const lngStep = HEATMAP_CELL_KM / (KM_PER_LAT_DEGREE * Math.cos((lat * Math.PI) / 180) || 1);
+
+  const cells = new Map();
+  for (const p of pending) {
+    const cellX = Math.floor(p.location.lng / lngStep);
+    const cellY = Math.floor(p.location.lat / latStep);
+    const key = `${cellX}_${cellY}`;
+    const existing = cells.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      cells.set(key, {
+        lat: Number(((cellY + 0.5) * latStep).toFixed(5)),
+        lng: Number(((cellX + 0.5) * lngStep).toFixed(5)),
+        count: 1,
+      });
+    }
+  }
+
+  const points = [...cells.values()].sort((a, b) => b.count - a.count);
+
+  res.json({ points, radiusKm, cellKm: HEATMAP_CELL_KM, totalPending: pending.length });
+});
+
 // PATCH /api/pickup/:id/accept  (collector only)
 exports.acceptPickup = asyncHandler(async (req, res) => {
   const collectorUser = await User.findById(req.user.id);

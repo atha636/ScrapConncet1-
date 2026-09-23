@@ -35,6 +35,7 @@ import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
 import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel";
+import DemandHeatmapModal from "../../components/collector/DemandHeatmapModal";
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
@@ -148,6 +149,7 @@ export default function CollectorDashboard() {
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [payoutError, setPayoutError] = useState("");
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   // Ask for location as soon as the dashboard loads — collectors are the
   // side of the marketplace this actually matters for, and the UI already
@@ -684,6 +686,20 @@ export default function CollectorDashboard() {
           </div>
         )}
 
+        {tab === "available" && myCoords && (
+          <button
+            type="button"
+            onClick={() => setShowHeatmap(true)}
+            className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-inkSoft hover:text-rust"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2C8 2 5 5.5 5 9.5 5 14 12 22 12 22s7-8 7-12.5C19 5.5 16 2 12 2z" />
+              <circle cx="12" cy="9.5" r="2.5" />
+            </svg>
+            Where's the demand?
+          </button>
+        )}
+
         {tab === "available" && (
           <SuggestedBatchPanel
             coords={myCoords}
@@ -691,6 +707,8 @@ export default function CollectorDashboard() {
             onSelect={(ids) => setSelectedIds(new Set(ids))}
           />
         )}
+
+        <DemandHeatmapModal open={showHeatmap} onClose={() => setShowHeatmap(false)} coords={myCoords} />
 
         {tab === "available" && selectedIds.size > 0 && (
           <motion.div

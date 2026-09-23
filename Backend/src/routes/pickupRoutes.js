@@ -26,6 +26,7 @@ const {
   getCollectorJobs,
   getCollectorRoute,
   getSuggestedBatch,
+  getDemandHeatmap,
   acceptPickup,
   batchAcceptPickups,
   updateStatus,
@@ -110,6 +111,11 @@ router.get("/collector/route", auth, role("collector"), getCollectorRoute);
 // other /collector/* routes in this file: "suggested-batch" can't collide
 // with "/:id/..." regardless of declaration order.
 router.get("/collector/suggested-batch", auth, role("collector"), getSuggestedBatch);
+
+// Coarse, privacy-binned view of where pending demand is clustering near
+// the collector — see the controller's own comment for why this is a
+// different question from suggested-batch/available.
+router.get("/collector/demand-heatmap", auth, role("collector"), getDemandHeatmap);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
 
