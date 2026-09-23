@@ -19,6 +19,18 @@ vi.mock("../../services/pickupService", () => ({
   RECURRING_FREQUENCIES: ["weekly", "biweekly", "monthly"],
   createPickup: (...args) => mockCreatePickup(...args),
   createRecurring: (...args) => mockCreateRecurring(...args),
+  // Real implementation (not a stub) — same table as
+  // Backend/src/utils/pricing.js's BASE_RATE_PER_KG, so the live-estimate
+  // card renders a real, checkable number rather than undefined/NaN in
+  // every test that mounts the form, whether or not that test cares
+  // about pricing specifically.
+  estimateItemsPrice: (items) =>
+    items.reduce((total, item) => {
+      const rates = { metal: 50, plastic: 20, paper: 10, "e-waste": 80, glass: 8, other: 5 };
+      const rate = rates[item.scrapType] ?? rates.other;
+      const weight = Number(item.weight) > 0 ? Number(item.weight) : 1;
+      return total + Math.max(5, Math.round(rate * weight));
+    }, 0),
 }));
 
 const mockCompressImage = vi.fn();
