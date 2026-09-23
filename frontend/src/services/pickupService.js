@@ -9,6 +9,38 @@ export const SCRAP_TYPES = ["metal", "plastic", "paper", "e-waste", "glass", "ot
 // disabled state.
 export const MAX_ITEMS_PER_PICKUP = 8;
 
+// Mirrors Backend/src/utils/pricing.js's BASE_RATE_PER_KG and MIN_PRICE —
+// same reasoning as MAX_ITEMS_PER_PICKUP above: this only changes when
+// the backend pricing table does, and the whole point of a live estimate
+// is that it updates on every keystroke with no debounce or round trip.
+// The actual price charged always comes from the server's own
+// estimateItemsPrice at submit time (see createPickup) — this is a
+// preview, never the source of truth, so a rate changing server-side
+// between visits just means the next page load picks up the new numbers.
+export const BASE_RATE_PER_KG = {
+  metal: 50,
+  plastic: 20,
+  paper: 10,
+  "e-waste": 80,
+  glass: 8,
+  other: 5,
+};
+const MIN_ITEM_PRICE = 5;
+
+// Same per-item floor logic as estimateItemsPrice/estimatePrice on the
+// backend — one MIN_ITEM_PRICE floor per item, not one for the whole
+// load, so a small item tucked into an otherwise large mixed load still
+// prices fairly instead of rounding to nothing. `items` here is the
+// frontend's own shape ({ scrapType, weight }), not the backend's
+// ({ scrapType, estimatedWeightKg }).
+export function estimateItemsPrice(items) {
+  return items.reduce((total, item) => {
+    const rate = BASE_RATE_PER_KG[item.scrapType] ?? BASE_RATE_PER_KG.other;
+    const weight = Number(item.weight) > 0 ? Number(item.weight) : 1;
+    return total + Math.max(MIN_ITEM_PRICE, Math.round(rate * weight));
+  }, 0);
+}
+
 // FormData in, because image upload is multipart.
 export const createPickup = (formData) =>
   API.post("/pickup/request", formData, {

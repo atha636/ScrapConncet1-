@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP } from "../../services/pickupService";
+import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP, estimateItemsPrice } from "../../services/pickupService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { compressImage } from "../../utils/compressImage";
 import { SCRAP_TYPE_LABELS as TYPE_LABELS } from "../../utils/pickupItems";
+import { formatPrice } from "../../utils/formatPrice";
 import Card from "../../components/ui/Card";
 import ErrorBox from "../../components/common/ErrorBox";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -29,6 +30,14 @@ export default function RequestPickup() {
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 
   const [items, setItems] = useState([{ scrapType: "metal", weight: "" }]);
+
+  // Recomputed on every items/weight change, not debounced — it's a pure
+  // client-side table lookup (see estimateItemsPrice's own comment on why
+  // that's safe here), so there's no reason to make the requester wait to
+  // see it move as they type. This is always a preview: the price
+  // actually charged is whatever the server's own estimateItemsPrice
+  // computes at submit time in createPickup, from the same table.
+  const estimatedPrice = useMemo(() => estimateItemsPrice(items), [items]);
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
   const [repeat, setRepeat] = useState(false);
@@ -277,6 +286,22 @@ export default function RequestPickup() {
                   + Add another item
                 </button>
               )}
+
+              <motion.div
+                key={estimatedPrice}
+                initial={{ opacity: 0.4 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                className="mt-3 flex items-center justify-between rounded-ticket border-1.5 border-rust/25 bg-rust/[0.05] px-4 py-3"
+                style={{ borderWidth: "1.5px" }}
+              >
+                <span className="text-sm text-inkSoft">Estimated pickup value</span>
+                <span className="text-lg font-bold text-rust">{formatPrice(estimatedPrice)}</span>
+              </motion.div>
+              <p className="text-[11px] text-inkFaint mt-1.5">
+                A ballpark based on scrap type and weight — the collector confirms the exact
+                amount on pickup, especially for items left without a weight.
+              </p>
             </motion.div>
 
 
