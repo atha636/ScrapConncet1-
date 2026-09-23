@@ -62,6 +62,15 @@ const TYPE_STYLE = {
     fg: "text-amber-dark",
     icon: <span className="text-sm leading-none">💰</span>,
   },
+  // A background-job alert (jobs/notifyBatchableClusters.js) rather than
+  // anything triggered by another person's action, unlike every type
+  // above — its own icon so it reads as "the system noticed something
+  // for you" rather than a status change on a pickup you're already in.
+  batch_available: {
+    bg: "bg-rust/10",
+    fg: "text-rust",
+    icon: <span className="text-sm leading-none">🧭</span>,
+  },
 };
 
 const listStagger = {
@@ -117,6 +126,15 @@ export default function NotificationBell() {
 
     if (n.type === "badge_earned") {
       navigate("/collector", { state: { openTab: "wallet" } });
+      return;
+    }
+
+    // Lands straight on the Available tab, where SuggestedBatchPanel will
+    // fetch the same cluster this alert was about (or whatever's current
+    // by the time they open it — the cluster is live data, not a
+    // snapshot this notification carries with it).
+    if (n.type === "batch_available") {
+      navigate("/collector", { state: { openTab: "available" } });
       return;
     }
 
