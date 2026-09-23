@@ -11,6 +11,7 @@ const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
 const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
 const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
+const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -62,6 +63,17 @@ cron.schedule("*/5 * * * *", () => {
 // actually spawn.
 cron.schedule("0 * * * *", () => {
   spawnRecurringPickups(io).catch((err) => console.error("Recurring pickup job failed:", err));
+});
+
+// Every 10 minutes — checks recently-active, currently-available
+// collectors for a batchable cluster of pending pickups near their last
+// known position and pushes an alert if one has formed. Same cadence
+// reasoning as the escalation jobs above: frequent enough that a fresh
+// cluster reaches a collector while it's still worth driving for, not so
+// frequent that it re-scans collectors who haven't moved or whose area
+// hasn't changed.
+cron.schedule("*/10 * * * *", () => {
+  notifyBatchableClusters(io).catch((err) => console.error("Batch-alert job failed:", err));
 });
 
 const PORT = process.env.PORT || 5000;

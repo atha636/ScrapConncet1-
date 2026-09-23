@@ -115,6 +115,31 @@ const userSchema = new mongoose.Schema(
       radiusKm: { type: Number, min: 1, max: 100, default: undefined },
     },
 
+    // Best-effort last position we've seen this collector at, refreshed
+    // opportunistically whenever they hit a location-bearing endpoint
+    // (getAvailable, getCollectorRoute, getSuggestedBatch) — see
+    // utils/touchCollectorLocation.js. Not a live tracker: it's only ever
+    // as fresh as the last request that happened to include coordinates,
+    // which is exactly what the batch-alert job needs (see
+    // jobs/notifyBatchableClusters.js) and no more. Meaningless for role
+    // "user"/"admin", same reasoning as collectorPreferences above.
+    lastKnownLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date },
+    },
+
+    // What the last "pickups are bunched near you" push actually told this
+    // collector, so notifyBatchableClusters can tell "still the same
+    // cluster, don't repeat myself" apart from "a genuinely new/different
+    // cluster has formed, worth a fresh alert" — a time-only cooldown
+    // alone would either spam on a static cluster or go silent on a real
+    // new one that happens to form right after the cooldown starts.
+    lastBatchAlert: {
+      pickupIds: { type: [String], default: undefined },
+      notifiedAt: { type: Date },
+    },
+
     // Where a collector's approved payouts actually get sent — captured
     // once here as their standing default, then snapshotted onto each
     // PayoutRequest at the moment it's created (see PayoutRequest.js)

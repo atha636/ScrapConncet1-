@@ -8,7 +8,9 @@ const { estimateScrapFromImage } = require("../utils/scrapEstimator");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
 const { activateReferralIfEligible } = require("../utils/referralActivation");
-const { optimizeRoute, haversineKm, buildCluster } = require("../utils/routeOptimizer");
+const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
+const { findSuggestedBatch } = require("../utils/suggestedBatch");
+const { touchCollectorLocation } = require("../utils/touchCollectorLocation");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 
@@ -140,6 +142,8 @@ exports.getAvailable = asyncHandler(async (req, res) => {
 
   const radiusKm = Math.min(100, Math.max(1, parseFloat(req.query.radiusKm) || 25));
 
+  touchCollectorLocation(req.user.id, lat, lng);
+
   // $geoNear must be the first stage in the pipeline and requires the
   // 2dsphere index defined on Pickup.geo. It computes distanceField for us
   // in the same query — no separate pass to calculate distance in JS.
@@ -220,6 +224,8 @@ exports.getCollectorRoute = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Your current location is required to plan a route");
   }
 
+  const start = { lat, lng };
+  touchCollectorLocation(req.user.id, lat, lng);
   const jobs = await Pickup.find({
     collector: req.user.id,
     status: { $in: ["accepted", "in_progress"] },
@@ -227,7 +233,6 @@ exports.getCollectorRoute = asyncHandler(async (req, res) => {
     .limit(MAX_ROUTE_STOPS)
     .populate("user", "name phone");
 
-  const start = { lat, lng };
   const stops = jobs.map((job) => ({
     id: String(job._id),
     lat: job.location.lat,
@@ -265,12 +270,6 @@ exports.getCollectorRoute = asyncHandler(async (req, res) => {
   });
 });
 
-// Candidate pool size for suggested-batch clustering — deliberately wider
-// than MAX_ROUTE_STOPS since most of the pool never makes it into the
-// final cluster (buildCluster trims it down to maxStops), so this can
-// afford to look at more pending pickups than a real route ever needs.
-const MAX_BATCH_CANDIDATES = 60;
-
 // GET /api/pickup/collector/suggested-batch?lat=&lng=&radiusKm=  (collector only)
 //
 // The manual version of this is already on the Available tab — a
@@ -289,38 +288,6 @@ exports.getSuggestedBatch = asyncHandler(async (req, res) => {
   }
 
   const radiusKm = Math.min(100, Math.max(1, parseFloat(req.query.radiusKm) || 25));
-
-  // Same "don't surface a request tied to a deactivated account" guard as
-  // getAvailable above — this feeds off the same pending pool, so it needs
-  // the same second line of defense.
-  const activeRequesterIds = await User.find({ isActive: true }).distinct("_id");
-
-  const candidates = await Pickup.aggregate([
-    {
-      $geoNear: {
-        near: { type: "Point", coordinates: [lng, lat] },
-        distanceField: "distanceMeters",
-        maxDistance: radiusKm * 1000,
-        query: { status: "pending", user: { $in: activeRequesterIds } },
-        spherical: true,
-      },
-    },
-    { $limit: MAX_BATCH_CANDIDATES },
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "user",
-        pipeline: [{ $project: { name: 1, phone: 1 } }],
-      },
-    },
-    { $unwind: "$user" },
-  ]);
-
-  const start = { lat, lng };
-  const stops = candidates.map((c) => ({ id: String(c._id), lat: c.location.lat, lng: c.location.lng }));
-
   const maxStops = Math.min(20, Math.max(2, parseInt(req.query.maxStops, 10) || 6));
   // Loose enough to catch a real neighbourhood cluster, tight enough that
   // this never strings together stops that only look close on a 25km-wide
@@ -328,27 +295,10 @@ exports.getSuggestedBatch = asyncHandler(async (req, res) => {
   // what any single trip should actually span.
   const maxLegKm = Math.min(10, Math.max(0.5, parseFloat(req.query.maxLegKm) || 3));
 
-  const { ordered, totalKm } = buildCluster(start, stops, { maxStops, maxLegKm });
+  touchCollectorLocation(req.user.id, lat, lng);
 
-  const candidatesById = Object.fromEntries(candidates.map((c) => [String(c._id), c]));
-
-  const clusterStops = ordered.map((stop, index) => ({
-    order: index + 1,
-    pickup: candidatesById[stop.id],
-    legKm: Number(
-      (index === 0 ? haversineKm(start, stop) : haversineKm(ordered[index - 1], stop)).toFixed(2)
-    ),
-  }));
-
-  res.json({
-    stops: clusterStops,
-    ids: clusterStops.map((s) => String(s.pickup._id)),
-    totalKm: Number(totalKm.toFixed(2)),
-    // How many pending pickups were actually in range vs. how many made
-    // it into the cluster — lets the frontend tell "nothing nearby" apart
-    // from "plenty nearby, but too spread out to bundle."
-    candidatesInRadius: candidates.length,
-  });
+  const result = await findSuggestedBatch({ lat, lng }, { radiusKm, maxStops, maxLegKm });
+  res.json(result);
 });
 
 // PATCH /api/pickup/:id/accept  (collector only)
