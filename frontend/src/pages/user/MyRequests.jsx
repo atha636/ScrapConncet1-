@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer } from "../../services/pickupService";
+import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer, createPickup } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -17,6 +17,7 @@ import { downloadBlob } from "../../utils/downloadBlob";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import { getRatings } from "../../services/ratingService";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { hasUserRated } from "../../utils/ratings";
 import { getPickupItems, formatItemsLabel, formatTotalWeight } from "../../utils/pickupItems";
 
@@ -32,6 +33,7 @@ const listItem = {
 export default function MyRequests() {
   useDocumentMeta({ title: "My Requests", noindex: true });
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
@@ -42,6 +44,7 @@ export default function MyRequests() {
   const [ratePickup, setRatePickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
   const [cancellingId, setCancellingId] = useState(null);
+  const [repeatingId, setRepeatingId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [detailsPickup, setDetailsPickup] = useState(null);
   const [reportPickup, setReportPickup] = useState(null);
@@ -117,6 +120,55 @@ export default function MyRequests() {
       return false;
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  // One tap on a past pickup's exact same items, contact and location — no
+  // trip back through the request form. Only offered on a terminal pickup
+  // (completed or cancelled, see the render check below) since anything
+  // still pending/accepted/in_progress is already an active request; this
+  // is for "I need this again," not a way to duplicate a live one.
+  const handleRepeat = async (item) => {
+    const pickupItems = getPickupItems(item);
+    if (pickupItems.length === 0 || !item.location) {
+      showToast({
+        title: "Can't repeat this one",
+        message: "This request is missing items or a location to reuse.",
+        type: "error",
+      });
+      return;
+    }
+
+    setRepeatingId(item._id);
+    try {
+      const form = new FormData();
+      form.append(
+        "items",
+        JSON.stringify(
+          pickupItems.map((it) => ({ scrapType: it.scrapType, estimatedWeightKg: it.estimatedWeightKg || undefined }))
+        )
+      );
+      form.append("contactName", item.contactName || user?.name || "");
+      form.append("contactPhone", item.contactPhone || user?.phone || "");
+      form.append("lat", item.location.lat);
+      form.append("lng", item.location.lng);
+      if (item.location.address) form.append("address", item.location.address);
+      // Deliberately no image — the old photo belonged to the old pile,
+      // reusing it here would misrepresent what's actually out for this
+      // new pickup. The requester can attach a fresh one from the form if
+      // they want a photo on this repeat.
+
+      await createPickup(form);
+      showToast({ title: "Pickup requested", message: "Same items, same spot — it's back at the top of your list." });
+      load(1);
+    } catch (err) {
+      showToast({
+        title: "Couldn't repeat this pickup",
+        message: err.response?.data?.message || "Something went wrong — try again.",
+        type: "error",
+      });
+    } finally {
+      setRepeatingId(null);
     }
   };
 
@@ -257,6 +309,20 @@ export default function MyRequests() {
                         </svg>
                         Already rated
                       </span>
+                    )}
+
+                    {["completed", "cancelled"].includes(item.status) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRepeat(item); }}
+                        disabled={repeatingId === item._id}
+                        className="text-xs font-semibold text-inkSoft hover:text-rust hover:underline flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M23 4v6h-6M1 20v-6h6" />
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                        </svg>
+                        {repeatingId === item._id ? "Requesting…" : "Repeat this pickup"}
+                      </button>
                     )}
                   </div>
                 </Card>
