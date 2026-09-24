@@ -12,6 +12,7 @@ const { escalateStalePickups } = require("./jobs/escalateStalePickups");
 const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
 const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
 const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
+const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -74,6 +75,16 @@ cron.schedule("0 * * * *", () => {
 // hasn't changed.
 cron.schedule("*/10 * * * *", () => {
   notifyBatchableClusters(io).catch((err) => console.error("Batch-alert job failed:", err));
+});
+
+// Every 30 minutes — reverts a negotiation nobody has moved on in
+// STALE_NEGOTIATION_HOURS back to "declined" so the pickup isn't locked
+// away from every other collector by one abandoned back-and-forth. Same
+// cadence reasoning as the batch-alert job: frequent enough that a stale
+// negotiation clears out reasonably promptly, far below the cost of
+// scanning the (typically small) set of currently-negotiating pickups.
+cron.schedule("*/30 * * * *", () => {
+  expireStaleNegotiations(io).catch((err) => console.error("Negotiation-expiry job failed:", err));
 });
 
 const PORT = process.env.PORT || 5000;

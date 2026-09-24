@@ -22,10 +22,55 @@ export default function OfferPanel({ pickup, role, onPropose, onRespond, submitt
   const [note, setNote] = useState("");
   const [countering, setCountering] = useState(false);
 
-  if (!pickup || pickup.status !== "pending") return null;
+  if (!pickup) return null;
 
   const negotiation = pickup.negotiation || { status: "none", offers: [] };
   const offers = negotiation.offers || [];
+
+  // Once the pickup leaves "pending" — accepted the normal way, accepted
+  // via negotiation, or cancelled — there's no more live back-and-forth
+  // to act on, only a record of what happened (if anything did). This is
+  // exactly the gap that used to make the negotiated price look like it
+  // was just always the price: nothing on the pickup after acceptance
+  // ever showed the counters that got it there, which matters most
+  // exactly when a later wrong_weight_or_price dispute asks "what did we
+  // actually agree?" Silently returning null when there's nothing to
+  // show (the far more common case — most pickups never negotiate at
+  // all) keeps this from cluttering every plain accepted-at-list-price
+  // pickup with an empty "Price negotiation" box.
+  if (pickup.status !== "pending") {
+    if (offers.length === 0) return null;
+    return (
+      <div className="rounded-md border border-dashed border-line p-3.5 bg-surfaceRaised/60">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-inkFaint">
+            Price negotiation
+          </span>
+          <span className="text-[11px] font-semibold text-inkFaint">
+            {negotiation.status === "accepted" ? "Settled" : "Closed"}
+          </span>
+        </div>
+        <ul className="space-y-1.5">
+          {offers.map((offer, i) => (
+            <li key={i} className="flex items-center justify-between text-sm">
+              <span className="text-inkFaint capitalize">
+                {offer.offeredBy === role ? "You" : offer.offeredBy}
+                {offer.note ? ` — ${offer.note}` : ""}
+              </span>
+              <span className="font-mono font-semibold text-ink">{formatPrice(offer.amount)}</span>
+            </li>
+          ))}
+        </ul>
+        {negotiation.status === "accepted" && (
+          <p className="text-xs text-inkFaint mt-2 pt-2 border-t border-line">
+            Final price of <span className="font-mono font-semibold text-ink">{formatPrice(pickup.price)}</span> was
+            reached through this negotiation.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   const lastOffer = offers[offers.length - 1];
   const isMyTurn = negotiation.status === "pending" && lastOffer && lastOffer.offeredBy !== role;
 

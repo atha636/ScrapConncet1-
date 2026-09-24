@@ -228,18 +228,16 @@ export default function PickupDetailModal({
                 )}
               </motion.dl>
 
-              {pickup.status === "pending" && (
-                <div className="mt-4">
-                  <OfferPanel
-                    pickup={pickup}
-                    role="collector"
-                    onPropose={onProposeOffer}
-                    onRespond={onRespondOffer}
-                    submitting={offerSubmitting}
-                    error={offerError}
-                  />
-                </div>
-              )}
+              <div className="mt-4">
+                <OfferPanel
+                  pickup={pickup}
+                  role="collector"
+                  onPropose={onProposeOffer}
+                  onRespond={onRespondOffer}
+                  submitting={offerSubmitting}
+                  error={offerError}
+                />
+              </div>
 
               {pickup.status !== "pending" && <DisputeStatusPanel pickupId={pickup._id} />}
             </div>
