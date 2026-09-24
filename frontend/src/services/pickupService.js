@@ -90,6 +90,20 @@ export const DISPUTE_REASONS = [
 
 export const createDispute = (pickupId, data) => API.post(`/pickup/${pickupId}/dispute`, data);
 
+// Pick-your-collector — browse nearby available collectors for a still-
+// pending pickup, then invite one specific collector to negotiate rather
+// than leaving it to whoever accepts first. The invite itself is just a
+// negotiation opened from the requester's side, so it's resolved by the
+// invited collector through the same respondOffer flow every other
+// negotiation uses — no separate accept/decline endpoint for invites.
+export const getNearbyCollectors = (pickupId) => API.get(`/pickup/${pickupId}/nearby-collectors`);
+export const inviteCollector = (pickupId, data) => API.post(`/pickup/${pickupId}/invite`, data);
+
+// Negotiations (including invites) this collector currently has open —
+// see getMyInvites's own comment for why an invite otherwise has no home
+// in either getAvailable or getCollectorJobs.
+export const getMyInvites = () => API.get(`/pickup/collector/my-invites`);
+
 // Read side — either party checks what's happened to a report they filed
 // or were named in (open → resolved/dismissed, plus admin's resolution
 // notes once there are any), rather than never hearing back after filing.

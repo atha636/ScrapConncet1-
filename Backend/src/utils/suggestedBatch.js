@@ -30,7 +30,14 @@ async function findSuggestedBatch(start, { radiusKm = 25, maxStops = 6, maxLegKm
         near: { type: "Point", coordinates: [start.lng, start.lat] },
         distanceField: "distanceMeters",
         maxDistance: radiusKm * 1000,
-        query: { status: "pending", user: { $in: activeRequesterIds } },
+        // Same exclusion as getAvailable, and for the same reason: this
+        // feeds directly into batch-accept, which now also rejects a
+        // pickup with an active negotiation (see acceptPickup's comment).
+        query: {
+          status: "pending",
+          user: { $in: activeRequesterIds },
+          $or: [{ "negotiation.status": "none" }, { "negotiation.status": "declined" }],
+        },
         spherical: true,
       },
     },

@@ -10,6 +10,7 @@ import {
   getPickupById,
   proposeOffer,
   respondToOffer,
+  getMyInvites,
   SCRAP_TYPES,
 } from "../../services/pickupService";
 import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts, getPayoutDetails } from "../../services/walletService";
@@ -150,6 +151,27 @@ export default function CollectorDashboard() {
   const [payoutError, setPayoutError] = useState("");
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
   const [showHeatmap, setShowHeatmap] = useState(false);
+
+  // Negotiations (including invites) currently open for this collector —
+  // fetched separately from `available` because an invited-but-unaccepted
+  // pickup is deliberately excluded from getAvailable (any other
+  // collector seeing it there could plain-accept it out from under the
+  // invite) and isn't in `myJobs` either (pickup.collector is still null
+  // until actually accepted). Without this, an invite has no home on the
+  // dashboard at all except a notification the collector might miss —
+  // see getMyInvites's own backend comment.
+  const [invites, setInvites] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    getMyInvites()
+      .then((res) => {
+        if (!cancelled) setInvites(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Ask for location as soon as the dashboard loads — collectors are the
   // side of the marketplace this actually matters for, and the UI already
@@ -369,6 +391,20 @@ export default function CollectorDashboard() {
     setMyJobs((prev) => {
       const exists = prev.some((p) => p._id === updated._id);
       return exists ? prev.map((p) => (p._id === updated._id ? updated : p)) : prev;
+    });
+    // Mirrors the Available-list logic above for the invites list: an
+    // invite addressed to this collector stays/joins the list while it's
+    // still a live, pending-on-them negotiation, and drops out the moment
+    // it resolves (accepted, declined, or expired by
+    // expireStaleNegotiations) or gets reassigned to someone else.
+    const isMyOpenInvite =
+      updated.status === "pending" &&
+      updated.negotiation?.status === "pending" &&
+      String(updated.negotiation?.collector) === String(user?._id);
+    setInvites((prev) => {
+      const exists = prev.some((p) => p._id === updated._id);
+      if (!isMyOpenInvite) return exists ? prev.filter((p) => p._id !== updated._id) : prev;
+      return exists ? prev.map((p) => (p._id === updated._id ? updated : p)) : [updated, ...prev];
     });
     // Keep the open detail modal in sync too — otherwise a live counter-
     // offer from the requester wouldn't show up until the modal was
@@ -683,6 +719,37 @@ export default function CollectorDashboard() {
               </svg>
               Notify me for…
             </button>
+          </div>
+        )}
+
+        {tab === "available" && invites.length > 0 && (
+          <div className="mb-4 rounded-ticket border border-rust/30 bg-rust/[0.05] p-3.5">
+            <h3 className="text-xs font-semibold text-rust uppercase tracking-wide mb-2.5">
+              {invites.length === 1 ? "You've been invited" : `${invites.length} open invites`}
+            </h3>
+            <ul className="space-y-2">
+              {invites.map((inv) => {
+                const lastOffer = inv.negotiation?.offers?.[inv.negotiation.offers.length - 1];
+                return (
+                  <li key={inv._id}>
+                    <button
+                      onClick={() => setDetailsPickup(inv)}
+                      className="w-full flex items-center justify-between gap-3 rounded-md bg-surface hover:bg-surfaceRaised border border-line px-3 py-2 text-left"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink truncate">
+                          {inv.user?.name || "A requester"} · {inv.scrapType}
+                        </span>
+                        <span className="block text-xs text-inkFaint">Respond to view and accept</span>
+                      </span>
+                      <span className="shrink-0 font-mono font-semibold text-rust text-sm">
+                        {lastOffer ? formatPrice(lastOffer.amount) : formatPrice(inv.price)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 

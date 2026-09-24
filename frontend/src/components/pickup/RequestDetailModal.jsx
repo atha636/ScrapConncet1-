@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatTotalWeight, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
@@ -7,6 +8,7 @@ import LiveTrackingMap from "../map/LiveTrackingMap";
 import CollectorProfileCard from "../collector/CollectorProfileCard";
 import OfferPanel from "./OfferPanel";
 import DisputeStatusPanel from "./DisputeStatusPanel";
+import PickCollectorModal from "./PickCollectorModal";
 import useLiveLocation from "../../hooks/useLiveLocation";
 
 const rowStagger = {
@@ -33,6 +35,7 @@ export default function RequestDetailModal({
   offerError,
 }) {
   const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
+  const [showPickCollector, setShowPickCollector] = useState(false);
   const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
 
   // Null-safe (returns [] for a null pickup, e.g. while the modal is
@@ -214,8 +217,25 @@ export default function RequestDetailModal({
                 />
               </div>
 
+              {pickup.status === "pending" &&
+                (!pickup.negotiation || ["none", "declined"].includes(pickup.negotiation.status)) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPickCollector(true)}
+                    className="mt-2.5 text-sm font-semibold text-rust hover:underline"
+                  >
+                    Choose a specific collector →
+                  </button>
+                )}
+
               {pickup.collector && <DisputeStatusPanel pickupId={pickup._id} />}
             </div>
+
+            <PickCollectorModal
+              open={showPickCollector}
+              onClose={() => setShowPickCollector(false)}
+              pickup={pickup}
+            />
 
             <div className="px-5 py-4 border-t border-line bg-surfaceRaised shrink-0 flex flex-wrap justify-end gap-2.5">
               <motion.button whileTap={{ scale: 0.96 }} onClick={onClose} className="btn-secondary !py-2 !px-4 text-sm">

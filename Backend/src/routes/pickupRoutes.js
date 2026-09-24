@@ -12,6 +12,7 @@ const {
   updateAvailabilitySchema,
   proposeOfferSchema,
   respondOfferSchema,
+  inviteCollectorSchema,
   reportNoShowSchema,
 } = require("../validators/pickupValidator");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
@@ -34,6 +35,9 @@ const {
   getPickupById,
   proposeOffer,
   respondToOffer,
+  getNearbyCollectors,
+  inviteCollector,
+  getMyInvites,
   reportNoShow,
 } = require("../controllers/pickupController");
 const { createDispute, getPickupDisputes } = require("../controllers/disputeController");
@@ -193,6 +197,23 @@ router.patch("/collector/batch-accept", auth, role("collector"), validate(batchA
 // "offer" never collides with "/:id/accept" or "/:id/status".
 router.post("/:id/offer", auth, role("collector"), validate(proposeOfferSchema), proposeOffer);
 router.patch("/:id/offer", auth, role("user", "collector"), validate(respondOfferSchema), respondToOffer);
+
+// Pick-your-collector — the requester-initiated counterpart to the
+// collector-initiated negotiation above. getNearbyCollectors is read-only
+// browsing (own pickup only, enforced in the controller); inviteCollector
+// opens a negotiation the same way proposeOffer does, just from the other
+// side — the invited collector then resolves it through the exact same
+// respondToOffer/OfferPanel flow with no separate acceptance path of its
+// own. Same literal-segment reasoning as "offer" above: neither
+// "nearby-collectors" nor "invite" can collide with any other /:id/*
+// route in this file.
+router.get("/:id/nearby-collectors", auth, role("user"), getNearbyCollectors);
+router.post("/:id/invite", auth, role("user"), validate(inviteCollectorSchema), inviteCollector);
+
+// Always-checkable list of negotiations (including invites) this
+// collector is currently part of — see the controller's own comment for
+// why this can't just be folded into getAvailable or getCollectorJobs.
+router.get("/collector/my-invites", auth, role("collector"), getMyInvites);
 
 // Self-only — a collector's own working-hours/pause settings, checked by
 // acceptPickup and batchAcceptPickups above (see

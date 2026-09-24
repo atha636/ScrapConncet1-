@@ -86,7 +86,16 @@ exports.getPickupById = asyncHandler(async (req, res) => {
 
   const isRequester = String(pickup.user._id) === String(req.user.id);
   const isCollector = pickup.collector && String(pickup.collector._id) === String(req.user.id);
-  if (!isRequester && !isCollector) {
+  // A collector who's been invited (or has proposed their own offer) is
+  // negotiation.collector from the moment that happens — well before
+  // pickup.collector is ever set (that only flips once the negotiation is
+  // actually accepted). Without this, an invited collector clicking the
+  // "you've been invited" notification 403s here: pickup.collector is
+  // still null, so isCollector above alone reads them as having no access
+  // to the very pickup they were just invited to.
+  const isNegotiatingCollector =
+    pickup.negotiation?.collector && String(pickup.negotiation.collector) === String(req.user.id);
+  if (!isRequester && !isCollector && !isNegotiatingCollector) {
     throw new ApiError(403, "You don't have access to this pickup");
   }
 
@@ -153,7 +162,16 @@ exports.getAvailable = asyncHandler(async (req, res) => {
         near: { type: "Point", coordinates: [lng, lat] },
         distanceField: "distanceMeters",
         maxDistance: radiusKm * 1000,
-        query: { status: "pending", user: { $in: activeRequesterIds } },
+        // Excludes a pickup with an active negotiation — since acceptPickup
+        // now rejects those too (see its own comment), showing one here as
+        // a plain tap-to-accept job would just be a guaranteed 409. It's
+        // still visible to the negotiating collector and the requester via
+        // the negotiation UI itself, just not in this generic browse list.
+        query: {
+          status: "pending",
+          user: { $in: activeRequesterIds },
+          $or: [{ "negotiation.status": "none" }, { "negotiation.status": "declined" }],
+        },
         spherical: true,
       },
     },
@@ -401,8 +419,20 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   // and then both save; only one findOneAndUpdate can match and flip the
   // status in a single atomic op, so the loser reliably gets null back
   // instead of silently overwriting the winner's collector assignment.
+  //
+  // Also excludes a pickup with an active negotiation ("negotiation.status"
+  // not "none"/"declined") — without this, a different collector could
+  // plain-accept a pickup at the listed price while it's mid-negotiation
+  // (or invited to a specific collector via inviteCollector below),
+  // undercutting whoever's actually in that back-and-forth. The negotiating
+  // party still resolves things through OfferPanel/respondToOffer, which
+  // does its own atomic accept — this only blocks the *other* path.
   const pickup = await Pickup.findOneAndUpdate(
-    { _id: req.params.id, status: "pending" },
+    {
+      _id: req.params.id,
+      status: "pending",
+      $or: [{ "negotiation.status": "none" }, { "negotiation.status": "declined" }],
+    },
     {
       $set: { collector: req.user.id, status: "accepted" },
       $push: { statusHistory: { status: "accepted", changedBy: req.user.id } },
@@ -411,8 +441,10 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   );
 
   if (!pickup) {
-    const exists = await Pickup.exists({ _id: req.params.id });
-    throw new ApiError(exists ? 409 : 404, exists ? "Pickup is no longer available" : "Pickup not found");
+    const exists = await Pickup.findById(req.params.id).select("status negotiation.status");
+    if (!exists) throw new ApiError(404, "Pickup not found");
+    if (exists.status !== "pending") throw new ApiError(409, "Pickup is no longer available");
+    throw new ApiError(409, "This pickup has an active offer in progress — it can't be accepted directly right now");
   }
 
   await pickup.populate("collector", "name");
@@ -435,6 +467,138 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
   );
 
   res.json(pickup);
+});
+
+// How stale a collector's last-known position (see touchCollectorLocation)
+// can be before they're not shown as a nearby option — a collector who
+// hasn't touched the app in this window may well not be near that spot
+// anymore, and inviting them would just be a dead end for the requester.
+const NEARBY_COLLECTOR_FRESHNESS_MINUTES = 30;
+const NEARBY_COLLECTOR_RADIUS_KM = 25;
+const NEARBY_COLLECTOR_LIMIT = 5;
+
+// GET /api/pickup/:id/nearby-collectors  (requester, own pickup only)
+//
+// The read side of "pick your collector": browsing available collectors
+// near a specific pending pickup instead of just waiting for whoever
+// accepts first. Reuses the same lastKnownLocation touchCollectorLocation
+// already maintains for the batch-alert job — no new tracking added
+// purely for this.
+exports.getNearbyCollectors = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+  if (String(pickup.user) !== String(req.user.id)) {
+    throw new ApiError(403, "This isn't your pickup");
+  }
+  if (pickup.status !== "pending") {
+    throw new ApiError(400, "This pickup already has a collector");
+  }
+
+  const freshSince = new Date(Date.now() - NEARBY_COLLECTOR_FRESHNESS_MINUTES * 60 * 1000);
+
+  const candidates = await User.find({
+    role: "collector",
+    collectorSuspended: false,
+    isActive: true,
+    "lastKnownLocation.updatedAt": { $gte: freshSince },
+  }).select("name rating ratingCount lastKnownLocation collectorPaused availabilitySchedule");
+
+  const nearby = candidates
+    .filter((c) => isCollectorAvailableNow(c))
+    .map((c) => ({
+      collectorId: c._id,
+      name: c.name,
+      rating: c.rating,
+      ratingCount: c.ratingCount,
+      distanceKm: Number(haversineKm(pickup.location, c.lastKnownLocation).toFixed(1)),
+    }))
+    .filter((c) => c.distanceKm <= NEARBY_COLLECTOR_RADIUS_KM)
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, NEARBY_COLLECTOR_LIMIT);
+
+  res.json(nearby);
+});
+
+// POST /api/pickup/:id/invite  (requester, own pickup only)
+//
+// The write side — inviting one specific collector into a negotiation
+// rather than leaving the pickup open to whoever taps Accept first.
+// Deliberately built on the *existing* negotiation machinery
+// (negotiation.collector/negotiation.offers) instead of a parallel
+// "invited" concept: an invite is just a negotiation the requester opened
+// instead of the collector, offering `amount` (defaulting to the listed
+// price). The invited collector then sees it exactly where they already
+// see any other open negotiation — OfferPanel, their turn to
+// accept/counter/decline — no separate UI needed on their side at all.
+exports.inviteCollector = asyncHandler(async (req, res) => {
+  const { collectorId, note } = req.body;
+
+  const target = await Pickup.findById(req.params.id).select("user price");
+  if (!target) throw new ApiError(404, "Pickup not found");
+  const amount = req.body.amount ?? target.price;
+
+  const collector = await User.findOne({ _id: collectorId, role: "collector", collectorSuspended: false });
+  if (!collector) throw new ApiError(404, "That collector isn't available to invite");
+
+  // Same atomic pattern as proposeOffer/acceptPickup — the filter itself
+  // enforces both "still mine to invite on" (status/ownership) and "not
+  // already mid-negotiation with someone else", so two near-simultaneous
+  // invites (or an invite racing a collector's own proposeOffer) can't
+  // both land.
+  const pickup = await Pickup.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      user: req.user.id,
+      status: "pending",
+      $or: [{ "negotiation.status": "none" }, { "negotiation.status": "declined" }],
+    },
+    {
+      $set: { "negotiation.status": "pending", "negotiation.collector": collectorId },
+      $push: { "negotiation.offers": { amount, note: note || "Direct invite", offeredBy: "requester" } },
+    },
+    { new: true }
+  ).populate("user", "name");
+
+  if (!pickup) {
+    const existing = await Pickup.findById(req.params.id);
+    if (!existing) throw new ApiError(404, "Pickup not found");
+    if (String(existing.user) !== String(req.user.id)) throw new ApiError(403, "This isn't your pickup");
+    if (existing.status !== "pending") throw new ApiError(409, "This pickup already has a collector");
+    throw new ApiError(409, "This pickup already has an active offer in progress");
+  }
+
+  req.io.emit("updatePickup", pickup);
+
+  await notifyUser(req.io, collectorId, {
+    type: "price_offer",
+    text: `${pickup.user.name} invited you to a ₹${amount} ${pickup.scrapType} pickup — accept, counter, or decline.`,
+    pickupId: pickup._id,
+  });
+
+  res.json(pickup);
+});
+
+// GET /api/pickup/collector/my-invites  (collector only)
+//
+// The always-visible counterpart to the "you've been invited" push
+// notification — a collector who scrolls past or dismisses that
+// notification would otherwise have no way back to an invite at all,
+// since an invited-but-not-yet-accepted pickup is deliberately excluded
+// from getAvailable (see that controller's own comment) and isn't
+// theirs yet in getCollectorJobs either (pickup.collector is still null
+// until they actually accept). This is its own small, always-checkable
+// list specifically so the invite doesn't depend on catching a
+// notification at the right moment.
+exports.getMyInvites = asyncHandler(async (req, res) => {
+  const invites = await Pickup.find({
+    status: "pending",
+    "negotiation.status": "pending",
+    "negotiation.collector": req.user.id,
+  })
+    .sort({ updatedAt: -1 })
+    .populate("user", "name phone");
+
+  res.json(invites);
 });
 
 // POST /api/pickup/:id/offer  (collector only)
@@ -644,8 +808,16 @@ exports.batchAcceptPickups = asyncHandler(async (req, res) => {
     // Same atomic findOneAndUpdate as the single-accept path above — see
     // that handler's own comment for why this, not a read-then-write, is
     // what actually makes concurrent accepts safe.
+    // Same atomic findOneAndUpdate as the single-accept path above — see
+    // that handler's own comment for why this, not a read-then-write, is
+    // what actually makes concurrent accepts safe, and for why an active
+    // negotiation is excluded here too.
     const pickup = await Pickup.findOneAndUpdate(
-      { _id: id, status: "pending" },
+      {
+        _id: id,
+        status: "pending",
+        $or: [{ "negotiation.status": "none" }, { "negotiation.status": "declined" }],
+      },
       {
         $set: { collector: req.user.id, status: "accepted" },
         $push: { statusHistory: { status: "accepted", changedBy: req.user.id } },

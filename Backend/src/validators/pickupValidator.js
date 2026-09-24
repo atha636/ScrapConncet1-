@@ -136,6 +136,18 @@ const reportNoShowSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
+// POST /api/pickup/:id/invite — a requester inviting one specific
+// collector to negotiate, rather than leaving the pickup open to
+// whoever accepts first. `amount` defaults to the pickup's listed price
+// at the controller layer when omitted — inviting at the listed price is
+// the common case, so it's optional here rather than making every
+// requester retype the number they already saw on the form.
+const inviteCollectorSchema = z.object({
+  collectorId: z.string().min(1, "Pick a collector to invite"),
+  amount: numberLike.pipe(z.number().min(1, "Offer must be at least ₹1").max(MAX_OFFER_AMOUNT)).optional(),
+  note: z.string().trim().max(200).optional(),
+});
+
 module.exports = {
   createPickupSchema,
   MAX_ITEMS_PER_PICKUP,
@@ -147,4 +159,5 @@ module.exports = {
   respondOfferSchema,
   MAX_OFFER_AMOUNT,
   reportNoShowSchema,
+  inviteCollectorSchema,
 };
