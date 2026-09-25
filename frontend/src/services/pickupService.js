@@ -143,6 +143,11 @@ export const getRequesterProfile = (id) => API.get(`/pickup/requester/${id}/prof
 // backend's getMyAchievements, self-only (no id param needed or accepted).
 export const getMyAchievements = () => API.get(`/pickup/collector/achievements`);
 
+// Week-over-week trend (completed/earned/rating) plus a busiest-day/hour
+// pattern — additive to getLeaderboard/getWalletSummary, not a duplicate;
+// see the backend controller's own comment on the split.
+export const getPerformanceInsights = () => API.get(`/pickup/collector/performance`);
+
 // Orders the collector's active jobs into an efficient visiting sequence
 // from their current position. Coordinates are required (the backend 400s
 // without them) — see RoutePlanner for where they're obtained.

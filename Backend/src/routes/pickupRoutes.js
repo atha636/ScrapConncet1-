@@ -47,6 +47,7 @@ const {
   getPublicCollectorProfile,
   getCollectorReviews,
   getMyAchievements,
+  getPerformanceInsights,
 } = require("../controllers/collectorStatsController");
 const { getRequesterProfile, getMyReputation } = require("../controllers/requesterStatsController");
 const {
@@ -122,6 +123,11 @@ router.get("/collector/suggested-batch", auth, role("collector"), getSuggestedBa
 router.get("/collector/demand-heatmap", auth, role("collector"), getDemandHeatmap);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
+
+// Week-over-week trend and busiest-day/hour pattern — see the
+// controller's own comment for why this is additive rather than
+// overlapping with wallet's getSummary or achievements' badge progress.
+router.get("/collector/performance", auth, role("collector"), getPerformanceInsights);
 
 // Any authenticated user (not collector-only, unlike the routes above) —
 // this is what a requester sees about the collector on their own pickup.

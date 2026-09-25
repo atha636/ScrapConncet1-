@@ -32,6 +32,7 @@ import RequesterProfileModal from "../../components/pickup/RequesterProfileModal
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
+import PerformanceInsightsPanel from "../../components/collector/PerformanceInsightsPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
@@ -1073,6 +1074,7 @@ export default function CollectorDashboard() {
                   <>
                     <ShareProfileButton collectorId={user?._id || user?.id} />
                     <WorkingHoursCard />
+                    <PerformanceInsightsPanel />
                     <AchievementsPanel />
                     <LeaderboardPanel />
 

@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const Pickup = require("../models/Pickup");
 const Rating = require("../models/Rating");
+const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -255,4 +257,130 @@ exports.getMyAchievements = asyncHandler(async (req, res) => {
       completionRate,
     })
   );
+});
+
+// Fixed timezone, same reasoning and same zone as
+// utils/collectorAvailability.js's own TIMEZONE — this app is India-only,
+// so a single hardcoded zone for "which day/hour did this happen in" is a
+// deliberate simplification, not an oversight. Not imported from that
+// file since this needs it applied to an arbitrary historical Date, not
+// just "now".
+const INSIGHTS_TIMEZONE = "Asia/Kolkata";
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function dayAndHourInTimezone(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: INSIGHTS_TIMEZONE,
+    weekday: "short",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  let hour = get("hour");
+  if (hour === "24") hour = "00";
+  return { day: weekdayMap[get("weekday")], hour: Number(hour) };
+}
+
+// How many of a collector's most recent completions to look at for the
+// busiest-day/hour pattern — a real work pattern, not this week's noise,
+// so it deliberately looks further back than the week-over-week numbers
+// below. Same order-of-magnitude ceiling as STREAK_LOOKBACK_LIMIT above,
+// for the same reason: bounds the query without needing a realistic
+// collector's full multi-year history.
+const PATTERN_LOOKBACK_LIMIT = 300;
+
+// GET /api/pickup/collector/performance  (collector only)
+//
+// Deliberately additive, not a rebuild of what already exists: wallet's
+// getSummary already covers all-time/7-day/30-day earnings, and
+// getCollectorBadgeState already covers all-time acceptance speed and
+// completion rate. What neither answers is "is this week better or worse
+// than last week" or "when do I actually tend to work" — this fills
+// exactly those two gaps and nothing else.
+exports.getPerformanceInsights = asyncHandler(async (req, res) => {
+  const collectorId = req.user.id;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const startOfThisWeek = new Date(now.getTime() - 7 * DAY_MS);
+  const startOfLastWeek = new Date(now.getTime() - 14 * DAY_MS);
+
+  const [completedCounts, earningsBuckets, ratingBuckets, pattern] = await Promise.all([
+    Pickup.aggregate([
+      { $match: { collector: new mongoose.Types.ObjectId(collectorId), status: "completed", updatedAt: { $gte: startOfLastWeek } } },
+      {
+        $group: {
+          _id: { $cond: [{ $gte: ["$updatedAt", startOfThisWeek] }, "thisWeek", "lastWeek"] },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Transaction.aggregate([
+      { $match: { collector: new mongoose.Types.ObjectId(collectorId), type: "earning", createdAt: { $gte: startOfLastWeek } } },
+      {
+        $group: {
+          _id: { $cond: [{ $gte: ["$createdAt", startOfThisWeek] }, "thisWeek", "lastWeek"] },
+          sum: { $sum: "$amount" },
+        },
+      },
+    ]),
+    Rating.aggregate([
+      { $match: { toUser: new mongoose.Types.ObjectId(collectorId), createdAt: { $gte: startOfLastWeek } } },
+      {
+        $group: {
+          _id: { $cond: [{ $gte: ["$createdAt", startOfThisWeek] }, "thisWeek", "lastWeek"] },
+          avg: { $avg: "$score" },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    // Mongo aggregation can't cheaply bucket by an IANA-timezone weekday/
+    // hour — $dateToString's timezone option formats the string but
+    // offers nothing to group weekday-of-week by name — so this pulls
+    // just the timestamps and buckets them in JS with the same
+    // Intl.DateTimeFormat approach isCollectorAvailableNow already uses
+    // for the same underlying reason.
+    Pickup.find({ collector: collectorId, status: "completed" })
+      .select("updatedAt")
+      .sort({ updatedAt: -1 })
+      .limit(PATTERN_LOOKBACK_LIMIT),
+  ]);
+
+  const bucketOf = (rows) => Object.fromEntries(rows.map((r) => [r._id, r]));
+  const completedBy = bucketOf(completedCounts);
+  const earningsBy = bucketOf(earningsBuckets);
+  const ratingBy = bucketOf(ratingBuckets);
+
+  const dayCounts = new Array(7).fill(0);
+  const hourCounts = new Array(24).fill(0);
+  for (const p of pattern) {
+    const { day, hour } = dayAndHourInTimezone(p.updatedAt);
+    dayCounts[day] += 1;
+    hourCounts[hour] += 1;
+  }
+  const busiestDayIdx = pattern.length ? dayCounts.indexOf(Math.max(...dayCounts)) : null;
+  const busiestHourIdx = pattern.length ? hourCounts.indexOf(Math.max(...hourCounts)) : null;
+
+  res.json({
+    completed: {
+      thisWeek: completedBy.thisWeek?.count || 0,
+      lastWeek: completedBy.lastWeek?.count || 0,
+    },
+    earned: {
+      thisWeek: earningsBy.thisWeek?.sum || 0,
+      lastWeek: earningsBy.lastWeek?.sum || 0,
+    },
+    avgRating: {
+      thisWeek: ratingBy.thisWeek ? Number(ratingBy.thisWeek.avg.toFixed(2)) : null,
+      lastWeek: ratingBy.lastWeek ? Number(ratingBy.lastWeek.avg.toFixed(2)) : null,
+    },
+    busiest:
+      pattern.length > 0
+        ? {
+            day: DAY_NAMES[busiestDayIdx],
+            hour: busiestHourIdx,
+            sampleSize: pattern.length,
+          }
+        : null,
+  });
 });
