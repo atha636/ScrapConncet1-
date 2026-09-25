@@ -9,16 +9,6 @@ const HOUR_LABEL = (h) => {
   return `${hour12} ${period}`;
 };
 
-/**
- * Deliberately answers two questions nothing else in the Wallet tab does:
- * "is this week better or worse than last week" (LeaderboardPanel and
- * getWalletSummary both only ever show a single window, never a
- * comparison) and "when do I actually tend to work" (busiest day/hour —
- * a pattern across recent history, not this week's numbers). Same
- * self-contained, fail-quietly convention as LeaderboardPanel/
- * AchievementsPanel: this is a helpful extra, not something the rest of
- * the tab depends on.
- */
 export default function PerformanceInsightsPanel() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
