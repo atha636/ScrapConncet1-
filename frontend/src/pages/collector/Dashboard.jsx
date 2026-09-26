@@ -66,6 +66,7 @@ const TABS = [
   { key: "mine", label: "My jobs" },
   { key: "history", label: "History" },
   { key: "wallet", label: "Wallet" },
+  { key: "profile", label: "Profile & stats" },
 ];
 
 const listStagger = {
@@ -1067,17 +1068,21 @@ export default function CollectorDashboard() {
                 )
               )}
 
+              {tab === "profile" && (
+                <>
+                  <ShareProfileButton collectorId={user?._id || user?.id} />
+                  <WorkingHoursCard />
+                  <PerformanceInsightsPanel />
+                  <AchievementsPanel />
+                  <LeaderboardPanel />
+                </>
+              )}
+
               {tab === "wallet" && (
                 walletLoading ? (
                   <CardSkeleton count={2} />
                 ) : (
                   <>
-                    <ShareProfileButton collectorId={user?._id || user?.id} />
-                    <WorkingHoursCard />
-                    <PerformanceInsightsPanel />
-                    <AchievementsPanel />
-                    <LeaderboardPanel />
-
                     <motion.div
                       variants={listStagger}
                       initial="hidden"
