@@ -334,6 +334,13 @@ export default function Profile() {
               whileTap={{ scale: 0.96 }}
               onClick={handleDigestToggle}
               disabled={digestBusy}
+              // aria-label rather than the visible text alone — the Push
+              // notifications card above uses the exact same "Turn off"/
+              // "Turn on" wording (same toggle-button convention,
+              // deliberately), so without this the two buttons share an
+              // accessible name and any query (or a screen reader) can no
+              // longer tell them apart.
+              aria-label={digestOptIn ? "Turn off weekly digest email" : "Turn on weekly digest email"}
               className={digestOptIn ? "btn-secondary" : "btn-primary"}
             >
               {digestBusy ? "Working…" : digestOptIn ? "Turn off" : "Turn on"}

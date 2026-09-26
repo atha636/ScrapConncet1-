@@ -9,6 +9,40 @@ const HOUR_LABEL = (h) => {
   return `${hour12} ${period}`;
 };
 
+// A delta only means something once there's a "before" to compare against
+// — with zero last week, "+100%" or "∞" would just be noise, so this
+// returns null rather than showing a misleading number.
+function weekDelta(thisWeek, lastWeek) {
+  if (!lastWeek) return null;
+  const pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+  return { pct, up: pct >= 0 };
+}
+
+// A plain render function, not a component — module-scope so it isn't
+// redeclared on every render (that's what react-hooks/static-components
+// flags: a new function identity each render means React treats it as a
+// brand-new component type each time, remounting instead of updating).
+// It returns JSX like a component would, but since nothing calls it as
+// <DeltaTag /> there's no component-identity issue either way.
+function renderDeltaTag(d) {
+  if (!d) return null;
+  return (
+    <span className={`text-[11px] font-semibold ${d.up ? "text-emerald-600" : "text-inkFaint"}`}>
+      {d.up ? "▲" : "▼"} {Math.abs(d.pct)}% vs last week
+    </span>
+  );
+}
+
+/**
+ * Deliberately answers two questions nothing else in the Wallet tab does:
+ * "is this week better or worse than last week" (LeaderboardPanel and
+ * getWalletSummary both only ever show a single window, never a
+ * comparison) and "when do I actually tend to work" (busiest day/hour —
+ * a pattern across recent history, not this week's numbers). Same
+ * self-contained, fail-quietly convention as LeaderboardPanel/
+ * AchievementsPanel: this is a helpful extra, not something the rest of
+ * the tab depends on.
+ */
 export default function PerformanceInsightsPanel() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,24 +58,8 @@ export default function PerformanceInsightsPanel() {
 
   const { completed, earned, avgRating, busiest } = data;
 
-  // A delta only means something once there's a "before" to compare
-  // against — with zero last week, "+100%" or "∞" would just be noise,
-  // so this stays silent rather than showing a misleading number.
-  const delta = (thisWeek, lastWeek) => {
-    if (!lastWeek) return null;
-    const pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
-    return { pct, up: pct >= 0 };
-  };
-
-  const completedDelta = delta(completed.thisWeek, completed.lastWeek);
-  const earnedDelta = delta(earned.thisWeek, earned.lastWeek);
-
-  const DeltaTag = ({ d }) =>
-    d ? (
-      <span className={`text-[11px] font-semibold ${d.up ? "text-emerald-600" : "text-inkFaint"}`}>
-        {d.up ? "▲" : "▼"} {Math.abs(d.pct)}% vs last week
-      </span>
-    ) : null;
+  const completedDelta = weekDelta(completed.thisWeek, completed.lastWeek);
+  const earnedDelta = weekDelta(earned.thisWeek, earned.lastWeek);
 
   return (
     <Card className="p-4 mb-4">
@@ -57,12 +75,12 @@ export default function PerformanceInsightsPanel() {
         <div className="rounded-ticket border border-line px-2.5 py-2.5">
           <div className="text-[11px] text-inkFaint mb-0.5">Completed</div>
           <div className="text-lg font-bold text-ink font-mono">{completed.thisWeek}</div>
-          <DeltaTag d={completedDelta} />
+          {renderDeltaTag(completedDelta)}
         </div>
         <div className="rounded-ticket border border-line px-2.5 py-2.5">
           <div className="text-[11px] text-inkFaint mb-0.5">Earned</div>
           <div className="text-lg font-bold text-ink font-mono">{formatPrice(earned.thisWeek)}</div>
-          <DeltaTag d={earnedDelta} />
+          {renderDeltaTag(earnedDelta)}
         </div>
         <div className="rounded-ticket border border-line px-2.5 py-2.5">
           <div className="text-[11px] text-inkFaint mb-0.5">Avg rating</div>
