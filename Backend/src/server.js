@@ -13,6 +13,7 @@ const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
 const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
 const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
 const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
+const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -86,6 +87,19 @@ cron.schedule("*/10 * * * *", () => {
 cron.schedule("*/30 * * * *", () => {
   expireStaleNegotiations(io).catch((err) => console.error("Negotiation-expiry job failed:", err));
 });
+
+// Every Monday at 9am IST — node-cron's own `timezone` option, not a
+// manual day-of-week check inside the job, so this stays correct
+// regardless of what timezone the server process itself runs in. See
+// sendWeeklyDigest's own comment for why this is a real activity summary
+// and not a scheduled marketing touch.
+cron.schedule(
+  "0 9 * * 1",
+  () => {
+    sendWeeklyDigest().catch((err) => console.error("Weekly digest job failed:", err));
+  },
+  { timezone: "Asia/Kolkata" }
+);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

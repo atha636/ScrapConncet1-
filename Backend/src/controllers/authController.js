@@ -181,13 +181,14 @@ exports.me = asyncHandler(async (req, res) => {
 // PATCH /api/auth/me
 // PATCH /api/auth/me
 exports.updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, collectorPreferences } = req.body;
+  const { name, phone, collectorPreferences, weeklyDigestOptIn } = req.body;
 
   const user = await User.findById(req.user.id);
   if (!user) throw new ApiError(404, "User not found");
 
   if (name !== undefined) user.name = name;
   if (phone !== undefined) user.phone = phone;
+  if (weeklyDigestOptIn !== undefined) user.weeklyDigestOptIn = weeklyDigestOptIn;
 
   // Deliberately scoped to role "collector" — a "user"/"admin" account
   // sending this is silently ignored rather than erroring, since the field

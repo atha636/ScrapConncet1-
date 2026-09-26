@@ -114,4 +114,4 @@ async function sendPasswordResetEmail(user, token) {
   });
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail };
+module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, wrapEmail };

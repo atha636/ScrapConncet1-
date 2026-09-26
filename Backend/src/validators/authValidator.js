@@ -53,6 +53,7 @@ const updateProfileSchema = z.object({
       radiusKm: z.number().min(1).max(100).optional(),
     })
     .optional(),
+  weeklyDigestOptIn: z.boolean().optional(),
 });
 
 const changePasswordSchema = z.object({

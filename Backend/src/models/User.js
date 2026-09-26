@@ -140,6 +140,17 @@ const userSchema = new mongoose.Schema(
       notifiedAt: { type: Date },
     },
 
+    // Opt-in (defaulted on, not off) for the weekly activity-summary
+    // email — see jobs/sendWeeklyDigest.js. Defaulted true rather than
+    // false because it's low-frequency (once a week) and skipped
+    // entirely for a week with zero activity (see that job's own
+    // comment), so the failure mode of defaulting it on is "one email a
+    // week to someone who didn't ask," not "an inbox flooded by default."
+    // Meaningful for both roles, unlike collectorPreferences/
+    // lastKnownLocation above — a requester gets a different digest body
+    // than a collector, but both get one.
+    weeklyDigestOptIn: { type: Boolean, default: true },
+
     // Where a collector's approved payouts actually get sent — captured
     // once here as their standing default, then snapshotted onto each
     // PayoutRequest at the moment it's created (see PayoutRequest.js)
