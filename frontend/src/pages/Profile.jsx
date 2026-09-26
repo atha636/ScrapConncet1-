@@ -64,6 +64,14 @@ export default function Profile() {
   const [pushError, setPushError] = useState("");
   const [pushBusy, setPushBusy] = useState(false);
 
+  // Defaults from the account itself (weeklyDigestOptIn defaults true on
+  // the backend, so an account that's never touched this reads as
+  // enabled here too) rather than a separate fetch — updateProfile
+  // already returns the full user document, so toggling this just
+  // updates local state from that response the same way name/phone do.
+  const [digestOptIn, setDigestOptIn] = useState(user?.weeklyDigestOptIn !== false);
+  const [digestBusy, setDigestBusy] = useState(false);
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   // Defaults to true (the common case) until /auth/me confirms otherwise —
   // asking a password-based user for their password is always correct, so
@@ -107,6 +115,24 @@ export default function Profile() {
       setPushError(err.message || "Couldn't update push notification settings.");
     } finally {
       setPushBusy(false);
+    }
+  };
+
+  // Optimistic toggle, rolled back on failure — a settings switch that
+  // doesn't flip until a round trip completes reads as laggy for
+  // something this low-stakes (unlike the profile form below, which
+  // saves several fields together and genuinely needs an explicit Save).
+  const handleDigestToggle = async () => {
+    const next = !digestOptIn;
+    setDigestOptIn(next);
+    setDigestBusy(true);
+    try {
+      const res = await updateProfile({ weeklyDigestOptIn: next });
+      login(localStorage.getItem("token"), res.data);
+    } catch {
+      setDigestOptIn(!next);
+    } finally {
+      setDigestBusy(false);
     }
   };
 
@@ -281,6 +307,38 @@ export default function Profile() {
               </motion.button>
             </div>
           )}
+        </Card>
+      </motion.div>
+
+      {/* Weekly digest email — a separate toggle from push notifications
+          above since it's a different channel and a different cadence
+          (once a week, by email, only when there was something to
+          report) rather than another instant per-event push. */}
+      <motion.div variants={fadeUp}>
+        <Card className="p-6 sm:p-8">
+          <h2 className="font-display font-semibold text-ink mb-1.5">Weekly digest email</h2>
+          <p className="text-sm text-inkSoft mb-5">
+            A short weekly summary — pickups completed, {user?.role === "collector" ? "earnings" : "scrap recycled"}, and
+            new ratings. Only sent for a week you were actually active.
+          </p>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm font-medium text-ink flex items-center gap-2">
+              <motion.span
+                animate={{ backgroundColor: digestOptIn ? "#A63D24" : "#D8C9AE" }}
+                transition={{ duration: 0.2 }}
+                className="w-2 h-2 rounded-full"
+              />
+              {digestOptIn ? "Enabled" : "Turned off"}
+            </span>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={handleDigestToggle}
+              disabled={digestBusy}
+              className={digestOptIn ? "btn-secondary" : "btn-primary"}
+            >
+              {digestBusy ? "Working…" : digestOptIn ? "Turn off" : "Turn on"}
+            </motion.button>
+          </div>
         </Card>
       </motion.div>
 
