@@ -1054,11 +1054,26 @@ exports.updateStatus = asyncHandler(async (req, res) => {
 
   req.io.emit("updatePickup", pickup);
 
-  await notifyUser(req.io, pickup.user, {
-    type: "status_update",
-    text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[nextStatus] || nextStatus}`,
-    pickupId: pickup._id,
-  });
+  // Completion gets its own notification type and wording rather than
+  // reusing the generic status_update every other transition sends — a
+  // completion always carries a completion photo (required above, not
+  // optional), which is verifiable proof neither "accepted" nor
+  // "in_progress" have anything equivalent to. Calling that out by name,
+  // rather than a generic "was completed," is what actually gets a
+  // requester to go look at it instead of skimming past it as routine.
+  if (nextStatus === "completed") {
+    await notifyUser(req.io, pickup.user, {
+      type: "pickup_completed",
+      text: `Your ${pickup.scrapType} pickup is done — the collector uploaded a photo as proof. Tap to view it.`,
+      pickupId: pickup._id,
+    });
+  } else {
+    await notifyUser(req.io, pickup.user, {
+      type: "status_update",
+      text: `Your ${pickup.scrapType} pickup was ${STATUS_LABELS[nextStatus] || nextStatus}`,
+      pickupId: pickup._id,
+    });
+  }
 
   if (nextStatus === "completed") {
     // Fire-and-forget, same reasoning as acceptPickup's own call — a
