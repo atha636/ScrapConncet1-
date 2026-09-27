@@ -71,6 +71,16 @@ const TYPE_STYLE = {
     fg: "text-rust",
     icon: <span className="text-sm leading-none">🧭</span>,
   },
+  // Distinct from status_update on purpose — see updateStatus's own
+  // comment on why completion gets its own type: a completion always
+  // carries a verifiable photo, which nothing else here has an
+  // equivalent of, so it earns its own glyph rather than sharing
+  // status_update's generic clock icon.
+  pickup_completed: {
+    bg: "bg-emerald-500/10",
+    fg: "text-emerald-700",
+    icon: <span className="text-sm leading-none">📷</span>,
+  },
 };
 
 const listStagger = {
@@ -154,6 +164,14 @@ export default function NotificationBell() {
       navigate(user?.role === "collector" ? "/collector" : "/my-requests", {
         state: { openPickupId: n.pickup._id },
       });
+      return;
+    }
+
+    // Same reasoning as price_offer above — this always has something
+    // specific worth landing directly on (the completion photo), so a
+    // generic list is a worse landing spot than the pickup itself.
+    if (n.type === "pickup_completed" && n.pickup) {
+      navigate("/my-requests", { state: { openPickupId: n.pickup._id } });
       return;
     }
 

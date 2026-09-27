@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer, createPickup } from "../../services/pickupService";
+import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer, createPickup, getPickupById } from "../../services/pickupService";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -10,6 +10,7 @@ import StatusStamp from "../../components/ui/StatusStamp";
 import ChatBox from "../../components/chat/ChatBox";
 import RatingModal from "../../components/rating/RatingModal";
 import RequestDetailModal from "../../components/pickup/RequestDetailModal";
+import PhotoLightbox from "../../components/pickup/PhotoLightbox";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import RecurringPickupsPanel from "../../components/pickup/RecurringPickupsPanel";
 import { formatPrice } from "../../utils/formatPrice";
@@ -34,6 +35,8 @@ export default function MyRequests() {
   useDocumentMeta({ title: "My Requests", noindex: true });
   const { user } = useAuth();
   const { showToast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
@@ -42,6 +45,7 @@ export default function MyRequests() {
   const [error, setError] = useState("");
   const [chatPickup, setChatPickup] = useState(null);
   const [ratePickup, setRatePickup] = useState(null);
+  const [photoPickup, setPhotoPickup] = useState(null);
   const [ratedIds, setRatedIds] = useState(new Set());
   const [cancellingId, setCancellingId] = useState(null);
   const [repeatingId, setRepeatingId] = useState(null);
@@ -106,6 +110,31 @@ export default function MyRequests() {
     setItems((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
     setDetailsPickup((prev) => (prev && prev._id === updated._id ? updated : prev));
   });
+
+  // Arrives here from a notification click (NotificationBell's
+  // price_offer and pickup_completed cases both pass this) with a
+  // specific pickup to open directly — see the identical effect in
+  // Dashboard.jsx for the full reasoning. Checks the already-loaded page
+  // of `items` first (cheap, no request), falling back to a direct fetch
+  // for anything not on the current page — most commonly a completed
+  // pickup that's since scrolled past the first page of results.
+  useEffect(() => {
+    const openId = location.state?.openPickupId;
+    if (!openId) return;
+
+    navigate(location.pathname, { replace: true, state: {} });
+
+    const alreadyLoaded = items.find((p) => p._id === openId);
+    if (alreadyLoaded) {
+      setDetailsPickup(alreadyLoaded);
+      return;
+    }
+
+    getPickupById(openId)
+      .then((res) => setDetailsPickup(res.data))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.openPickupId]);
 
   const handleCancel = async (item) => {
     if (!window.confirm("Cancel this pickup request?")) return false;
@@ -291,6 +320,19 @@ export default function MyRequests() {
                       </button>
                     )}
 
+                    {item.status === "completed" && item.completionPhoto && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPhotoPickup(item); }}
+                        className="text-xs font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                          <circle cx="12" cy="13" r="4" />
+                        </svg>
+                        View proof photo
+                      </button>
+                    )}
+
                     {item.status === "completed" && item.collector && !ratedIds.has(item._id) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setRatePickup(item); }}
@@ -365,6 +407,13 @@ export default function MyRequests() {
         onClose={() => setRatePickup(null)}
         otherPartyName={ratePickup?.collector?.name}
         onSubmitted={() => setRatedIds((prev) => new Set(prev).add(ratePickup._id))}
+      />
+
+      <PhotoLightbox
+        src={photoPickup?.completionPhoto}
+        alt="Proof of collection"
+        open={!!photoPickup}
+        onClose={() => setPhotoPickup(null)}
       />
 
       <RequestDetailModal

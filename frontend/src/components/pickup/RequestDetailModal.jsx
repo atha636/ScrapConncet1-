@@ -9,6 +9,7 @@ import CollectorProfileCard from "../collector/CollectorProfileCard";
 import OfferPanel from "./OfferPanel";
 import DisputeStatusPanel from "./DisputeStatusPanel";
 import PickCollectorModal from "./PickCollectorModal";
+import PhotoLightbox from "./PhotoLightbox";
 import useLiveLocation from "../../hooks/useLiveLocation";
 
 const rowStagger = {
@@ -36,6 +37,7 @@ export default function RequestDetailModal({
 }) {
   const isTrackable = open && !!pickup && ["accepted", "in_progress"].includes(pickup.status);
   const [showPickCollector, setShowPickCollector] = useState(false);
+  const [showCompletionPhoto, setShowCompletionPhoto] = useState(false);
   const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
 
   // Null-safe (returns [] for a null pickup, e.g. while the modal is
@@ -181,13 +183,17 @@ export default function RequestDetailModal({
                   <motion.div variants={rowItem}>
                     <dt className="text-inkFaint mb-1.5">Completion photo</dt>
                     <dd>
-                      <a href={pickup.completionPhoto} target="_blank" rel="noopener noreferrer">
+                      <button
+                        type="button"
+                        onClick={() => setShowCompletionPhoto(true)}
+                        className="block w-full cursor-zoom-in"
+                      >
                         <img
                           src={pickup.completionPhoto}
                           alt="Proof of collection"
                           className="w-full max-h-48 object-cover rounded-md border border-line"
                         />
-                      </a>
+                      </button>
                     </dd>
                   </motion.div>
                 )}
@@ -235,6 +241,13 @@ export default function RequestDetailModal({
               open={showPickCollector}
               onClose={() => setShowPickCollector(false)}
               pickup={pickup}
+            />
+
+            <PhotoLightbox
+              src={pickup.completionPhoto}
+              alt="Proof of collection"
+              open={showCompletionPhoto}
+              onClose={() => setShowCompletionPhoto(false)}
             />
 
             <div className="px-5 py-4 border-t border-line bg-surfaceRaised shrink-0 flex flex-wrap justify-end gap-2.5">
