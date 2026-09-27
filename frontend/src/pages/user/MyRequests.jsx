@@ -111,9 +111,7 @@ export default function MyRequests() {
     setDetailsPickup((prev) => (prev && prev._id === updated._id ? updated : prev));
   });
 
-  // Arrives here from a notification click (NotificationBell's
-  // price_offer and pickup_completed cases both pass this) with a
-  // specific pickup to open directly — see the identical effect in
+
   // Dashboard.jsx for the full reasoning. Checks the already-loaded page
   // of `items` first (cheap, no request), falling back to a direct fetch
   // for anything not on the current page — most commonly a completed
