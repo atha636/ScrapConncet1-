@@ -4,6 +4,7 @@ import usePickupChat from "../../hooks/usePickupChat";
 import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
 import { encodeLocationMessage, parseLocationMessage } from "../../utils/chatLocation";
+import PhotoLightbox from "../pickup/PhotoLightbox";
 
 // Short, one-tap phrases for the most common pickup-coordination moments —
 // saves typing the same handful of things every time. Worded differently
@@ -44,6 +45,7 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
   const [text, setText] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -108,8 +110,9 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
   };
 
   return (
-    <AnimatePresence>
-      {open && (
+    <>
+      <AnimatePresence>
+        {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -176,14 +179,18 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
                           <span className="text-[11px] text-inkFaint font-mono px-1">{m.sender?.name}</span>
                         )}
                         {m.image && (
-                          <a href={m.image} target="_blank" rel="noopener noreferrer">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxSrc(m.image)}
+                            className="cursor-zoom-in"
+                          >
                             <img
                               src={m.image}
                               alt="Shared"
                               className="max-w-full rounded-ticket border border-line"
                               style={{ maxHeight: 200 }}
                             />
-                          </a>
+                          </button>
                         )}
                         {location ? (
                           <a
@@ -391,6 +398,14 @@ export default function ChatBox({ pickupId, open, onClose, otherPartyName }) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+
+      <PhotoLightbox
+        src={lightboxSrc}
+        alt="Shared photo"
+        open={!!lightboxSrc}
+        onClose={() => setLightboxSrc(null)}
+      />
+    </>
   );
 }
