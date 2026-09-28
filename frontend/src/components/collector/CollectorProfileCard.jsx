@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { getCollectorProfile } from "../../services/pickupService";
 import { formatAcceptTime, formatCompletionRate } from "../../utils/formatDuration";
 import BadgeRow from "./BadgeRow";
+import SpecialtiesRow from "./SpecialtiesRow";
 
 /**
  * Gives a requester a quick read on the collector assigned to their
@@ -95,6 +96,12 @@ export default function CollectorProfileCard({ collectorId }) {
       {profile.badges?.length > 0 && (
         <div className="mt-2.5">
           <BadgeRow badges={profile.badges} />
+        </div>
+      )}
+
+      {profile.specialties?.length > 0 && (
+        <div className="mt-2">
+          <SpecialtiesRow specialties={profile.specialties} />
         </div>
       )}
 

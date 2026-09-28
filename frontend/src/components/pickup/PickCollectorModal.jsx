@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { getNearbyCollectors, inviteCollector } from "../../services/pickupService";
 import { useToast } from "../../context/ToastContext";
 import { formatPrice } from "../../utils/formatPrice";
+import { SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
+import BadgeRow from "../collector/BadgeRow";
 
 /**
  * The write side of pick-your-collector: browse a short list of nearby,
@@ -116,36 +118,79 @@ export default function PickCollectorModal({ open, onClose, pickup, onInvited })
               )}
 
               {status === "ready" &&
-                collectors.map((c) => (
-                  <div
-                    key={c.collectorId}
-                    className="flex items-center justify-between gap-3 rounded-ticket border border-line px-3.5 py-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-semibold text-ink text-sm truncate">{c.name}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-inkSoft">
-                        {c.ratingCount > 0 ? (
-                          <span className="flex items-center gap-1">
-                            <span className="text-rust">★</span>
-                            <span className="font-semibold text-ink">{c.rating.toFixed(1)}</span>
-                            <span className="text-inkFaint">({c.ratingCount})</span>
-                          </span>
-                        ) : (
-                          <span className="text-inkFaint">No ratings yet</span>
+                collectors.map((c) => {
+                  const typeLabel = (t) => SCRAP_TYPE_LABELS[t] || t;
+                  return (
+                    <div
+                      key={c.collectorId}
+                      className="rounded-ticket border border-line px-3.5 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink text-sm truncate">{c.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-inkSoft">
+                            {c.ratingCount > 0 ? (
+                              <span className="flex items-center gap-1">
+                                <span className="text-rust">★</span>
+                                <span className="font-semibold text-ink">{c.rating.toFixed(1)}</span>
+                                <span className="text-inkFaint">({c.ratingCount})</span>
+                              </span>
+                            ) : (
+                              <span className="text-inkFaint">No ratings yet</span>
+                            )}
+                            <span className="text-inkFaint">·</span>
+                            <span className="text-inkFaint">{c.distanceKm} km away</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleInvite(c)}
+                          disabled={invitingId === c.collectorId}
+                          className="btn-primary !py-1.5 !px-3 text-xs shrink-0 disabled:opacity-50"
+                        >
+                          {invitingId === c.collectorId ? "Inviting…" : "Invite"}
+                        </button>
+                      </div>
+
+                      {c.badges?.length > 0 && (
+                        <div className="mt-2">
+                          <BadgeRow badges={c.badges} />
+                        </div>
+                      )}
+
+                      {/* What this collector actually knows about *this*
+                          pickup: a stated specialty that fits (or
+                          doesn't), and real completed-pickup history with
+                          the same kind of scrap — the two signals that
+                          matter most when choosing who to invite, and
+                          neither was visible before. */}
+                      <div className="mt-2 space-y-1 text-xs">
+                        {c.handlesPickup === true && (
+                          <div className="text-emerald-700 font-medium">
+                            ✓ Collects {c.scrapTypes.map(typeLabel).join(", ")}
+                          </div>
                         )}
-                        <span className="text-inkFaint">·</span>
-                        <span className="text-inkFaint">{c.distanceKm} km away</span>
+                        {c.handlesPickup === false && (
+                          <div className="text-amber-dark font-medium">
+                            Usually collects {c.scrapTypes.map(typeLabel).join(", ")} — may not take this
+                          </div>
+                        )}
+                        {c.similarCompleted > 0 ? (
+                          <div className="text-inkSoft">
+                            {c.similarCompleted} {typeLabel(c.primaryType).toLowerCase()} pickup
+                            {c.similarCompleted === 1 ? "" : "s"} completed
+                          </div>
+                        ) : (
+                          c.completedCount > 0 && (
+                            <div className="text-inkFaint">
+                              {c.completedCount} pickup{c.completedCount === 1 ? "" : "s"} completed · none with{" "}
+                              {typeLabel(c.primaryType).toLowerCase()} yet
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleInvite(c)}
-                      disabled={invitingId === c.collectorId}
-                      className="btn-primary !py-1.5 !px-3 text-xs shrink-0 disabled:opacity-50"
-                    >
-                      {invitingId === c.collectorId ? "Inviting…" : "Invite"}
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
 
             {pickup && (

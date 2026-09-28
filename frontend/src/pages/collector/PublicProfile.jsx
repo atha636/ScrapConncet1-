@@ -6,6 +6,7 @@ import useDocumentMeta from "../../hooks/useDocumentMeta";
 import Card from "../../components/ui/Card";
 import { formatAcceptTime, formatCompletionRate } from "../../utils/formatDuration";
 import BadgeRow from "../../components/collector/BadgeRow";
+import SpecialtiesRow from "../../components/collector/SpecialtiesRow";
 
 /**
  * The page a collector's share link actually opens — no auth required (see
@@ -148,6 +149,12 @@ export default function PublicProfile() {
               {state.profile.badges?.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-dashed border-line">
                   <BadgeRow badges={state.profile.badges} size="md" />
+                </div>
+              )}
+
+              {state.profile.specialties?.length > 0 && (
+                <div className="mt-3">
+                  <SpecialtiesRow specialties={state.profile.specialties} size="md" />
                 </div>
               )}
 
