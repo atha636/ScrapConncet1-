@@ -111,7 +111,9 @@ export default function MyRequests() {
     setDetailsPickup((prev) => (prev && prev._id === updated._id ? updated : prev));
   });
 
-
+  // Arrives here from a notification click (NotificationBell's
+  // price_offer and pickup_completed cases both pass this) with a
+  // specific pickup to open directly — see the identical effect in
   // Dashboard.jsx for the full reasoning. Checks the already-loaded page
   // of `items` first (cheap, no request), falling back to a direct fetch
   // for anything not on the current page — most commonly a completed
@@ -267,39 +269,49 @@ export default function MyRequests() {
               <motion.div key={item._id} variants={listItem} layout>
                 <Card
                   onClick={() => setDetailsPickup(item)}
-                  className="p-5 pt-6 flex items-start justify-between gap-4 flex-wrap cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
+                  className="p-5 pt-6 cursor-pointer transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]"
                 >
-                  <div className="flex gap-4">
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={getPickupItems(item).length === 1 ? getPickupItems(item)[0].scrapType : "Scrap pickup"}
-                        className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
-                      />
-                    )}
-                    <div>
-                      <div className="font-display font-semibold text-ink">
-                        {formatItemsLabel(getPickupItems(item))}
-                        {formatTotalWeight(getPickupItems(item)) ? ` · ${formatTotalWeight(getPickupItems(item))}` : ""}
-                      </div>
-                      <div className="text-xs text-inkFaint mt-0.5 font-mono">
-                        #{item._id.slice(-6).toUpperCase()} · {new Date(item.createdAt).toLocaleDateString()}
-                      </div>
-                      {item.collector && (
-                        <div className="text-xs text-inkSoft mt-1.5">
-                          Collector: <span className="font-medium text-ink">{item.collector.name}</span>
-                        </div>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex gap-4">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={getPickupItems(item).length === 1 ? getPickupItems(item)[0].scrapType : "Scrap pickup"}
+                          className="w-16 h-16 rounded-md object-cover shrink-0 border border-line"
+                        />
                       )}
+                      <div>
+                        <div className="font-display font-semibold text-ink">
+                          {formatItemsLabel(getPickupItems(item))}
+                          {formatTotalWeight(getPickupItems(item)) ? ` · ${formatTotalWeight(getPickupItems(item))}` : ""}
+                        </div>
+                        <div className="text-xs text-inkFaint mt-0.5 font-mono">
+                          #{item._id.slice(-6).toUpperCase()} · {new Date(item.createdAt).toLocaleDateString()}
+                        </div>
+                        {item.collector && (
+                          <div className="text-xs text-inkSoft mt-1.5">
+                            Collector: <span className="font-medium text-ink">{item.collector.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
+                      <StatusStamp status={item.status} />
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="font-mono font-semibold text-ink">{formatPrice(item.price)}</span>
-                    <StatusStamp status={item.status} />
 
+                  {/* Actions as a wrapping row of compact pills, not a
+                      stacked column of text links — keeps a card with
+                      several available actions (chat, photo, rate,
+                      repeat) from reading as a wall of underlined text
+                      and lets the row reflow naturally at any width
+                      instead of forcing a tall, narrow right column. */}
+                  <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-line">
                     {item.collector && item.status !== "cancelled" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setChatPickup(item); }}
-                        className="text-xs font-semibold text-rust hover:underline flex items-center gap-1"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-rust bg-rust/[0.06] hover:bg-rust/10 border border-rust/25 rounded-full px-3 py-1.5 transition-colors"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -308,20 +320,10 @@ export default function MyRequests() {
                       </button>
                     )}
 
-                    {["pending", "accepted"].includes(item.status) && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleCancel(item); }}
-                        disabled={cancellingId === item._id}
-                        className="text-xs font-semibold text-danger hover:underline"
-                      >
-                        {cancellingId === item._id ? "Cancelling…" : "Cancel request"}
-                      </button>
-                    )}
-
                     {item.status === "completed" && item.completionPhoto && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setPhotoPickup(item); }}
-                        className="text-xs font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-500/[0.06] hover:bg-emerald-500/10 border border-emerald-600/25 rounded-full px-3 py-1.5 transition-colors"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -334,7 +336,7 @@ export default function MyRequests() {
                     {item.status === "completed" && item.collector && !ratedIds.has(item._id) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setRatePickup(item); }}
-                        className="text-xs font-semibold text-amber-dark hover:underline flex items-center gap-1"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-dark bg-amber/10 hover:bg-amber/20 border border-amber/30 rounded-full px-3 py-1.5 transition-colors"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -343,7 +345,7 @@ export default function MyRequests() {
                       </button>
                     )}
                     {item.status === "completed" && item.collector && ratedIds.has(item._id) && (
-                      <span className="text-xs font-semibold text-ink/50 flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink/50 px-3 py-1.5">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
@@ -355,13 +357,23 @@ export default function MyRequests() {
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRepeat(item); }}
                         disabled={repeatingId === item._id}
-                        className="text-xs font-semibold text-inkSoft hover:text-rust hover:underline flex items-center gap-1 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-inkSoft hover:text-ink bg-line/20 hover:bg-line/30 border border-line rounded-full px-3 py-1.5 transition-colors disabled:opacity-50"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M23 4v6h-6M1 20v-6h6" />
                           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                         </svg>
                         {repeatingId === item._id ? "Requesting…" : "Repeat this pickup"}
+                      </button>
+                    )}
+
+                    {["pending", "accepted"].includes(item.status) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCancel(item); }}
+                        disabled={cancellingId === item._id}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-danger hover:bg-danger/10 border border-danger/25 rounded-full px-3 py-1.5 transition-colors ml-auto"
+                      >
+                        {cancellingId === item._id ? "Cancelling…" : "Cancel request"}
                       </button>
                     )}
                   </div>
