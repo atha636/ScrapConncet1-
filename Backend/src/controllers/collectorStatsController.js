@@ -110,12 +110,28 @@ async function buildCollectorProfile(collectorId, { public: isPublic } = {}) {
     collector
   );
 
+  // What this collector has actually spent their time collecting, from
+  // completed pickups only — derived from history rather than read off
+  // collectorPreferences.scrapTypes, which is a private notification
+  // filter ("alert me about...") and not a claim they've made publicly
+  // about what they're good at. Top 3 by count; a pickup with several
+  // items counts once per item, matching how the pickup itself is priced.
+  const specialties = await Pickup.aggregate([
+    { $match: { collector: collector._id, status: "completed" } },
+    { $unwind: "$items" },
+    { $group: { _id: "$items.scrapType", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 3 },
+    { $project: { _id: 0, type: "$_id", count: 1 } },
+  ]);
+
   return {
     id: collector._id,
     name: collector.name,
     rating: collector.rating,
     ratingCount: collector.ratingCount,
     completedCount,
+    specialties,
     memberSince: collector.createdAt,
     streak: computeStreak(recentCompletions.map((p) => p.updatedAt)),
     avgAcceptMinutes,

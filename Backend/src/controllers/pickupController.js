@@ -12,6 +12,7 @@ const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
 const { findSuggestedBatch } = require("../utils/suggestedBatch");
 const { touchCollectorLocation } = require("../utils/touchCollectorLocation");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
+const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 
 // Upper bound on stops fed into the optimizer. 2-opt compares every pair
@@ -501,20 +502,64 @@ exports.getNearbyCollectors = asyncHandler(async (req, res) => {
     collectorSuspended: false,
     isActive: true,
     "lastKnownLocation.updatedAt": { $gte: freshSince },
-  }).select("name rating ratingCount lastKnownLocation collectorPaused availabilitySchedule");
+  }).select(
+    "name rating ratingCount lastKnownLocation collectorPaused availabilitySchedule collectorPreferences"
+  );
 
-  const nearby = candidates
+  const pickupTypes = [...new Set((pickup.items || []).map((it) => it.scrapType))];
+  const primaryType = pickupTypes[0] || pickup.scrapType;
+
+  // A collector's own declared scrap types (collectorPreferences.scrapTypes,
+  // unset by default) are a stated preference, not a hard rule — but
+  // inviting someone who's told the app they only take paper to an
+  // e-waste pickup is a guaranteed wasted round trip. null means "no
+  // preference stated" (treated as fine, same as the Available list's own
+  // filter), true/false means they did state one and this pickup does/
+  // doesn't fit it.
+  const handlesPickup = (c) => {
+    const declared = c.collectorPreferences?.scrapTypes;
+    if (!declared || declared.length === 0) return null;
+    return pickupTypes.every((t) => declared.includes(t));
+  };
+
+  const ranked = candidates
     .filter((c) => isCollectorAvailableNow(c))
     .map((c) => ({
-      collectorId: c._id,
-      name: c.name,
-      rating: c.rating,
-      ratingCount: c.ratingCount,
+      doc: c,
+      handles: handlesPickup(c),
       distanceKm: Number(haversineKm(pickup.location, c.lastKnownLocation).toFixed(1)),
     }))
     .filter((c) => c.distanceKm <= NEARBY_COLLECTOR_RADIUS_KM)
-    .sort((a, b) => a.distanceKm - b.distanceKm)
+    // Collectors who explicitly don't take this kind of scrap sort behind
+    // everyone else *before* the limit is applied — otherwise a closer
+    // mismatch could push a real fit out of the short list entirely.
+    .sort((a, b) => Number(a.handles === false) - Number(b.handles === false) || a.distanceKm - b.distanceKm)
     .slice(0, NEARBY_COLLECTOR_LIMIT);
+
+  // Badges and experience are per-collector queries, but the list is
+  // capped at NEARBY_COLLECTOR_LIMIT (5), so this stays a handful of small
+  // parallel reads, not a scan.
+  const nearby = await Promise.all(
+    ranked.map(async ({ doc, handles, distanceKm }) => {
+      const [badgeState, similarCompleted] = await Promise.all([
+        getCollectorBadgeState(doc._id, doc),
+        Pickup.countDocuments({ collector: doc._id, status: "completed", "items.scrapType": primaryType }),
+      ]);
+      return {
+        collectorId: doc._id,
+        name: doc.name,
+        rating: doc.rating,
+        ratingCount: doc.ratingCount,
+        distanceKm,
+        badges: badgeState.badges,
+        completedCount: badgeState.completedCount,
+        scrapTypes: doc.collectorPreferences?.scrapTypes?.length ? doc.collectorPreferences.scrapTypes : null,
+        handlesPickup: handles,
+        primaryType,
+        similarCompleted,
+      };
+    })
+  );
 
   res.json(nearby);
 });
