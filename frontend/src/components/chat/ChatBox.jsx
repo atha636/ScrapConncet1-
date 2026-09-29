@@ -6,11 +6,6 @@ import { useAuth } from "../../context/AuthContext";
 import { encodeLocationMessage, parseLocationMessage } from "../../utils/chatLocation";
 import PhotoLightbox from "../pickup/PhotoLightbox";
 
-// Short, one-tap phrases for the most common pickup-coordination moments —
-// saves typing the same handful of things every time. Worded differently
-// per side of the conversation: a collector is the one traveling, so their
-// phrases are about status-on-the-move; a requester is the one waiting, so
-// theirs are about being ready/reachable instead.
 const QUICK_REPLIES_COLLECTOR = ["On my way", "5 mins away", "Arrived", "Running late"];
 const QUICK_REPLIES_REQUESTER = ["I'm ready", "Come to the gate", "One moment please", "Not home yet — call me"];
 
