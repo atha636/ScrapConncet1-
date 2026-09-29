@@ -17,7 +17,11 @@ const {
 } = require("../validators/pickupValidator");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
-const { createRecurringSchema } = require("../validators/recurringPickupValidator");
+const {
+  createRecurringSchema,
+  pauseRecurringSchema,
+  updateRecurringSchema,
+} = require("../validators/recurringPickupValidator");
 
 const {
   createPickup,
@@ -54,6 +58,9 @@ const {
   createRecurring,
   getMyRecurring,
   toggleRecurring,
+  skipNextRecurring,
+  pauseRecurring,
+  updateRecurring,
   deleteRecurring,
 } = require("../controllers/recurringPickupController");
 
@@ -103,6 +110,9 @@ router.post("/:id/report-no-show", auth, role("user"), validate(reportNoShowSche
 router.post("/recurring", auth, role("user"), validate(createRecurringSchema), createRecurring);
 router.get("/recurring", auth, role("user"), getMyRecurring);
 router.patch("/recurring/:id/toggle", auth, role("user"), toggleRecurring);
+router.patch("/recurring/:id/skip", auth, role("user"), skipNextRecurring);
+router.patch("/recurring/:id/pause", auth, role("user"), validate(pauseRecurringSchema), pauseRecurring);
+router.patch("/recurring/:id", auth, role("user"), validate(updateRecurringSchema), updateRecurring);
 router.delete("/recurring/:id", auth, role("user"), deleteRecurring);
 
 router.get("/available", auth, role("collector"), getAvailable);

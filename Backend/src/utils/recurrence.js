@@ -40,4 +40,21 @@ function computeNextRun(frequency, from = new Date()) {
   }
 }
 
-module.exports = { computeNextRun, FREQUENCIES };
+/**
+ * First date on `from`'s cadence that is on or after `target`. Used to
+ * jump a series forward over a pause or a backlog without ever leaving its
+ * original rhythm — stepping with computeNextRun (rather than restarting
+ * the cadence from `target`) is what keeps a series that ran on Mondays
+ * running on Mondays after a two-week holiday.
+ *
+ * Capped so a bad input (e.g. a target decades away) can't spin forever.
+ */
+function firstRunOnOrAfter(frequency, from, target) {
+  let next = new Date(from);
+  for (let i = 0; i < 1000 && next < target; i += 1) {
+    next = computeNextRun(frequency, next);
+  }
+  return next;
+}
+
+module.exports = { computeNextRun, firstRunOnOrAfter, FREQUENCIES };

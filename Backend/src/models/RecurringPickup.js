@@ -27,6 +27,23 @@ const recurringPickupSchema = new mongoose.Schema(
     active: { type: Boolean, default: true },
     nextRunAt: { type: Date, required: true },
     lastPickupCreatedAt: { type: Date, default: null },
+
+    // Set while the requester has paused the series until a specific date
+    // ("I'm away until the 20th"), as opposed to `active: false`, which is
+    // an open-ended pause. Display-only: pausing also moves nextRunAt to
+    // the first on-cadence occurrence on/after this date, so the spawn job
+    // never needs to look at it.
+    pausedUntil: { type: Date, default: null },
+
+    // The occurrence the requester most recently skipped, so the UI can say
+    // "Skipped 6 Oct" instead of the schedule silently jumping ahead.
+    skippedRunAt: { type: Date, default: null },
+
+    // The nextRunAt value a "coming up tomorrow" reminder was already sent
+    // for — stops the hourly reminder job from re-sending every hour, while
+    // still allowing a fresh reminder once nextRunAt moves (skip, pause,
+    // frequency change, or the next spawn).
+    remindedForRunAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
