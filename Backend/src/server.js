@@ -10,7 +10,7 @@ const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
 const { escalateStalePickups } = require("./jobs/escalateStalePickups");
 const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
-const { spawnRecurringPickups } = require("./jobs/spawnRecurringPickups");
+const { spawnRecurringPickups, remindUpcomingRecurring } = require("./jobs/spawnRecurringPickups");
 const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
 const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
 const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
@@ -65,6 +65,14 @@ cron.schedule("*/5 * * * *", () => {
 // actually spawn.
 cron.schedule("0 * * * *", () => {
   spawnRecurringPickups(io).catch((err) => console.error("Recurring pickup job failed:", err));
+});
+
+// Offset half an hour from the spawn job above, hourly — a reminder
+// window is 24h wide, so hourly is plenty of resolution, and running on
+// the half hour means a template that's about to spawn is never reminded
+// and spawned in the same minute.
+cron.schedule("30 * * * *", () => {
+  remindUpcomingRecurring(io).catch((err) => console.error("Recurring reminder job failed:", err));
 });
 
 // Every 10 minutes — checks recently-active, currently-available

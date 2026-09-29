@@ -1,4 +1,4 @@
-const { spawnRecurringPickups } = require("../src/jobs/spawnRecurringPickups");
+const { spawnRecurringPickups, remindUpcomingRecurring } = require("../src/jobs/spawnRecurringPickups");
 const User = require("../src/models/User");
 const Pickup = require("../src/models/Pickup");
 const RecurringPickup = require("../src/models/RecurringPickup");
@@ -119,5 +119,61 @@ describe("spawnRecurringPickups", () => {
     const count = await spawnRecurringPickups(fakeIo());
     expect(count).toBe(2);
     expect(await Pickup.countDocuments()).toBe(2);
+  });
+
+  test("a template that fell several intervals behind spawns once and lands in the future, not one pickup per run", async () => {
+    // Four weeks overdue (e.g. the server was down) on a weekly series.
+    const template = await createTemplate({ nextRunAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) });
+
+    expect(await spawnRecurringPickups(fakeIo())).toBe(1);
+    expect(await spawnRecurringPickups(fakeIo())).toBe(0); // next hourly run has nothing left to catch up on
+
+    const updated = await RecurringPickup.findById(template._id);
+    expect(updated.nextRunAt.getTime()).toBeGreaterThan(Date.now());
+    expect(await Pickup.countDocuments()).toBe(1);
+  });
+});
+
+describe("remindUpcomingRecurring", () => {
+  const inHours = (h) => new Date(Date.now() + h * 60 * 60 * 1000);
+
+  test("reminds about a pickup due within 24 hours", async () => {
+    const template = await createTemplate({ nextRunAt: inHours(10) });
+    const io = fakeIo();
+
+    expect(await remindUpcomingRecurring(io)).toBe(1);
+    expect(io.to).toHaveBeenCalledWith(`user:${template.user}`);
+  });
+
+  test("does not remind about one that's further out than the lead time", async () => {
+    await createTemplate({ nextRunAt: inHours(72) });
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(0);
+  });
+
+  test("does not remind about a paused template", async () => {
+    await createTemplate({ nextRunAt: inHours(10), active: false });
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(0);
+  });
+
+  test("sends only one reminder per scheduled run, however often the job runs", async () => {
+    await createTemplate({ nextRunAt: inHours(10) });
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(1);
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(0);
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(0);
+  });
+
+  test("reminds again once the schedule has moved to a new run (e.g. after a skip)", async () => {
+    const template = await createTemplate({ nextRunAt: inHours(10) });
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(1);
+
+    template.nextRunAt = inHours(12);
+    await template.save();
+
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(1);
+  });
+
+  test("does not remind about a template that's already overdue — that's the spawn job's business", async () => {
+    await createTemplate({ nextRunAt: new Date(Date.now() - 60 * 1000) });
+    expect(await remindUpcomingRecurring(fakeIo())).toBe(0);
   });
 });

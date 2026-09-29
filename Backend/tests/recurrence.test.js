@@ -1,4 +1,4 @@
-const { computeNextRun, FREQUENCIES } = require("../src/utils/recurrence");
+const { computeNextRun, firstRunOnOrAfter, FREQUENCIES } = require("../src/utils/recurrence");
 
 describe("computeNextRun", () => {
   test("weekly advances by exactly 7 days", () => {
@@ -50,5 +50,40 @@ describe("computeNextRun", () => {
 
   test("exports the canonical list of supported frequencies", () => {
     expect(FREQUENCIES).toEqual(["weekly", "biweekly", "monthly"]);
+  });
+});
+
+describe("firstRunOnOrAfter", () => {
+  test("returns `from` itself when it's already on or after the target", () => {
+    const from = new Date("2026-03-10T08:00:00.000Z");
+    expect(firstRunOnOrAfter("weekly", from, new Date("2026-03-01T00:00:00.000Z")).toISOString()).toBe(from.toISOString());
+    expect(firstRunOnOrAfter("weekly", from, from).toISOString()).toBe(from.toISOString());
+  });
+
+  test("steps forward on the original cadence, never restarting it from the target", () => {
+    // A Tuesday series paused until a Friday must resume on a Tuesday.
+    const from = new Date("2026-03-10T08:00:00.000Z"); // Tue
+    const result = firstRunOnOrAfter("weekly", from, new Date("2026-03-27T00:00:00.000Z")); // Fri
+    expect(result.toISOString()).toBe("2026-03-31T08:00:00.000Z"); // next Tue on/after the 27th
+    expect(result.getUTCDay()).toBe(from.getUTCDay());
+  });
+
+  test("lands exactly on the target when the cadence hits it", () => {
+    const from = new Date("2026-03-10T08:00:00.000Z");
+    expect(firstRunOnOrAfter("biweekly", from, new Date("2026-03-24T08:00:00.000Z")).toISOString()).toBe(
+      "2026-03-24T08:00:00.000Z"
+    );
+  });
+
+  test("works for monthly, including the month-end clamp", () => {
+    const from = new Date("2026-01-31T10:00:00.000Z");
+    expect(firstRunOnOrAfter("monthly", from, new Date("2026-02-15T00:00:00.000Z")).toISOString()).toBe(
+      "2026-02-28T10:00:00.000Z"
+    );
+  });
+
+  test("terminates on an absurdly distant target instead of looping forever", () => {
+    const from = new Date("2026-03-10T08:00:00.000Z");
+    expect(() => firstRunOnOrAfter("weekly", from, new Date("9999-01-01T00:00:00.000Z"))).not.toThrow();
   });
 });
