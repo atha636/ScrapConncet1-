@@ -119,6 +119,17 @@ export const toggleRecurring = (id) => API.patch(`/pickup/recurring/${id}/toggle
 
 export const deleteRecurring = (id) => API.delete(`/pickup/recurring/${id}`);
 
+// Skip just the next occurrence and keep the series running.
+export const skipNextRecurring = (id) => API.patch(`/pickup/recurring/${id}/skip`);
+
+// `until` is an ISO string to pause until that moment (the series resumes on
+// its own rhythm afterwards), or null to resume early.
+export const pauseRecurring = (id, until) => API.patch(`/pickup/recurring/${id}/pause`, { until });
+
+// Edit a template in place: any of frequency, estimatedWeightKg,
+// contactName, contactPhone.
+export const updateRecurring = (id, data) => API.patch(`/pickup/recurring/${id}`, data);
+
 export const getPickupById = (id) => API.get(`/pickup/${id}`);
 
 export const getLeaderboard = () => API.get("/pickup/collector/leaderboard");
