@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { compressImage } from "../../utils/compressImage";
 import ErrorBox from "../common/ErrorBox";
+import { getPickupItems, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
 
 /**
  * Required, not optional — a completion photo's whole value is as proof of
@@ -12,7 +13,17 @@ import ErrorBox from "../common/ErrorBox";
  * other modals built this session — proven to render correctly regardless
  * of any Framer Motion `layout` ancestor elsewhere on the page.
  */
-export default function CompletionPhotoModal({ open, onClose, onSubmit, submitting, error }) {
+export default function CompletionPhotoModal({ open, onClose, onSubmit, submitting, error, pickup }) {
+  const items = getPickupItems(pickup);
+  // One weighed value per original item, same order — the backend requires
+  // the same scrap types in the same order as the request.
+  const [weights, setWeights] = useState([]);
+  useEffect(() => {
+    if (open) setWeights(items.map((it) => (it.estimatedWeightKg ? String(it.estimatedWeightKg) : "")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pickup?._id]);
+  const weightsValid = items.length > 0 && weights.length === items.length && weights.every((w) => Number(w) >= 0.1);
+
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [compressing, setCompressing] = useState(false);
@@ -50,8 +61,11 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
   };
 
   const handleSubmit = () => {
-    if (!file) return;
-    onSubmit(file);
+    if (!file || !weightsValid) return;
+    onSubmit(
+      file,
+      items.map((it, i) => ({ scrapType: it.scrapType, actualWeightKg: Number(weights[i]) }))
+    );
   };
 
   return createPortal(
@@ -76,10 +90,34 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
             aria-label="Add a completion photo"
             className="w-full sm:w-[26rem] max-w-[calc(100vw-2rem)] ticket p-5 pt-6"
           >
-            <h3 className="text-base font-bold text-ink mb-1">Add a completion photo</h3>
-            <p className="text-xs text-inkSoft mb-4">
-              A quick photo of the collected scrap — this is the main evidence if anything's ever disputed.
+            <h3 className="text-base font-bold text-ink mb-1">Weigh &amp; add a photo</h3>
+            <p className="text-xs text-inkSoft mb-3">
+              Enter the actual weighed weight and add a photo of the collected scrap — together they're the evidence if anything's ever disputed.
             </p>
+
+            <div className="mb-4 space-y-2">
+              {items.map((it, i) => (
+                <label key={i} className="flex items-center justify-between gap-3 text-sm text-ink">
+                  <span>
+                    {SCRAP_TYPE_LABELS[it.scrapType] || it.scrapType}
+                    {it.estimatedWeightKg ? <span className="text-inkFaint"> (est. {it.estimatedWeightKg}kg)</span> : null}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0.1"
+                      step="0.1"
+                      value={weights[i] ?? ""}
+                      onChange={(e) => setWeights((prev) => prev.map((w, j) => (j === i ? e.target.value : w)))}
+                      className="field-input !py-1.5 w-24 text-right"
+                      aria-label={`Actual weight of ${it.scrapType} in kg`}
+                    />
+                    <span className="text-inkSoft">kg</span>
+                  </span>
+                </label>
+              ))}
+            </div>
 
             {error && <div className="mb-3"><ErrorBox>{error}</ErrorBox></div>}
 
@@ -123,7 +161,7 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
                 type="button"
                 onClick={handleSubmit}
                 className="btn-primary"
-                disabled={!file || submitting || compressing}
+                disabled={!file || !weightsValid || submitting || compressing}
               >
                 {submitting ? "Submitting…" : "Mark completed"}
               </button>

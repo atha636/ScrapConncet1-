@@ -10,6 +10,8 @@ import OfferPanel from "./OfferPanel";
 import DisputeStatusPanel from "./DisputeStatusPanel";
 import PickCollectorModal from "./PickCollectorModal";
 import PhotoLightbox from "./PhotoLightbox";
+import StartCodeCard from "./StartCodeCard";
+import SettlementCard from "./SettlementCard";
 import useLiveLocation from "../../hooks/useLiveLocation";
 
 const rowStagger = {
@@ -233,6 +235,9 @@ export default function RequestDetailModal({
                     Choose a specific collector →
                   </button>
                 )}
+
+              <StartCodeCard pickup={pickup} />
+              <SettlementCard pickup={pickup} />
 
               {pickup.collector && <DisputeStatusPanel pickupId={pickup._id} />}
             </div>

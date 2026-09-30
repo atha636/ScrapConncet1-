@@ -67,17 +67,28 @@ export const updateMyAvailability = (payload) => API.patch(`/pickup/collector/av
 // `photoFile` is only meaningful (and required by the backend) when
 // `status` is "completed" — every other transition still sends a plain
 // JSON body exactly as before.
-export const updateStatus = (id, status, photoFile) => {
+// `photoFile` is only meaningful (and required by the backend) when
+// `status` is "completed". `extra` carries the handshake/settlement data:
+//   { otp }          — 4-digit start code, required for "in_progress"
+//   { actualItems }  — [{ scrapType, actualWeightKg }], required for "completed"
+export const updateStatus = (id, status, photoFile, extra = {}) => {
   if (!photoFile) {
-    return API.patch(`/pickup/${id}/status`, { status });
+    return API.patch(`/pickup/${id}/status`, { status, ...extra });
   }
   const form = new FormData();
   form.append("status", status);
   form.append("photo", photoFile);
+  if (extra.otp) form.append("otp", extra.otp);
+  if (extra.actualItems) form.append("actualItems", JSON.stringify(extra.actualItems));
   return API.patch(`/pickup/${id}/status`, form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+// Requester's answer to a collector's weighed-amount update.
+export const confirmSettlement = (id) => API.post(`/pickup/${id}/settlement/confirm`);
+export const disputeSettlement = (id, description) =>
+  API.post(`/pickup/${id}/settlement/dispute`, { description });
 
 export const DISPUTE_REASONS = [
   "no_show",

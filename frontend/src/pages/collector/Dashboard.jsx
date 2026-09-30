@@ -31,6 +31,7 @@ import PickupDetailModal from "../../components/pickup/PickupDetailModal";
 import RequesterProfileModal from "../../components/pickup/RequesterProfileModal";
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
+import StartCodeModal from "../../components/pickup/StartCodeModal";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import PerformanceInsightsPanel from "../../components/collector/PerformanceInsightsPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
@@ -134,6 +135,9 @@ export default function CollectorDashboard() {
   const [offerError, setOfferError] = useState("");
   const [reportPickup, setReportPickup] = useState(null);
   const [completingPickup, setCompletingPickup] = useState(null);
+  const [startingPickup, setStartingPickup] = useState(null);
+  const [startSubmitting, setStartSubmitting] = useState(false);
+  const [startError, setStartError] = useState("");
   const [completingError, setCompletingError] = useState("");
   const [completingSubmitting, setCompletingSubmitting] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -532,11 +536,26 @@ export default function CollectorDashboard() {
     }
   };
 
-  const handleCompletionSubmit = async (file) => {
+  // Start handshake: the requester's 4-digit code is required to begin.
+  const handleStartSubmit = async (otp) => {
+    setStartSubmitting(true);
+    setStartError("");
+    try {
+      const res = await updateStatus(startingPickup._id, "in_progress", null, { otp });
+      setMyJobs((prev) => prev.map((p) => (p._id === startingPickup._id ? res.data : p)));
+      setStartingPickup(null);
+    } catch (err) {
+      setStartError(err.response?.data?.message || "Couldn't verify that code — try again.");
+    } finally {
+      setStartSubmitting(false);
+    }
+  };
+
+  const handleCompletionSubmit = async (file, actualItems) => {
     setCompletingSubmitting(true);
     setCompletingError("");
     try {
-      const res = await updateStatus(completingPickup._id, "completed", file);
+      const res = await updateStatus(completingPickup._id, "completed", file, { actualItems });
       setMyJobs((prev) => prev.map((p) => (p._id === completingPickup._id ? res.data : p)));
       setWallet(null);
       setCompletingPickup(null);
@@ -987,6 +1006,7 @@ export default function CollectorDashboard() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (action.next === "completed") setCompletingPickup(item);
+                                    else if (action.next === "in_progress") { setStartError(""); setStartingPickup(item); }
                                     else handleAdvance(item._id, action.next);
                                   }}
                                   disabled={actingId === item._id}
@@ -1331,7 +1351,16 @@ export default function CollectorDashboard() {
           onClose={() => setReportPickup(null)}
         />
 
+        <StartCodeModal
+          open={!!startingPickup}
+          onClose={() => { setStartingPickup(null); setStartError(""); }}
+          onSubmit={handleStartSubmit}
+          submitting={startSubmitting}
+          error={startError}
+        />
+
         <CompletionPhotoModal
+          pickup={completingPickup}
           open={!!completingPickup}
           onClose={() => { setCompletingPickup(null); setCompletingError(""); }}
           onSubmit={handleCompletionSubmit}
