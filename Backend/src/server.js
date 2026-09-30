@@ -13,6 +13,7 @@ const { escalateStalledPickups } = require("./jobs/escalateStalledPickups");
 const { spawnRecurringPickups, remindUpcomingRecurring } = require("./jobs/spawnRecurringPickups");
 const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
 const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
+const { autoConfirmSettlements } = require("./jobs/autoConfirmSettlements");
 const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
@@ -92,6 +93,11 @@ cron.schedule("*/10 * * * *", () => {
 // cadence reasoning as the batch-alert job: frequent enough that a stale
 // negotiation clears out reasonably promptly, far below the cost of
 // scanning the (typically small) set of currently-negotiating pickups.
+// Auto-confirms weight settlements the requester never answered.
+cron.schedule("*/30 * * * *", () => {
+  autoConfirmSettlements(io).catch((err) => console.error("Settlement auto-confirm job failed:", err));
+});
+
 cron.schedule("*/30 * * * *", () => {
   expireStaleNegotiations(io).catch((err) => console.error("Negotiation-expiry job failed:", err));
 });

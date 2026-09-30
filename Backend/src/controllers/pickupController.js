@@ -14,6 +14,14 @@ const { touchCollectorLocation } = require("../utils/touchCollectorLocation");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
+const Dispute = require("../models/Dispute");
+const { deriveOtp, otpMatches, OTP_MAX_ATTEMPTS, OTP_LOCK_MINUTES } = require("../utils/handshake");
+const {
+  computeSettlement,
+  creditEarning,
+  finalizeSettlement,
+  SETTLEMENT_CONFIRM_HOURS,
+} = require("../utils/settlement");
 
 // Upper bound on stops fed into the optimizer. 2-opt compares every pair
 // of stops on every pass, so cost grows quadratically — fine for the
@@ -78,6 +86,17 @@ exports.createPickup = asyncHandler(async (req, res) => {
 // Exists mainly to support deep-linking — a push notification or shared
 // link can point straight at one pickup without needing it to already be
 // present in whatever paginated list the app happens to have loaded.
+// The start code is only ever shown to the requester, and only while it's
+// still useful (collector assigned, pickup not yet started).
+const withRequesterOtp = (pickup, userId) => {
+  const doc = pickup.toObject ? pickup.toObject() : pickup;
+  const ownerId = String(pickup.user?._id || pickup.user);
+  if (ownerId === String(userId) && pickup.status === "accepted" && pickup.collector) {
+    doc.handshakeOtp = deriveOtp(pickup._id, pickup.collector._id || pickup.collector);
+  }
+  return doc;
+};
+
 exports.getPickupById = asyncHandler(async (req, res) => {
   const pickup = await Pickup.findById(req.params.id)
     .populate("user", "name phone")
@@ -100,7 +119,7 @@ exports.getPickupById = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You don't have access to this pickup");
   }
 
-  res.json(pickup);
+  res.json(withRequesterOtp(pickup, req.user.id));
 });
 
 // GET /api/pickup/my-requests
@@ -116,7 +135,13 @@ exports.getMyRequests = asyncHandler(async (req, res) => {
     Pickup.countDocuments({ user: req.user.id }),
   ]);
 
-  res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+  res.json({
+    data: data.map((p) => withRequesterOtp(p, req.user.id)),
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+  });
 });
 
 // GET /api/pickup/available  (collector only)
@@ -1045,6 +1070,79 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, "A completion photo is required to mark this pickup as done");
   }
 
+  // --- Start handshake: the collector must enter the code the requester
+  // sees. Checked before the atomic transition below; wrong tries are
+  // counted and lock the collector out after OTP_MAX_ATTEMPTS.
+  let handshakeUpdate = {};
+  if (nextStatus === "in_progress") {
+    const current = await Pickup.findOne({ _id: req.params.id, collector: req.user.id, status: "accepted" });
+    if (current) {
+      const lockedUntil = current.handshake?.lockedUntil;
+      if (lockedUntil && lockedUntil > new Date()) {
+        const mins = Math.ceil((lockedUntil - new Date()) / 60000);
+        throw new ApiError(429, `Too many wrong codes — try again in ${mins} min`);
+      }
+      if (!req.body.otp) {
+        throw new ApiError(400, "Ask the requester for their 4-digit start code");
+      }
+      if (!otpMatches(deriveOtp(current._id, current.collector), req.body.otp)) {
+        const attempts = (current.handshake?.failedAttempts || 0) + 1;
+        const lock = attempts >= OTP_MAX_ATTEMPTS;
+        await Pickup.updateOne(
+          { _id: current._id },
+          {
+            $set: {
+              "handshake.failedAttempts": lock ? 0 : attempts,
+              "handshake.lockedUntil": lock ? new Date(Date.now() + OTP_LOCK_MINUTES * 60000) : null,
+            },
+          }
+        );
+        throw new ApiError(
+          400,
+          lock
+            ? `Wrong code. Locked for ${OTP_LOCK_MINUTES} min.`
+            : `Wrong code — ${OTP_MAX_ATTEMPTS - attempts} attempt(s) left`
+        );
+      }
+      handshakeUpdate = { "handshake.verifiedAt": new Date(), "handshake.failedAttempts": 0, "handshake.lockedUntil": null };
+    }
+    // If `current` is null the atomic update below produces the normal
+    // 404/403/400 for a wrong pickup or wrong state.
+  }
+
+  // --- Weighed load: required to complete, one entry per original item,
+  // same scrap type in the same order (can't swap in a pricier type).
+  let settlementInfo = null;
+  let settlementDoc = {};
+  if (nextStatus === "completed") {
+    const current = await Pickup.findOne({ _id: req.params.id, collector: req.user.id, status: "in_progress" });
+    if (current) {
+      const actual = req.body.actualItems;
+      if (!actual || actual.length === 0) {
+        throw new ApiError(400, "Enter the actual weighed weight to complete this pickup");
+      }
+      const expected = current.items?.length ? current.items : [{ scrapType: current.scrapType }];
+      if (actual.length !== expected.length || actual.some((a, i) => a.scrapType !== expected[i].scrapType)) {
+        throw new ApiError(400, "Weights must match the pickup's items, in the same order");
+      }
+      settlementInfo = computeSettlement(current, actual);
+      settlementDoc = {
+        "settlement.status": settlementInfo.withinTolerance ? "auto_confirmed" : "pending_confirmation",
+        "settlement.actualItems": actual,
+        "settlement.estimatedBasePrice": settlementInfo.estimatedBasePrice,
+        "settlement.actualBasePrice": settlementInfo.actualBasePrice,
+        "settlement.variancePct": settlementInfo.variancePct,
+        "settlement.originalPrice": settlementInfo.originalPrice,
+        "settlement.proposedPrice": settlementInfo.proposedPrice,
+        "settlement.finalPrice": settlementInfo.withinTolerance ? settlementInfo.finalPrice : null,
+        "settlement.confirmAt": settlementInfo.withinTolerance
+          ? null
+          : new Date(Date.now() + SETTLEMENT_CONFIRM_HOURS * 3600000),
+        "settlement.resolvedAt": settlementInfo.withinTolerance ? new Date() : null,
+      };
+    }
+  }
+
   const completionPhotoUrl = req.file?.path || req.file?.secure_url;
 
   // Atomic, scoped by both collector ownership and current status in the
@@ -1064,6 +1162,8 @@ exports.updateStatus = asyncHandler(async (req, res) => {
           {
             $set: {
               status: nextStatus,
+              ...handshakeUpdate,
+              ...settlementDoc,
               ...(completionPhotoUrl ? { completionPhoto: completionPhotoUrl } : {}),
             },
             $push: { statusHistory: { status: nextStatus, changedBy: req.user.id } },
@@ -1081,20 +1181,12 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot move from ${existing.status} to ${nextStatus}`);
   }
 
-  if (nextStatus === "completed") {
-    try {
-      await Transaction.create({
-        collector: pickup.collector,
-        pickup: pickup._id,
-        type: "earning",
-        amount: pickup.price,
-      });
-    } catch (err) {
-      // Unique index on (pickup, type) means a duplicate here is a retried
-      // request for a pickup already credited — not a real error, so the
-      // pickup status update above still stands. Anything else, surface it.
-      if (err.code !== 11000) throw err;
-    }
+  // Earning is credited now only when the weighed load is within tolerance
+  // (agreed price stands). A bigger gap holds the money until the requester
+  // confirms, the confirm window lapses, or an admin resolves a dispute —
+  // see utils/settlement.js finalizeSettlement.
+  if (nextStatus === "completed" && (!settlementInfo || settlementInfo.withinTolerance)) {
+    await creditEarning(pickup);
   }
 
   req.io.emit("updatePickup", pickup);
@@ -1106,7 +1198,13 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   // "in_progress" have anything equivalent to. Calling that out by name,
   // rather than a generic "was completed," is what actually gets a
   // requester to go look at it instead of skimming past it as routine.
-  if (nextStatus === "completed") {
+  if (nextStatus === "completed" && settlementInfo && !settlementInfo.withinTolerance) {
+    await notifyUser(req.io, pickup.user, {
+      type: "pickup_completed",
+      text: `Your ${pickup.scrapType} load was weighed at a different amount — please confirm the new price of ₹${settlementInfo.proposedPrice} (was ₹${settlementInfo.originalPrice}). It auto-confirms in ${SETTLEMENT_CONFIRM_HOURS}h.`,
+      pickupId: pickup._id,
+    });
+  } else if (nextStatus === "completed") {
     await notifyUser(req.io, pickup.user, {
       type: "pickup_completed",
       text: `Your ${pickup.scrapType} pickup is done — the collector uploaded a photo as proof. Tap to view it.`,
@@ -1143,5 +1241,52 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     );
   }
 
+  res.json(pickup);
+});
+
+// POST /api/pickup/:id/settlement/confirm  (requester)
+exports.confirmSettlement = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+  if (String(pickup.user) !== String(req.user.id)) throw new ApiError(403, "This isn't your pickup");
+  if (pickup.settlement?.status !== "pending_confirmation") {
+    throw new ApiError(400, "There's no weight update waiting for your confirmation");
+  }
+  const done = await finalizeSettlement(req.io, pickup._id, {
+    finalPrice: pickup.settlement.proposedPrice,
+    status: "confirmed",
+  });
+  if (!done) throw new ApiError(409, "This was already settled");
+  res.json(done);
+});
+
+// POST /api/pickup/:id/settlement/dispute  (requester)
+// Freezes the payout and opens a normal dispute for admin review.
+exports.disputeSettlement = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findOneAndUpdate(
+    { _id: req.params.id, user: req.user.id, "settlement.status": "pending_confirmation" },
+    { $set: { "settlement.status": "disputed", "settlement.confirmAt": null } },
+    { new: true }
+  );
+  if (!pickup) throw new ApiError(400, "There's no weight update you can dispute on this pickup");
+
+  try {
+    await Dispute.create({
+      pickup: pickup._id,
+      reportedBy: req.user.id,
+      reportedAgainst: pickup.collector,
+      reason: "wrong_weight_or_price",
+      description: req.body.description || "Requester disputes the weighed amount.",
+    });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+  }
+
+  req.io.emit("updatePickup", pickup);
+  await notifyUser(req.io, pickup.collector, {
+    type: "status_update",
+    text: `The requester disputed the weighed amount on your ${pickup.scrapType} pickup. An admin will review it.`,
+    pickupId: pickup._id,
+  });
   res.json(pickup);
 });

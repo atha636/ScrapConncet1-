@@ -2,6 +2,7 @@ const Pickup = require("../models/Pickup");
 const Dispute = require("../models/Dispute");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
+const { finalizeSettlement } = require("../utils/settlement");
 
 const paginate = (query, defaultLimit = 20) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -122,6 +123,20 @@ exports.resolveDispute = asyncHandler(async (req, res) => {
   dispute.resolvedBy = req.user.id;
   dispute.resolvedAt = new Date();
   await dispute.save();
+
+  // A dispute over a held weight settlement is what's blocking the
+  // collector's payout — settling it here releases (or sets) the money.
+  // dismissed -> the collector's weighed figure stands; resolved -> the
+  // admin's finalPrice, or the original agreed price if none is given.
+  if (dispute.reason === "wrong_weight_or_price") {
+    const held = await Pickup.findById(dispute.pickup).select("settlement");
+    if (held?.settlement?.status === "disputed") {
+      const finalPrice =
+        req.body.finalPrice ??
+        (status === "dismissed" ? held.settlement.proposedPrice : held.settlement.originalPrice);
+      await finalizeSettlement(req.io, dispute.pickup, { finalPrice, status: "resolved", from: ["disputed"] });
+    }
+  }
 
   res.json(dispute);
 });

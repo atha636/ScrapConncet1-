@@ -47,6 +47,37 @@ const pickupSchema = new mongoose.Schema(
     // just one party's word against the other's.
     completionPhoto: { type: String, default: null },
 
+    // Start-of-pickup OTP handshake bookkeeping. The code itself is derived
+    // (see utils/handshake.js), never stored — this only tracks attempts.
+    handshake: {
+      verifiedAt: { type: Date, default: null },
+      failedAttempts: { type: Number, default: 0 },
+      lockedUntil: { type: Date, default: null },
+    },
+
+    // Actual-weight settlement, filled when the collector marks completed.
+    settlement: {
+      status: {
+        type: String,
+        enum: ["none", "auto_confirmed", "pending_confirmation", "confirmed", "disputed", "resolved"],
+        default: "none",
+      },
+      actualItems: [
+        {
+          scrapType: { type: String, enum: SCRAP_TYPES },
+          actualWeightKg: { type: Number, min: 0 },
+        },
+      ],
+      estimatedBasePrice: Number,
+      actualBasePrice: Number,
+      variancePct: Number,
+      originalPrice: Number,
+      proposedPrice: Number,
+      finalPrice: Number,
+      confirmAt: { type: Date, default: null },
+      resolvedAt: { type: Date, default: null },
+    },
+
     // Captured on the request form itself (pre-filled from the requester's
     // profile, but editable there) rather than only ever reading
     // user.name/user.phone off the account — the account's phone is

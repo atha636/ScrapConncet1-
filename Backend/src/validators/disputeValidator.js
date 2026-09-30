@@ -9,6 +9,8 @@ const createDisputeSchema = z.object({
 const resolveDisputeSchema = z.object({
   status: z.enum(["resolved", "dismissed"]),
   resolutionNotes: z.string().trim().max(1000).optional(),
+  // Only used when the dispute is about a held weight settlement.
+  finalPrice: z.number().min(1).max(1000000).optional(),
 });
 
 module.exports = { createDisputeSchema, resolveDisputeSchema };

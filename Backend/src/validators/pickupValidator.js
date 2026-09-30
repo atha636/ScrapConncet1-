@@ -49,8 +49,37 @@ const createPickupSchema = z.object({
   address: z.string().trim().max(200).optional(),
 });
 
+// Sent as a JSON string when the request is multipart (completion photo).
+const actualItemsField = z.preprocess((val) => {
+  if (typeof val === "string") {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return val;
+    }
+  }
+  return val;
+}, z
+  .array(
+    z.object({
+      scrapType: z.enum(SCRAP_TYPES),
+      actualWeightKg: numberLike.pipe(z.number().min(0.1, "Weight must be at least 0.1 kg").max(100000)),
+    })
+  )
+  .min(1)
+  .max(MAX_ITEMS_PER_PICKUP)
+  .optional());
+
 const updateStatusSchema = z.object({
   status: z.enum(["accepted", "in_progress", "completed", "cancelled"]),
+  // 4-digit code the requester shows on arrival — required to start.
+  otp: z.string().trim().regex(/^\d{4}$/, "Enter the 4-digit code").optional(),
+  // Weighed load — required to complete (enforced in the controller).
+  actualItems: actualItemsField,
+});
+
+const disputeSettlementSchema = z.object({
+  description: z.string().trim().max(1000).optional(),
 });
 
 const objectIdLike = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid pickup id");
@@ -149,6 +178,7 @@ const inviteCollectorSchema = z.object({
 });
 
 module.exports = {
+  disputeSettlementSchema,
   createPickupSchema,
   MAX_ITEMS_PER_PICKUP,
   updateStatusSchema,

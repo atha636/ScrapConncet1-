@@ -14,6 +14,7 @@ const {
   respondOfferSchema,
   inviteCollectorSchema,
   reportNoShowSchema,
+  disputeSettlementSchema,
 } = require("../validators/pickupValidator");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
@@ -43,6 +44,8 @@ const {
   inviteCollector,
   getMyInvites,
   reportNoShow,
+  confirmSettlement,
+  disputeSettlement,
 } = require("../controllers/pickupController");
 const { createDispute, getPickupDisputes } = require("../controllers/disputeController");
 const {
@@ -99,6 +102,8 @@ router.post(
 
 router.get("/my-requests", auth, role("user"), getMyRequests);
 router.patch("/:id/cancel", auth, role("user"), cancelByRequester);
+router.post("/:id/settlement/confirm", auth, role("user"), confirmSettlement);
+router.post("/:id/settlement/dispute", auth, role("user"), validate(disputeSettlementSchema), disputeSettlement);
 router.post("/:id/report-no-show", auth, role("user"), validate(reportNoShowSchema), reportNoShow);
 
 // "Repeat this pickup" — a requester-only template that a cron job (see
