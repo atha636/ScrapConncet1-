@@ -176,6 +176,8 @@ describe("GET /api/wallet/transactions", () => {
         .patch(`/api/pickup/${p._id}/status`)
         .set("Authorization", `Bearer ${collectorToken}`)
         .field("status", "completed")
+        // Matches this pickup's 1kg estimate, so the earning credits immediately.
+        .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 1 }]))
         .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
     }
 
