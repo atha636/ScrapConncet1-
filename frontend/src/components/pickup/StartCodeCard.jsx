@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getPickupById } from "../../services/pickupService";
+import { useT } from "../../i18n/core";
 
 /**
  * Requester side of the start handshake. The code is derived server-side
@@ -8,6 +9,7 @@ import { getPickupById } from "../../services/pickupService";
  * of reading it off the pickup prop.
  */
 export default function StartCodeCard({ pickup }) {
+  const { t } = useT();
   const [code, setCode] = useState(null);
   const pickupId = pickup?._id;
   const status = pickup?.status;
@@ -31,13 +33,11 @@ export default function StartCodeCard({ pickup }) {
 
   return (
     <div className="mt-4 rounded-md border border-rust/30 bg-rust/5 p-4 text-center">
-      <p className="text-xs font-semibold uppercase tracking-wide text-inkSoft">Your start code</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-inkSoft">{t("handshake.yourCode")}</p>
       <p className="my-1 text-3xl font-bold tracking-[0.4em] text-ink" aria-label={`Start code ${code.split("").join(" ")}`}>
         {code}
       </p>
-      <p className="text-xs text-inkSoft">
-        Tell this to the collector when they arrive. The pickup can't start without it — don't share it beforehand.
-      </p>
+      <p className="text-xs text-inkSoft">{t("handshake.codeHint")}</p>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import CardSkeleton from "../../components/common/CardSkeleton";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatItemsLabel } from "../../utils/pickupItems";
+import { useT } from "../../i18n/core";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
 import useCountUp from "../../hooks/useCountUp";
 
@@ -31,6 +32,7 @@ function StatValue({ value, isMoney }) {
 export default function Dashboard() {
   useDocumentMeta({ title: "Dashboard", noindex: true });
 
+  const { t } = useT();
   const { user } = useAuth();
   const [recent, setRecent] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, earned: 0 });
@@ -53,17 +55,17 @@ export default function Dashboard() {
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
+    if (h < 12) return t("greet.morning");
+    if (h < 18) return t("greet.afternoon");
+    return t("greet.evening");
   };
 
   return (
     <div>
       <h1 className="font-display text-2xl font-bold text-ink mb-1">
-        {greeting()}, {user?.name?.split(" ")[0] || "there"}
+        {greeting()}, {user?.name?.split(" ")[0] || t("greet.there")}
       </h1>
-      <p className="text-sm text-inkSoft mb-6">Here's what's happening with your pickups.</p>
+      <p className="text-sm text-inkSoft mb-6">{t("userDash.subtitle")}</p>
 
       <motion.div
         variants={listStagger}
@@ -72,10 +74,10 @@ export default function Dashboard() {
         className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"
       >
         {[
-          { label: "Total requests", value: stats.total },
-          { label: "Pending", value: stats.pending },
-          { label: "Completed", value: stats.completed },
-          { label: "Total earned", value: stats.earned, isMoney: true },
+          { label: t("userDash.total"), value: stats.total },
+          { label: t("userDash.pending"), value: stats.pending },
+          { label: t("userDash.completed"), value: stats.completed },
+          { label: t("userDash.earned"), value: stats.earned, isMoney: true },
         ].map((s) => (
           <motion.div key={s.label} variants={listItem}>
             <Card className="p-4 transition-shadow hover:shadow-[0_4px_16px_rgba(36,26,18,0.08)]">
@@ -89,8 +91,8 @@ export default function Dashboard() {
       </motion.div>
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-lg font-semibold text-ink">Recent activity</h2>
-        <Link to="/my-requests" className="text-sm font-semibold text-rust hover:underline">View all</Link>
+        <h2 className="font-display text-lg font-semibold text-ink">{t("userDash.recent")}</h2>
+        <Link to="/my-requests" className="text-sm font-semibold text-rust hover:underline">{t("userDash.viewAll")}</Link>
       </div>
 
       {loading ? (
@@ -102,8 +104,8 @@ export default function Dashboard() {
               <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
             </svg>
           </div>
-          <p className="text-inkSoft mb-4">No pickups yet — request your first one.</p>
-          <Link to="/request" className="btn-primary inline-flex">Request a pickup</Link>
+          <p className="text-inkSoft mb-4">{t("userDash.empty")}</p>
+          <Link to="/request" className="btn-primary inline-flex">{t("userDash.requestCta")}</Link>
         </Card>
       ) : (
         <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
@@ -126,7 +128,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div>
-                      <div className="font-medium text-ink capitalize">{formatItemsLabel(getPickupItems(item))}</div>
+                      <div className="font-medium text-ink capitalize">{formatItemsLabel(getPickupItems(item), t)}</div>
                       <div className="text-xs text-inkFaint font-mono mt-0.5">
                         {new Date(item.createdAt).toLocaleDateString()}
                       </div>

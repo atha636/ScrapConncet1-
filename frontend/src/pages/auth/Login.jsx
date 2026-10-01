@@ -8,6 +8,7 @@ import AuthSidePanel from "../../components/auth/AuthSidePanel";
 import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 import { hasGoogleAuth } from "../../utils/googleAuthConfig";
 import { roleHome } from "../../utils/roleHome";
+import { useT } from "../../i18n/core";
 
 export default function Login() {
   useDocumentMeta({
@@ -15,6 +16,7 @@ export default function Login() {
     description: "Log in to ScrapConnect to request a scrap pickup or manage your collector jobs.",
   });
 
+  const { t } = useT();
   const { user, login } = useAuth();
   const navigate = useNavigate();
 
@@ -34,7 +36,7 @@ export default function Login() {
       login(res.data.token, res.data.user);
       navigate(roleHome(res.data.user.role));
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password.");
+      setError(err.response?.data?.message || t("auth.badLogin"));
     } finally {
       setLoading(false);
     }
@@ -54,8 +56,8 @@ export default function Login() {
             className="flex flex-col items-center mb-6"
           >
             <img src="/logo-mark.png" alt="" className="w-14 h-14 rounded-ticket mb-3 rotate-[-3deg]" />
-            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Welcome back</h1>
-            <p className="text-sm text-inkSoft mt-1">Sign in to your account</p>
+            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">{t("auth.loginTitle")}</h1>
+            <p className="text-sm text-inkSoft mt-1">{t("auth.loginSubtitle")}</p>
           </motion.div>
 
           {/* Card */}
@@ -86,7 +88,7 @@ export default function Login() {
             </AnimatePresence>
 
             <div className="mb-4">
-              <label className="field-label">Email</label>
+              <label className="field-label">{t("auth.email")}</label>
               <input
                 type="email"
                 required
@@ -99,16 +101,16 @@ export default function Login() {
 
             <div className="mb-6">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="field-label !mb-0">Password</label>
+                <label className="field-label !mb-0">{t("auth.password")}</label>
                 <Link to="/forgot-password" className="text-xs text-rust hover:underline">
-                  Forgot password?
+                  {t("auth.forgot")}
                 </Link>
               </div>
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
                   required
-                  placeholder="Enter your password"
+                  placeholder={t("auth.passwordPlaceholder")}
                   className="field-input pr-11"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -118,7 +120,7 @@ export default function Login() {
                   whileTap={{ scale: 0.85 }}
                   onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-inkFaint hover:text-rust transition-colors"
-                  aria-label={showPass ? "Hide password" : "Show password"}
+                  aria-label={showPass ? t("auth.hide") : t("auth.show")}
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     {showPass ? (
@@ -162,14 +164,14 @@ export default function Login() {
                   className="w-3.5 h-3.5 border-2 border-surface/40 border-t-surface rounded-full"
                 />
               )}
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
             </motion.button>
 
             {hasGoogleAuth && (
               <>
                 <div className="flex items-center gap-3 my-4">
                   <div className="h-px flex-1 bg-line" />
-                  <span className="text-[11px] text-inkFaint uppercase tracking-wide">or</span>
+                  <span className="text-[11px] text-inkFaint uppercase tracking-wide">{t("auth.or")}</span>
                   <div className="h-px flex-1 bg-line" />
                 </div>
 
@@ -178,13 +180,13 @@ export default function Login() {
             )}
 
             <p className="text-center text-sm text-inkSoft mt-5">
-              Don't have an account?{" "}
+              {t("auth.noAccount")}{" "}
               <button
                 type="button"
                 onClick={() => navigate("/register")}
                 className="text-rust font-semibold hover:underline"
               >
-                Create one
+                {t("auth.createOne")}
               </button>
             </p>
           </motion.form>
@@ -199,9 +201,9 @@ export default function Login() {
             className="grid grid-cols-3 gap-3 mt-6"
           >
             {[
-              { label: "No listing fees", icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /> },
-              { label: "Live tracking", icon: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></> },
-              { label: "Rated collectors", icon: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /> },
+              { label: t("auth.noFees"), icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /> },
+              { label: t("auth.liveTracking"), icon: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></> },
+              { label: t("auth.ratedCollectors"), icon: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /> },
             ].map((f) => (
               <div key={f.label} className="flex flex-col items-center text-center gap-1.5">
                 <div className="w-8 h-8 rounded-full bg-rust/10 text-rust flex items-center justify-center">

@@ -1,10 +1,4 @@
-const LABELS = {
-  pending: "Pending",
-  accepted: "Accepted",
-  in_progress: "In progress",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
+import { useT } from "../../i18n/core";
 
 const CLASS = {
   pending: "stamp-pending",
@@ -15,9 +9,13 @@ const CLASS = {
 };
 
 export default function StatusStamp({ status }) {
+  const { t } = useT();
+  const key = `status.${status}`;
+  const label = t(key);
   return (
     <span className={`stamp ${CLASS[status] || "stamp-pending"}`}>
-      {LABELS[status] || status}
+      {/* An unknown status has no key — t() returns the key itself, so show the raw status instead. */}
+      {label === key ? status : label}
     </span>
   );
 }

@@ -25,11 +25,24 @@ export function getPickupItems(pickup) {
 // — rather than spelling out every item where space is tight. Use
 // getPickupItems(pickup) directly (see PickupDetailModal/RequestDetailModal)
 // wherever the full breakdown should actually be shown.
-export function formatItemsLabel(items) {
+// Pass `t` (from useT) to get the translated label; without it the English
+// label is returned exactly as before, so existing callers are unaffected.
+export function scrapLabel(type, t) {
+  if (t) {
+    const key = `scrap.${type}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+  }
+  return SCRAP_TYPE_LABELS[type] || type;
+}
+
+export function formatItemsLabel(items, t) {
   if (!items || items.length === 0) return "—";
-  const first = SCRAP_TYPE_LABELS[items[0].scrapType] || items[0].scrapType;
+  const first = scrapLabel(items[0].scrapType, t);
   if (items.length === 1) return first;
-  return `${first} + ${items.length - 1} more`;
+  return t
+    ? t("scrap.moreItems", { first, n: items.length - 1 })
+    : `${first} + ${items.length - 1} more`;
 }
 
 // "10kg" style summary for a whole item list, or a single item's own

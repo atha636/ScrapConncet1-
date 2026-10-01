@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { compressImage } from "../../utils/compressImage";
 import ErrorBox from "../common/ErrorBox";
-import { getPickupItems, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
+import { getPickupItems, scrapLabel } from "../../utils/pickupItems";
+import { useT } from "../../i18n/core";
 
 /**
  * Required, not optional — a completion photo's whole value is as proof of
@@ -14,6 +15,7 @@ import { getPickupItems, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
  * of any Framer Motion `layout` ancestor elsewhere on the page.
  */
 export default function CompletionPhotoModal({ open, onClose, onSubmit, submitting, error, pickup }) {
+  const { t } = useT();
   const items = getPickupItems(pickup);
   // One weighed value per original item, same order — the backend requires
   // the same scrap types in the same order as the request.
@@ -87,20 +89,18 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Add a completion photo"
+            aria-label={t("weigh.title")}
             className="w-full sm:w-[26rem] max-w-[calc(100vw-2rem)] ticket p-5 pt-6"
           >
-            <h3 className="text-base font-bold text-ink mb-1">Weigh &amp; add a photo</h3>
-            <p className="text-xs text-inkSoft mb-3">
-              Enter the actual weighed weight and add a photo of the collected scrap — together they're the evidence if anything's ever disputed.
-            </p>
+            <h3 className="text-base font-bold text-ink mb-1">{t("weigh.title")}</h3>
+            <p className="text-xs text-inkSoft mb-3">{t("weigh.hint")}</p>
 
             <div className="mb-4 space-y-2">
               {items.map((it, i) => (
                 <label key={i} className="flex items-center justify-between gap-3 text-sm text-ink">
                   <span>
-                    {SCRAP_TYPE_LABELS[it.scrapType] || it.scrapType}
-                    {it.estimatedWeightKg ? <span className="text-inkFaint"> (est. {it.estimatedWeightKg}kg)</span> : null}
+                    {scrapLabel(it.scrapType, t)}
+                    {it.estimatedWeightKg ? <span className="text-inkFaint"> ({t("weigh.est", { kg: it.estimatedWeightKg })})</span> : null}
                   </span>
                   <span className="flex items-center gap-1">
                     <input
@@ -149,13 +149,13 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-                <span className="text-sm font-semibold">{compressing ? "Optimizing…" : "Take or choose a photo"}</span>
+                <span className="text-sm font-semibold">{compressing ? t("weigh.optimizing") : t("weigh.takePhoto")}</span>
               </button>
             )}
 
             <div className="flex justify-end gap-2">
               <button type="button" onClick={handleClose} className="btn-secondary" disabled={submitting}>
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -163,7 +163,7 @@ export default function CompletionPhotoModal({ open, onClose, onSubmit, submitti
                 className="btn-primary"
                 disabled={!file || !weightsValid || submitting || compressing}
               >
-                {submitting ? "Submitting…" : "Mark completed"}
+                {submitting ? t("weigh.submitting") : t("weigh.submit")}
               </button>
             </div>
           </motion.div>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Gurmukhi:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -65,13 +65,13 @@ body {
     radial-gradient(circle at 1px 1px, rgb(var(--c-ink) / var(--dot-opacity)) 1px, transparent 0);
   background-size: 22px 22px;
   color: rgb(var(--c-ink));
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, .font-display {
-  font-family: 'Roboto Slab', serif;
+  font-family: 'Roboto Slab', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', serif;
 }
 
 /* Visible keyboard focus everywhere — no glassy focus rings */
@@ -117,7 +117,7 @@ h1, h2, h3, h4, .font-display {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -137,7 +137,7 @@ h1, h2, h3, h4, .font-display {
 /* ---------- Form controls ---------- */
 .field-label {
   display: block;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -153,7 +153,7 @@ h1, h2, h3, h4, .font-display {
   border: 1.5px solid rgb(var(--c-line));
   border-radius: 6px;
   color: rgb(var(--c-ink));
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif;
   /* 16px, not 14px — iOS Safari auto-zooms the whole page on focus for any
      input under 16px, which is a jarring, well-known mobile bug. */
   font-size: 16px;
@@ -188,7 +188,7 @@ h1, h2, h3, h4, .font-display {
   color: rgb(var(--c-surface));
   border: none;
   border-radius: 6px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -208,7 +208,7 @@ h1, h2, h3, h4, .font-display {
   color: rgb(var(--c-ink));
   border: 1.5px solid rgb(var(--c-line));
   border-radius: 6px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;

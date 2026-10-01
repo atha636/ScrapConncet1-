@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import Navbar from "./components/layout/Navbar";
 import { useAuth } from "./context/AuthContext";
+import LanguageToggle from "./components/common/LanguageToggle";
 
 
 const STANDALONE_ROUTES = ["/", "/about", "/login", "/register", "/admin-login"];
@@ -15,7 +16,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      {showAppChrome && <Navbar />}
+      {showAppChrome ? <Navbar /> : <LanguageToggle floating />}
       <div className={showAppChrome ? "max-w-5xl mx-auto px-5 py-8" : ""}>
         <AppRoutes />
       </div>

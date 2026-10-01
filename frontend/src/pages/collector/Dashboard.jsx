@@ -32,6 +32,7 @@ import RequesterProfileModal from "../../components/pickup/RequesterProfileModal
 import ReportIssueModal from "../../components/pickup/ReportIssueModal";
 import CompletionPhotoModal from "../../components/pickup/CompletionPhotoModal";
 import StartCodeModal from "../../components/pickup/StartCodeModal";
+import { useT } from "../../i18n/core";
 import LeaderboardPanel from "../../components/collector/LeaderboardPanel";
 import PerformanceInsightsPanel from "../../components/collector/PerformanceInsightsPanel";
 import ShareProfileButton from "../../components/collector/ShareProfileButton";
@@ -43,7 +44,7 @@ import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
-import { getPickupItems, formatItemsLabel, formatTotalWeight } from "../../utils/pickupItems";
+import { getPickupItems, formatItemsLabel, formatTotalWeight, scrapLabel } from "../../utils/pickupItems";
 import { maskUpi, maskAccountNumber } from "../../utils/payoutMask";
 import { distanceKm, formatDistance } from "../../utils/distance";
 import useDocumentMeta from "../../hooks/useDocumentMeta";
@@ -51,9 +52,10 @@ import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
+// `label` is a translation key, resolved where the button renders.
 const NEXT_ACTION = {
-  accepted: { label: "Start pickup", next: "in_progress" },
-  in_progress: { label: "Mark completed", next: "completed" },
+  accepted: { label: "collectorDash.startPickup", next: "in_progress" },
+  in_progress: { label: "collectorDash.markCompleted", next: "completed" },
 };
 
 // Shared by the initial /available fetch and the live "newPickup" socket
@@ -62,12 +64,13 @@ const NEXT_ACTION = {
 // numbers that could quietly drift apart if only one were ever changed.
 const AVAILABLE_RADIUS_KM = 50;
 
+// `label` is a translation key, resolved where the tab renders.
 const TABS = [
-  { key: "available", label: "Available" },
-  { key: "mine", label: "My jobs" },
-  { key: "history", label: "History" },
-  { key: "wallet", label: "Wallet" },
-  { key: "profile", label: "Profile & stats" },
+  { key: "available", label: "collectorDash.tabAvailable" },
+  { key: "mine", label: "collectorDash.tabMine" },
+  { key: "history", label: "collectorDash.tabHistory" },
+  { key: "wallet", label: "collectorDash.tabWallet" },
+  { key: "profile", label: "collectorDash.tabProfile" },
 ];
 
 const listStagger = {
@@ -99,6 +102,7 @@ function WalletIcon() {
 
 export default function CollectorDashboard() {
   useDocumentMeta({ title: "Collector Dashboard", noindex: true });
+  const { t } = useT();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -545,7 +549,7 @@ export default function CollectorDashboard() {
       setMyJobs((prev) => prev.map((p) => (p._id === startingPickup._id ? res.data : p)));
       setStartingPickup(null);
     } catch (err) {
-      setStartError(err.response?.data?.message || "Couldn't verify that code — try again.");
+      setStartError(err.response?.data?.message || t("handshake.codeFallbackError"));
     } finally {
       setStartSubmitting(false);
     }
@@ -561,7 +565,7 @@ export default function CollectorDashboard() {
       setCompletingPickup(null);
       setTab("history");
     } catch (err) {
-      setCompletingError(err.response?.data?.message || "Couldn't submit the completion photo. Try again.");
+      setCompletingError(err.response?.data?.message || t("weigh.submitError"));
     } finally {
       setCompletingSubmitting(false);
     }
@@ -644,16 +648,16 @@ export default function CollectorDashboard() {
         {/* Tabs, with a sliding underline instead of a per-button static border —
             the indicator itself animates between positions via layoutId. */}
         <div className="flex gap-1 mb-6 border-b border-line overflow-x-auto scrollbar-hide">
-          {TABS.map((t) => (
+          {TABS.map((tabDef) => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabDef.key}
+              onClick={() => setTab(tabDef.key)}
               className={`relative px-4 py-2.5 text-sm font-medium -mb-px transition-colors shrink-0 whitespace-nowrap ${
-                tab === t.key ? "text-rust" : "text-inkSoft hover:text-ink"
+                tab === tabDef.key ? "text-rust" : "text-inkSoft hover:text-ink"
               }`}
             >
-              {t.label}{t.key !== "wallet" ? ` (${counts[t.key]})` : ""}
-              {tab === t.key && (
+              {t(tabDef.label)}{tabDef.key !== "wallet" ? ` (${counts[tabDef.key]})` : ""}
+              {tab === tabDef.key && (
                 <motion.span
                   layoutId="collector-tab-underline"
                   className="absolute left-0 right-0 -bottom-px h-[2px] bg-rust"
@@ -674,8 +678,8 @@ export default function CollectorDashboard() {
               className="field-input !w-auto text-sm"
             >
               <option value="all">All types</option>
-              {SCRAP_TYPES.map((t) => (
-                <option key={t} value={t} className="capitalize">{t}</option>
+              {SCRAP_TYPES.map((type) => (
+                <option key={type} value={type} className="capitalize">{scrapLabel(type, t)}</option>
               ))}
             </select>
 
@@ -992,13 +996,13 @@ export default function CollectorDashboard() {
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                                 </svg>
-                                Chat
+                                {t("collectorDash.chat")}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setReportPickup(item); }}
                                 className="text-xs font-semibold text-inkFaint hover:text-danger"
                               >
-                                Report
+                                {t("collectorDash.report")}
                               </button>
                               {action && (
                                 <motion.button
@@ -1012,7 +1016,7 @@ export default function CollectorDashboard() {
                                   disabled={actingId === item._id}
                                   className="btn-primary !py-2 !px-4 text-sm"
                                 >
-                                  {actingId === item._id ? "Updating…" : action.label}
+                                  {actingId === item._id ? t("collectorDash.updating") : t(action.label)}
                                 </motion.button>
                               )}
                             </div>

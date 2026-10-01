@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext"; // 👈 add this
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { hasGoogleAuth } from "./utils/googleAuthConfig";
@@ -21,13 +22,15 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 // entirely unaffected either way.
 const appTree = (
   <ThemeProvider>
-    <BrowserRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ToastProvider>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <ToastProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </LanguageProvider>
   </ThemeProvider>
 );
 

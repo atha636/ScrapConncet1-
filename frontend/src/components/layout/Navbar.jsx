@@ -5,24 +5,28 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import NotificationBell from "./NotificationBell";
 import ConfirmModal from "../common/ConfirmModal";
+import LanguageToggle from "../common/LanguageToggle";
+import { useT } from "../../i18n/core";
 
-const HOME_LINK = { to: "/", label: "Home" };
-const ABOUT_LINK = { to: "/about", label: "About us" };
+// `label` is a translation key (see i18n/locales), resolved at render time.
+const HOME_LINK = { to: "/", label: "nav.home" };
+const ABOUT_LINK = { to: "/about", label: "nav.about" };
 
 const USER_LINKS = [
   HOME_LINK,
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/request", label: "Request pickup" },
-  { to: "/my-requests", label: "My requests" },
+  { to: "/dashboard", label: "nav.dashboard" },
+  { to: "/request", label: "nav.requestPickup" },
+  { to: "/my-requests", label: "nav.myRequests" },
   ABOUT_LINK,
 ];
 
-const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "Collector" }, ABOUT_LINK];
-const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "Admin" }, ABOUT_LINK];
+const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "nav.collector" }, ABOUT_LINK];
+const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "nav.admin" }, ABOUT_LINK];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -80,7 +84,7 @@ export default function Navbar() {
           whileTap={{ scale: 0.96 }}
           onClick={handleLogoClick}
           className="flex items-center gap-2.5 shrink-0"
-          aria-label="ScrapConnect home"
+          aria-label={t("nav.homeAria")}
         >
           <img src="/logo-mark.png" alt="" className="w-8 h-8 rounded-md rotate-[-3deg]" />
           <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
@@ -104,7 +108,7 @@ export default function Navbar() {
                     transition={{ type: "spring", stiffness: 500, damping: 35 }}
                   />
                 )}
-                <span className="relative">{link.label}</span>
+                <span className="relative">{t(link.label)}</span>
               </Link>
             );
           })}
@@ -115,8 +119,8 @@ export default function Navbar() {
             whileTap={{ scale: 0.9 }}
             onClick={toggleTheme}
             className="w-9 h-9 rounded-md border border-line flex items-center justify-center text-inkSoft hover:text-rust hover:border-rust/50 transition-colors"
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={theme === "dark" ? t("nav.toLight") : t("nav.toDark")}
+            title={theme === "dark" ? t("nav.toLight") : t("nav.toDark")}
           >
             <AnimatePresence mode="wait" initial={false}>
               {theme === "dark" ? (
@@ -153,6 +157,8 @@ export default function Navbar() {
             </AnimatePresence>
           </motion.button>
 
+          <LanguageToggle />
+
           <NotificationBell />
 
           <Link to="/profile" className="hidden sm:flex items-center gap-2 group">
@@ -172,13 +178,13 @@ export default function Navbar() {
             onClick={() => setConfirmLogoutOpen(true)}
             className="hidden sm:inline-flex btn-secondary !py-2 !px-3.5 text-xs"
           >
-            Log out
+            {t("nav.logout")}
           </motion.button>
 
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="sm:hidden w-9 h-9 rounded-md border border-line flex items-center justify-center text-inkSoft"
-            aria-label="Toggle menu"
+            aria-label={t("nav.toggleMenu")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
               <motion.line
@@ -222,7 +228,7 @@ export default function Navbar() {
                     location.pathname === link.to ? "text-rust bg-rust/[0.08]" : "text-inkSoft"
                   }`}
                 >
-                  {link.label}
+                  {t(link.label)}
                 </Link>
               ))}
               <Link
@@ -232,7 +238,7 @@ export default function Navbar() {
                   location.pathname === "/profile" ? "text-rust bg-rust/[0.08]" : "text-inkSoft"
                 }`}
               >
-                Profile
+                {t("nav.profile")}
               </Link>
               <button
                 onClick={() => {
@@ -241,7 +247,7 @@ export default function Navbar() {
                 }}
                 className="text-left px-3 py-2.5 rounded-md text-sm font-medium text-inkSoft"
               >
-                Log out
+                {t("nav.logout")}
               </button>
             </div>
           </motion.div>
@@ -250,10 +256,10 @@ export default function Navbar() {
 
       <ConfirmModal
         open={confirmLogoutOpen}
-        title="Log out?"
-        message="You'll need to sign in again to access your account."
-        confirmLabel="Log out"
-        cancelLabel="Cancel"
+        title={t("nav.logoutTitle")}
+        message={t("nav.logoutMessage")}
+        confirmLabel={t("nav.logout")}
+        cancelLabel={t("nav.cancel")}
         onConfirm={confirmLogout}
         onCancel={() => setConfirmLogoutOpen(false)}
       />

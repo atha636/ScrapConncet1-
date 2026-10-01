@@ -35,9 +35,9 @@ export default {
         danger: "rgb(var(--c-danger) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["'Roboto Slab'", "serif"],
-        body: ["'Inter'", "sans-serif"],
-        mono: ["'IBM Plex Mono'", "monospace"],
+        display: ["'Roboto Slab'", "'Noto Sans Devanagari'", "'Noto Sans Gurmukhi'", "serif"],
+        body: ["'Inter'", "'Noto Sans Devanagari'", "'Noto Sans Gurmukhi'", "sans-serif"],
+        mono: ["'IBM Plex Mono'", "'Noto Sans Devanagari'", "'Noto Sans Gurmukhi'", "monospace"],
       },
       borderRadius: {
         ticket: "6px",
