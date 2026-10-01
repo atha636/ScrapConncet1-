@@ -68,6 +68,9 @@ async function complete() {
     .patch(`/api/pickup/${pickup._id}/status`)
     .set("Authorization", `Bearer ${collectorToken}`)
     .field("status", "completed")
+    // Weighed load matches the 5kg estimate, so the agreed price stands and
+    // the earning is credited immediately (see utils/settlement.js).
+    .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
     .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 }
 

@@ -4,6 +4,7 @@ const createApp = require("../src/app");
 const User = require("../src/models/User");
 const Pickup = require("../src/models/Pickup");
 const Transaction = require("../src/models/Transaction");
+const { deriveOtp } = require("../src/utils/handshake");
 const { connect, clearDatabase, closeDatabase } = require("./helpers/db");
 
 const app = createApp();
@@ -116,7 +117,7 @@ describe("PATCH /api/pickup/:id/status", () => {
     const step1 = await request(app)
       .patch(`/api/pickup/${pickup._id}/status`)
       .set("Authorization", `Bearer ${token(collector)}`)
-      .send({ status: "in_progress" });
+      .send({ status: "in_progress", otp: deriveOtp(pickup._id, collector._id) });
     expect(step1.status).toBe(200);
     expect(step1.body.status).toBe("in_progress");
     expect(step1.body.statusHistory).toHaveLength(2);
@@ -125,6 +126,7 @@ describe("PATCH /api/pickup/:id/status", () => {
       .patch(`/api/pickup/${pickup._id}/status`)
       .set("Authorization", `Bearer ${token(collector)}`)
       .field("status", "completed")
+      .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
       .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
     expect(step2.status).toBe(200);
     expect(step2.body.status).toBe("completed");
@@ -156,7 +158,8 @@ describe("PATCH /api/pickup/:id/status", () => {
     const res = await request(app)
       .patch(`/api/pickup/${pickup._id}/status`)
       .set("Authorization", `Bearer ${token(collector)}`)
-      .send({ status: "in_progress" }); // plain JSON — should still work exactly as before
+      // plain JSON (no photo) — still fine; the start code is the only extra field
+      .send({ status: "in_progress", otp: deriveOtp(pickup._id, collector._id) });
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("in_progress");
@@ -173,6 +176,7 @@ describe("PATCH /api/pickup/:id/status", () => {
         .patch(`/api/pickup/${pickup._id}/status`)
         .set("Authorization", `Bearer ${token(collector)}`)
         .field("status", "completed")
+        .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
         .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 
     // Fired concurrently (not awaited one after another) to actually

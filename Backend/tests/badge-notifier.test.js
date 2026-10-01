@@ -113,8 +113,12 @@ describe("syncCollectorBadges", () => {
     // simply wrong about what real behavior should be here.)
     expect(notifications).toHaveLength(3);
     expect(notifications[0].text).toContain("First pickup");
-    expect(notifications[1].text).toContain("10 pickups");
-    expect(notifications[2].text).toContain("Reliable");
+    // The 10-pickups and Reliable badges are awarded in the same sync, so
+    // their createdAt can tie to the millisecond — their relative order
+    // isn't guaranteed and isn't what this test is about.
+    const rest = notifications.slice(1).map((n) => n.text).join(" | ");
+    expect(rest).toContain("10 pickups");
+    expect(rest).toContain("Reliable");
 
     const updated = await User.findById(collector._id);
     expect(updated.earnedBadgeIds.sort()).toEqual(["pickups_10", "reliable"].sort());

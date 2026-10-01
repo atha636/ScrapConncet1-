@@ -52,6 +52,7 @@ async function creditEarning(amount, forCollector = collector) {
     .patch(`/api/pickup/${pickup._id}/status`)
     .set("Authorization", `Bearer ${token(forCollector)}`)
     .field("status", "completed")
+    .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
     .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
 }
 
