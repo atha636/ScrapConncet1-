@@ -114,6 +114,7 @@ function createApp() {
   app.use("/api/export", require("./routes/exportRoutes"));
   app.use("/api/wallet", require("./routes/walletRoutes"));
   app.use("/api/referrals", require("./routes/referralRoutes"));
+  app.use("/api/scrap-rates", require("./routes/scrapRateRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);
