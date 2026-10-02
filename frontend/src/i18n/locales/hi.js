@@ -8,6 +8,7 @@ const hi = {
     requestPickup: "पिकअप का अनुरोध करें",
     myRequests: "मेरे अनुरोध",
     about: "हमारे बारे में",
+    rates: "स्क्रैप दरें",
     collector: "कलेक्टर",
     admin: "एडमिन",
     profile: "प्रोफ़ाइल",

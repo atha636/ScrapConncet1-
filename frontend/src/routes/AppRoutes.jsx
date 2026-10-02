@@ -14,7 +14,9 @@ import Loader from "../components/common/Loader";
 // small chunk per page, which matters most on the slower mobile connections
 // this app is mainly used on.
 const Login = lazy(() => import("../pages/auth/Login"));
-const AboutUs = lazy(() => import("../pages/AboutUs"));const Register = lazy(() => import("../pages/auth/Register"));
+const AboutUs = lazy(() => import("../pages/AboutUs"));
+const ScrapRates = lazy(() => import("../pages/ScrapRates"));
+const Register = lazy(() => import("../pages/auth/Register"));
 const AdminLogin = lazy(() => import("../pages/auth/AdminLogin"));
 const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("../pages/auth/ResetPassword"));
@@ -40,6 +42,8 @@ export default function AppRoutes() {
         <Route path="/home" element={<Navigate to="/" replace />} />
 
         <Route path="/about" element={<AboutUs />} />
+
+        <Route path="/scrap-rates" element={<ScrapRates />} />
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

@@ -11,17 +11,19 @@ import { useT } from "../../i18n/core";
 // `label` is a translation key (see i18n/locales), resolved at render time.
 const HOME_LINK = { to: "/", label: "nav.home" };
 const ABOUT_LINK = { to: "/about", label: "nav.about" };
+const RATES_LINK = { to: "/scrap-rates", label: "nav.rates" };
 
 const USER_LINKS = [
   HOME_LINK,
   { to: "/dashboard", label: "nav.dashboard" },
   { to: "/request", label: "nav.requestPickup" },
   { to: "/my-requests", label: "nav.myRequests" },
+  RATES_LINK,
   ABOUT_LINK,
 ];
 
-const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "nav.collector" }, ABOUT_LINK];
-const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "nav.admin" }, ABOUT_LINK];
+const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "nav.collector" }, RATES_LINK, ABOUT_LINK];
+const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "nav.admin" }, RATES_LINK, ABOUT_LINK];
 
 export default function Navbar() {
   const { user, logout } = useAuth();

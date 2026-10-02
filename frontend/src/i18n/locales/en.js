@@ -9,6 +9,7 @@ const en = {
     requestPickup: "Request pickup",
     myRequests: "My requests",
     about: "About us",
+    rates: "Scrap Rates",
     collector: "Collector",
     admin: "Admin",
     profile: "Profile",

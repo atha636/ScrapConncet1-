@@ -23,6 +23,7 @@ import CardSkeleton from "../components/common/CardSkeleton";
 import ErrorBox from "../components/common/ErrorBox";
 import StatusStamp from "../components/ui/StatusStamp";
 import AdminCharts from "../components/admin/AdminCharts";
+import ScrapRatesTab from "../components/admin/ScrapRatesTab";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
@@ -35,6 +36,7 @@ const TABS = [
   { key: "payouts", label: "Payouts" },
   { key: "disputes", label: "Disputes" },
   { key: "pickups", label: "All pickups" },
+  { key: "rates", label: "Scrap rates" },
 ];
 
 // Mirrors ReportIssueModal's own mapping so the reason reads the same way
@@ -138,6 +140,8 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
+        : tab === "rates"
+        ? async () => {}
         : loadPickups;
     load()
       .catch(() => setError("Couldn't load this section. Try refreshing."))
@@ -338,6 +342,8 @@ export default function AdminPanel() {
             )}
 
             {tab === "analytics" && <AdminCharts series={series} stats={stats} growthStats={growthStats} />}
+
+            {tab === "rates" && <ScrapRatesTab />}
 
             {tab === "users" && (
               <div>

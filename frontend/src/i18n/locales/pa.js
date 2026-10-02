@@ -8,6 +8,7 @@ const pa = {
     requestPickup: "ਪਿਕਅੱਪ ਦੀ ਬੇਨਤੀ ਕਰੋ",
     myRequests: "ਮੇਰੀਆਂ ਬੇਨਤੀਆਂ",
     about: "ਸਾਡੇ ਬਾਰੇ",
+    rates: "ਸਕਰੈਪ ਰੇਟ",
     collector: "ਕਲੈਕਟਰ",
     admin: "ਐਡਮਿਨ",
     profile: "ਪ੍ਰੋਫਾਈਲ",
