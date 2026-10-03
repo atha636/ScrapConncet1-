@@ -4,7 +4,8 @@ import Card from "../components/ui/Card";
 import Loader from "../components/common/Loader";
 import ErrorBox from "../components/common/ErrorBox";
 import useDocumentMeta from "../hooks/useDocumentMeta";
-import { getScrapRates } from "../services/scrapRateService";
+import ScrapRateTrendChart from "../components/ScrapRateTrendChart";
+import { getScrapRates, getScrapRateHistory } from "../services/scrapRateService";
 import { SCRAP_TYPE_LABELS } from "../utils/pickupItems";
 
 const listStagger = {
@@ -24,6 +25,14 @@ export default function ScrapRates() {
   const [rates, setRates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [history, setHistory] = useState([]);
+  const [days, setDays] = useState(90);
+
+  useEffect(() => {
+    getScrapRateHistory(days)
+      .then((res) => setHistory(res.data.history))
+      .catch(() => setHistory([]));
+  }, [days]);
 
   useEffect(() => {
     getScrapRates()
@@ -59,6 +68,10 @@ export default function ScrapRates() {
             </motion.div>
           ))}
         </motion.div>
+      )}
+
+      {!loading && (
+        <ScrapRateTrendChart history={history} currentRates={rates} days={days} onRangeChange={setDays} />
       )}
     </div>
   );
