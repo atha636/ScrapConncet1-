@@ -1,7 +1,7 @@
 const ScrapRate = require("../models/ScrapRate");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
-const { BASE_RATE_PER_KG } = require("../utils/pricing");
+const { BASE_RATE_PER_KG, setCachedRate } = require("../utils/pricing");
 
 const SCRAP_TYPES = Object.keys(BASE_RATE_PER_KG);
 
@@ -44,6 +44,10 @@ exports.updateRate = asyncHandler(async (req, res) => {
     { ratePerKg, updatedBy: req.user.id },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
+
+  // Make the new rate live for pricing immediately, not just visible on
+  // the public rates page.
+  setCachedRate(rate.scrapType, rate.ratePerKg);
 
   res.json({
     scrapType: rate.scrapType,
