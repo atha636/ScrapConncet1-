@@ -44,6 +44,31 @@ const userSchema = new mongoose.Schema(
     // suspend/unsuspend path needed for this.
     noShowCount: { type: Number, default: 0 },
 
+    // Identity verification for collectors. A collector can log in and use
+    // their profile straight away, but can't browse, accept or negotiate
+    // pickups until an admin sets status to "approved" (see
+    // utils/collectorVerification.js). We deliberately keep only the last 4
+    // digits of the ID number — never the full number — plus a reference to
+    // the uploaded document, which lives in private storage (never a public
+    // URL) and is only ever served to an admin (see
+    // controllers/verificationController.js).
+    collectorVerification: {
+      status: {
+        type: String,
+        enum: ["not_submitted", "pending", "approved", "rejected"],
+        default: "not_submitted",
+      },
+      idType: { type: String, enum: ["aadhaar", "driving_license", "voter_id", "pan"] },
+      idLast4: { type: String, match: /^\d{4}$/ },
+      documentRef: { type: String, select: false },
+      documentStorage: { type: String, enum: ["cloudinary", "local"], select: false },
+      documentFormat: { type: String, select: false },
+      submittedAt: { type: Date },
+      reviewedAt: { type: Date },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      rejectionReason: { type: String, maxlength: 300 },
+    },
+
     // Manual on/off switch, independent of the weekly schedule below — a
     // collector can be paused (going on leave, sick day) regardless of
     // whether they've set up a schedule at all, and a schedule doesn't
@@ -204,6 +229,11 @@ userSchema.set("toJSON", {
     delete ret.resetTokenHash;
     delete ret.resetTokenExpires;
     delete ret.sessionVersion;
+    if (ret.collectorVerification) {
+      delete ret.collectorVerification.documentRef;
+      delete ret.collectorVerification.documentStorage;
+      delete ret.collectorVerification.documentFormat;
+    }
     delete ret.__v;
     return ret;
   },

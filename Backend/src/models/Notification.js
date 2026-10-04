@@ -14,6 +14,7 @@ const notificationSchema = new mongoose.Schema(
         "price_offer",
         "batch_available",
         "pickup_completed",
+        "verification_update",
       ],
       required: true,
     },

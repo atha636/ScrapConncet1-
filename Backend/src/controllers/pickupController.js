@@ -12,6 +12,7 @@ const { optimizeRoute, haversineKm } = require("../utils/routeOptimizer");
 const { findSuggestedBatch } = require("../utils/suggestedBatch");
 const { touchCollectorLocation } = require("../utils/touchCollectorLocation");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
+const { assertCollectorVerified } = require("../utils/collectorVerification");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 const Dispute = require("../models/Dispute");
@@ -149,6 +150,7 @@ exports.getMyRequests = asyncHandler(async (req, res) => {
 // optionally bounded by ?radiusKm=. Without coordinates, falls back to the
 // original newest-first behavior — old clients/tests keep working.
 exports.getAvailable = asyncHandler(async (req, res) => {
+  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification.status"));
   const { page, limit, skip } = paginate(req.query);
   const lat = parseFloat(req.query.lat);
   const lng = parseFloat(req.query.lng);
@@ -426,6 +428,7 @@ exports.getDemandHeatmap = asyncHandler(async (req, res) => {
 // PATCH /api/pickup/:id/accept  (collector only)
 exports.acceptPickup = asyncHandler(async (req, res) => {
   const collectorUser = await User.findById(req.user.id);
+  assertCollectorVerified(collectorUser);
   if (collectorUser?.collectorSuspended) {
     throw new ApiError(
       403,
@@ -526,6 +529,7 @@ exports.getNearbyCollectors = asyncHandler(async (req, res) => {
     role: "collector",
     collectorSuspended: false,
     isActive: true,
+    "collectorVerification.status": "approved",
     "lastKnownLocation.updatedAt": { $gte: freshSince },
   }).select(
     "name rating ratingCount lastKnownLocation collectorPaused availabilitySchedule collectorPreferences"
@@ -607,7 +611,12 @@ exports.inviteCollector = asyncHandler(async (req, res) => {
   if (!target) throw new ApiError(404, "Pickup not found");
   const amount = req.body.amount ?? target.price;
 
-  const collector = await User.findOne({ _id: collectorId, role: "collector", collectorSuspended: false });
+  const collector = await User.findOne({
+    _id: collectorId,
+    role: "collector",
+    collectorSuspended: false,
+    "collectorVerification.status": "approved",
+  });
   if (!collector) throw new ApiError(404, "That collector isn't available to invite");
 
   // Same atomic pattern as proposeOffer/acceptPickup — the filter itself
@@ -683,6 +692,7 @@ exports.getMyInvites = asyncHandler(async (req, res) => {
 // land — one gets negotiation.collector set, the other gets null back and
 // a clear 409, exactly like acceptPickup's own race.
 exports.proposeOffer = asyncHandler(async (req, res) => {
+  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification.status"));
   const { amount, note } = req.body;
 
   const pickup = await Pickup.findOneAndUpdate(
@@ -855,6 +865,7 @@ exports.respondToOffer = asyncHandler(async (req, res) => {
 // would.
 exports.batchAcceptPickups = asyncHandler(async (req, res) => {
   const collectorUser = await User.findById(req.user.id);
+  assertCollectorVerified(collectorUser);
   if (collectorUser?.collectorSuspended) {
     throw new ApiError(
       403,
