@@ -27,6 +27,7 @@ const RequestPickup = lazy(() => import("../pages/user/RequestPickup"));
 const MyRequests = lazy(() => import("../pages/user/MyRequests"));
 
 const CollectorDashboard = lazy(() => import("../pages/collector/Dashboard"));
+const VerificationGate = lazy(() => import("../components/collector/VerificationGate"));
 const CollectorPublicProfile = lazy(() => import("../pages/collector/PublicProfile"));
 const CollectorReviews = lazy(() => import("../pages/collector/CollectorReviews"));
 const Profile = lazy(() => import("../pages/Profile"));
@@ -83,7 +84,9 @@ export default function AppRoutes() {
           path="/collector"
           element={
             <ProtectedRoute role="collector">
-              <CollectorDashboard />
+              <VerificationGate>
+                <CollectorDashboard />
+              </VerificationGate>
             </ProtectedRoute>
           }
         />
