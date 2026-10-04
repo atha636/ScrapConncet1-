@@ -34,6 +34,7 @@ beforeEach(async () => {
     email: "collector@example.com",
     password: "Password123",
     role: "collector",
+    collectorVerification: { status: "approved" },
   });
 
   admin = await User.create({

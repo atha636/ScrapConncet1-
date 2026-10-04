@@ -63,6 +63,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-empty@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const res = await request(app)
       .patch("/api/pickup/collector/batch-accept")
@@ -77,6 +78,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-malformed@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const res = await request(app)
       .patch("/api/pickup/collector/batch-accept")
@@ -91,6 +93,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-all@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const requester = await User.create({
       name: "Requester",
@@ -120,12 +123,14 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-partial-a@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const collectorB = await User.create({
       name: "Collector B",
       email: "batch-partial-b@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const requester = await User.create({
       name: "Requester",
@@ -158,6 +163,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-notfound@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const fakeId = "507f1f77bcf86cd799439011";
 
@@ -177,6 +183,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-suspended@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
       collectorSuspended: true,
     });
     const requester = await User.create({
@@ -203,6 +210,7 @@ describe("PATCH /api/pickup/collector/batch-accept", () => {
       email: "batch-duplicate@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const requester = await User.create({
       name: "Requester",

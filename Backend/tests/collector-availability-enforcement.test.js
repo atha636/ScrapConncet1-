@@ -38,6 +38,7 @@ describe("GET /api/pickup/collector/availability", () => {
       email: "avail-default@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
     const res = await request(app)
       .get("/api/pickup/collector/availability")
@@ -57,6 +58,7 @@ describe("PATCH /api/pickup/collector/availability", () => {
       email: "avail-toggle@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
 
     const res = await request(app)
@@ -75,6 +77,7 @@ describe("PATCH /api/pickup/collector/availability", () => {
       email: "avail-bad-range@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
 
     const res = await request(app)
@@ -91,6 +94,7 @@ describe("PATCH /api/pickup/collector/availability", () => {
       email: "avail-dup-day@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
 
     const res = await request(app)
@@ -112,6 +116,7 @@ describe("PATCH /api/pickup/collector/availability", () => {
       email: "avail-partial-update@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
 
     await request(app)
@@ -138,6 +143,7 @@ describe("accepting pickups while unavailable", () => {
       email: "avail-accept-paused@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
       collectorPaused: true,
     });
     const requester = await User.create({
@@ -169,6 +175,7 @@ describe("accepting pickups while unavailable", () => {
       email: "avail-accept-resumed@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
       collectorPaused: false,
     });
     const requester = await User.create({
@@ -198,6 +205,7 @@ describe("accepting pickups while unavailable", () => {
       email: "avail-batch-paused@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
       collectorPaused: true,
     });
     const requester = await User.create({
@@ -233,6 +241,7 @@ describe("accepting pickups while unavailable", () => {
       email: "avail-schedule-block@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
       availabilitySchedule: { enabled: true, schedule: [{ day: notToday, start: "00:00", end: "23:59" }] },
     });
     const requester = await User.create({

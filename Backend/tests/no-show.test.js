@@ -57,6 +57,7 @@ beforeEach(async () => {
     email: "collector@example.com",
     password: "Password123",
     role: "collector",
+    collectorVerification: { status: "approved" },
   });
 });
 
@@ -193,6 +194,7 @@ describe("POST /api/pickup/:id/report-no-show", () => {
       email: "newcollector@example.com",
       password: "Password123",
       role: "collector",
+      collectorVerification: { status: "approved" },
     });
 
     const res = await request(app)

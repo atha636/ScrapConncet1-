@@ -33,6 +33,9 @@ const fmtDate = (ts) => new Date(ts).toLocaleDateString(undefined, { day: "numer
 // currentRates: [{scrapType, ratePerKg}] — used as the final "now" point
 export default function ScrapRateTrendChart({ history, currentRates, days, onRangeChange }) {
   const [hidden, setHidden] = useState({});
+  // Captured once on mount (a lazy initializer is allowed to be impure) so
+  // render itself stays pure; the "now" point only needs to be today.
+  const [nowTs] = useState(() => Date.now());
 
   const { rows, types } = useMemo(() => {
     const types = [...new Set(history.map((h) => h.scrapType))];
@@ -48,7 +51,7 @@ export default function ScrapRateTrendChart({ history, currentRates, days, onRan
     });
 
     // Closing point at "now" so every line extends to today.
-    const now = { ts: Date.now() };
+    const now = { ts: nowTs };
     types.forEach((t) => {
       const cur = currentRates.find((r) => r.scrapType === t);
       now[t] = cur ? cur.ratePerKg : last[t];
@@ -56,7 +59,7 @@ export default function ScrapRateTrendChart({ history, currentRates, days, onRan
     rows.push(now);
 
     return { rows, types };
-  }, [history, currentRates]);
+  }, [history, currentRates, nowTs]);
 
   return (
     <Card className="p-4 mt-8">
