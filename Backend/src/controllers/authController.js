@@ -239,7 +239,12 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const isMatch = await bcrypt.compare(currentPassword, user.password);
   if (!isMatch) throw new ApiError(401, "Current password is incorrect");
 
+  if (user.mustChangePassword && newPassword === currentPassword) {
+    throw new ApiError(400, "Choose a new password that's different from your temporary one");
+  }
+
   user.password = await bcrypt.hash(newPassword, 12);
+  user.mustChangePassword = false;
   // Revokes every other token issued for this account (see middleware/auth.js)
   // — otherwise a token obtained before this change, by anyone, stays valid
   // under the old password's session until it naturally expires.

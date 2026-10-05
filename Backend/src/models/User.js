@@ -44,6 +44,13 @@ const userSchema = new mongoose.Schema(
     // suspend/unsuspend path needed for this.
     noShowCount: { type: Number, default: 0 },
 
+    // Set when an admin creates a collector account with a temporary
+    // password (see controllers/adminCollectorController.js). While true the
+    // frontend keeps nudging them to Profile to change it; changePassword
+    // clears it. createdByAdmin records which admin made the account.
+    mustChangePassword: { type: Boolean, default: false },
+    createdByAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
     // Identity verification for collectors. A collector can log in and use
     // their profile straight away, but can't browse, accept or negotiate
     // pickups until an admin sets status to "approved" (see

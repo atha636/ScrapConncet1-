@@ -17,6 +17,13 @@ const {
 } = require("../controllers/adminController");
 const { getDisputes, resolveDispute } = require("../controllers/disputeController");
 const { getGrowthStats } = require("../controllers/adminGrowthController");
+const uploadKyc = require("../middleware/uploadKyc");
+const { createCollectorSchema, resetCollectorPasswordSchema } = require("../validators/adminCollectorValidator");
+const {
+  createCollector,
+  listAdminCreatedCollectors,
+  resetCollectorPassword,
+} = require("../controllers/adminCollectorController");
 
 // Every route here requires an authenticated admin — enforced per-route
 // (not just at the router level) so each stays explicit and self-contained.
@@ -33,5 +40,24 @@ router.patch("/payouts/:id/reject", auth, role("admin"), rejectPayout);
 router.get("/pickups", auth, role("admin"), getAllPickups);
 router.get("/disputes", auth, role("admin"), getDisputes);
 router.patch("/disputes/:id/resolve", auth, role("admin"), validate(resolveDisputeSchema), resolveDispute);
+
+
+// Admin-created collectors: account + temporary password + ID, all in one step.
+router.post(
+  "/collectors",
+  auth,
+  role("admin"),
+  uploadKyc.single("document"),
+  validate(createCollectorSchema),
+  createCollector
+);
+router.get("/collectors", auth, role("admin"), listAdminCreatedCollectors);
+router.patch(
+  "/collectors/:id/reset-password",
+  auth,
+  role("admin"),
+  validate(resetCollectorPasswordSchema),
+  resetCollectorPassword
+);
 
 module.exports = router;
