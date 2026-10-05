@@ -172,7 +172,7 @@ export default function Profile() {
       // token in the response — swap it in so this tab keeps working
       // instead of the very next request silently failing as "logged out".
       if (res.data?.token) {
-        login(res.data.token, user);
+        login(res.data.token, { ...user, mustChangePassword: false });
       }
       setPasswordSuccess(true);
       setCurrentPassword("");

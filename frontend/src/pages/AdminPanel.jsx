@@ -25,6 +25,7 @@ import StatusStamp from "../components/ui/StatusStamp";
 import AdminCharts from "../components/admin/AdminCharts";
 import ScrapRatesTab from "../components/admin/ScrapRatesTab";
 import VerificationsTab from "../components/admin/VerificationsTab";
+import AddCollectorTab from "../components/admin/AddCollectorTab";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
@@ -39,6 +40,7 @@ const TABS = [
   { key: "pickups", label: "All pickups" },
   { key: "rates", label: "Scrap rates" },
   { key: "verifications", label: "ID verification" },
+  { key: "addCollector", label: "Add collector" },
 ];
 
 // Mirrors ReportIssueModal's own mapping so the reason reads the same way
@@ -142,7 +144,7 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
-        : tab === "rates" || tab === "verifications"
+        : tab === "rates" || tab === "verifications" || tab === "addCollector"
         ? async () => {}
         : loadPickups;
     load()
@@ -348,6 +350,8 @@ export default function AdminPanel() {
             {tab === "rates" && <ScrapRatesTab />}
 
             {tab === "verifications" && <VerificationsTab />}
+
+            {tab === "addCollector" && <AddCollectorTab />}
 
             {tab === "users" && (
               <div>
