@@ -10,9 +10,9 @@ import { useT } from "../../i18n/core";
 
 // `label` is a translation key (see i18n/locales), resolved at render time.
 const HOME_LINK = { to: "/", label: "nav.home" };
-const ABOUT_LINK = { to: "/about", label: "nav.about" };
-const RATES_LINK = { to: "/scrap-rates", label: "nav.rates" };
-const IMPACT_LINK = { to: "/impact", label: "nav.impact" };
+const ABOUT_LINK = { to: "/about", label: "nav.about", secondary: true };
+const RATES_LINK = { to: "/scrap-rates", label: "nav.rates", secondary: true };
+const IMPACT_LINK = { to: "/impact", label: "nav.impact", secondary: true };
 
 const USER_LINKS = [
   HOME_LINK,
@@ -38,9 +38,56 @@ export default function Navbar() {
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const clickCount = useRef(0);
   const clickTimer = useRef(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
 
   const links =
     user?.role === "collector" ? COLLECTOR_LINKS : user?.role === "admin" ? ADMIN_LINKS : USER_LINKS;
+
+  // Secondary links (Impact, Rates, About) sit inline on wide screens and
+  // fold into a "More" menu below that, so the bar never wraps or crowds.
+  const primaryLinks = links.filter((l) => !l.secondary);
+  const secondaryLinks = links.filter((l) => l.secondary);
+  // Roles with few links (collector, admin) can show everything inline on wide
+  // screens; the user role has too many to fit, so it always uses "More".
+  const inlineSecondary = links.length <= 5;
+  const moreActive = secondaryLinks.some((l) => l.to === location.pathname);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMoreOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+
+  const renderLink = (link, extraClass = "") => {
+    const active = location.pathname === link.to;
+    return (
+      <Link
+        key={link.to}
+        to={link.to}
+        className={`relative px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${extraClass} ${
+          active ? "text-rust" : "text-inkSoft hover:text-ink hover:bg-line/40"
+        }`}
+      >
+        {active && (
+          <motion.span
+            layoutId="nav-active-pill"
+            className="absolute inset-0 rounded-md bg-rust/[0.08]"
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          />
+        )}
+        <span className="relative">{t(link.label)}</span>
+      </Link>
+    );
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -82,7 +129,7 @@ export default function Navbar() {
         scrolled ? "border-line shadow-[0_2px_12px_rgba(36,26,18,0.06)]" : "border-line"
       }`}
     >
-      <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-3">
         <motion.button
           whileHover={{ rotate: -3 }}
           whileTap={{ scale: 0.96 }}
@@ -94,31 +141,66 @@ export default function Navbar() {
           <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
         </motion.button>
 
-        <div className="hidden sm:flex items-center gap-1 flex-1 justify-center">
-          {links.map((link) => {
-            const active = location.pathname === link.to;
-            return (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`relative px-3.5 py-2 rounded-md text-sm font-medium transition-colors ${
-                  active ? "text-rust" : "text-inkSoft hover:text-ink hover:bg-line/40"
+        <div className="hidden sm:flex items-center gap-0.5 flex-1 justify-center min-w-0">
+          {primaryLinks.map((link) => renderLink(link))}
+
+          {/* Wide screens: secondary links inline */}
+          {inlineSecondary && secondaryLinks.map((link) => renderLink(link, "hidden xl:inline-flex"))}
+
+          {/* Narrower screens: the same links in a "More" menu */}
+          {secondaryLinks.length > 0 && (
+            <div ref={moreRef} className={inlineSecondary ? "relative xl:hidden" : "relative"}>
+              <button
+                onClick={() => setMoreOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                  moreActive || moreOpen ? "text-rust bg-rust/[0.08]" : "text-inkSoft hover:text-ink hover:bg-line/40"
                 }`}
               >
-                {active && (
-                  <motion.span
-                    layoutId="nav-active-pill"
-                    className="absolute inset-0 rounded-md bg-rust/[0.08]"
-                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                  />
+                {t("nav.more")}
+                <motion.svg
+                  animate={{ rotate: moreOpen ? 180 : 0 }}
+                  transition={{ duration: 0.15 }}
+                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </motion.svg>
+              </button>
+
+              <AnimatePresence>
+                {moreOpen && (
+                  <motion.div
+                    role="menu"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.14 }}
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[170px] bg-surface border border-line rounded-lg shadow-lg p-1.5 z-50"
+                  >
+                    {secondaryLinks.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        role="menuitem"
+                        onClick={() => setMoreOpen(false)}
+                        className={`block px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
+                          location.pathname === link.to
+                            ? "text-rust bg-rust/[0.08]"
+                            : "text-inkSoft hover:text-ink hover:bg-line/40"
+                        }`}
+                      >
+                        {t(link.label)}
+                      </Link>
+                    ))}
+                  </motion.div>
                 )}
-                <span className="relative">{t(link.label)}</span>
-              </Link>
-            );
-          })}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={toggleTheme}
@@ -165,14 +247,14 @@ export default function Navbar() {
 
           <NotificationBell />
 
-          <Link to="/profile" className="hidden sm:flex items-center gap-2 group">
+          <Link to="/profile" title={user?.name || "User"} className="hidden sm:flex items-center gap-2 group">
             <motion.div
               whileHover={{ scale: 1.06 }}
               className="w-7 h-7 rounded-full bg-amber/20 border border-amber/40 flex items-center justify-center text-xs font-bold text-amber-dark font-display"
             >
               {(user?.name || "U")[0].toUpperCase()}
             </motion.div>
-            <span className="text-sm text-inkSoft max-w-[110px] truncate group-hover:text-ink transition-colors">
+            <span className="hidden 2xl:inline text-sm text-inkSoft max-w-[110px] truncate group-hover:text-ink transition-colors">
               {user?.name || "User"}
             </span>
           </Link>

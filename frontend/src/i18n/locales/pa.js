@@ -10,6 +10,7 @@ const pa = {
     about: "ਸਾਡੇ ਬਾਰੇ",
     rates: "ਸਕਰੈਪ ਰੇਟ",
     impact: "ਮੇਰਾ ਪ੍ਰਭਾਵ",
+    more: "ਹੋਰ",
     collector: "ਕਲੈਕਟਰ",
     admin: "ਐਡਮਿਨ",
     profile: "ਪ੍ਰੋਫਾਈਲ",
