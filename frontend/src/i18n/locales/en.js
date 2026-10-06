@@ -10,6 +10,7 @@ const en = {
     myRequests: "My requests",
     about: "About us",
     rates: "Scrap Rates",
+    impact: "My Impact",
     collector: "Collector",
     admin: "Admin",
     profile: "Profile",

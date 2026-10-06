@@ -203,7 +203,11 @@ describe("Profile — change password form", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("rotated-token", mockUser));
+    // The user is passed along with mustChangePassword cleared, so the
+    // temporary-password popup stops appearing once the password is changed.
+    await waitFor(() =>
+      expect(mockLogin).toHaveBeenCalledWith("rotated-token", { ...mockUser, mustChangePassword: false })
+    );
   });
 
   test("shows the server's error message on an incorrect current password", async () => {

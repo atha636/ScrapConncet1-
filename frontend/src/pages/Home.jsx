@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, MotionConfig } from "framer-motion";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import useCountUp from "../hooks/useCountUp";
+import CommunityImpact from "../components/CommunityImpact";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
 
@@ -278,6 +279,8 @@ export default function Home() {
 
           <ReceiptHero />
         </section>
+
+        <CommunityImpact />
 
         {/* Supported materials */}
         <motion.section

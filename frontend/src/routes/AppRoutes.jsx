@@ -16,6 +16,7 @@ import Loader from "../components/common/Loader";
 const Login = lazy(() => import("../pages/auth/Login"));
 const AboutUs = lazy(() => import("../pages/AboutUs"));
 const ScrapRates = lazy(() => import("../pages/ScrapRates"));
+const Impact = lazy(() => import("../pages/Impact"));
 const Register = lazy(() => import("../pages/auth/Register"));
 const AdminLogin = lazy(() => import("../pages/auth/AdminLogin"));
 const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
@@ -45,6 +46,15 @@ export default function AppRoutes() {
         <Route path="/about" element={<AboutUs />} />
 
         <Route path="/scrap-rates" element={<ScrapRates />} />
+
+        <Route
+          path="/impact"
+          element={
+            <ProtectedRoute>
+              <Impact />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
