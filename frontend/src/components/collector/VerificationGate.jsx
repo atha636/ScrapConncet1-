@@ -68,7 +68,23 @@ export default function VerificationGate({ children }) {
   };
 
   if (loading) return <Loader />;
-  if (info?.status === "approved") return children;
+  if (info?.status === "approved") {
+    // Heads-up when the approval is about to lapse; the ID can be uploaded
+    // again once it expires (or sooner if an admin asks for re-verification).
+    const daysLeft = info.expiresAt ? Math.ceil((new Date(info.expiresAt) - new Date()) / 86400000) : null;
+    if (daysLeft !== null && daysLeft <= 30) {
+      return (
+        <>
+          <div className="max-w-3xl mx-auto mb-4 rounded-md border border-amber/40 bg-amber/10 px-4 py-2 text-sm text-ink">
+            Your ID verification expires on {new Date(info.expiresAt).toLocaleDateString()} ({daysLeft} day
+            {daysLeft === 1 ? "" : "s"} left). After that you'll need to upload your ID again to keep taking pickups.
+          </div>
+          {children}
+        </>
+      );
+    }
+    return children;
+  }
 
   if (!info) {
     return (
@@ -101,11 +117,21 @@ export default function VerificationGate({ children }) {
   return (
     <div className="max-w-md mx-auto">
       <Card className="p-6">
-        <h1 className="font-display text-xl font-bold text-ink mb-1">Verify your ID</h1>
+        <h1 className="font-display text-xl font-bold text-ink mb-1">
+          {info.status === "expired" ? "Verify your ID again" : "Verify your ID"}
+        </h1>
         <p className="text-sm text-inkSoft mb-4">
           Before you can see or accept pickups, an admin needs to verify your identity. This keeps customers safe.
         </p>
 
+        {info.status === "expired" && (
+          <div className="mb-4">
+            <ErrorBox>
+              Your ID verification expired{info.expiresAt ? ` on ${new Date(info.expiresAt).toLocaleDateString()}` : ""}.
+              Upload your ID again to keep taking pickups.
+            </ErrorBox>
+          </div>
+        )}
         {info.status === "rejected" && (
           <div className="mb-4">
             <ErrorBox>Your last upload wasn't approved: {info.rejectionReason}. Please upload it again.</ErrorBox>

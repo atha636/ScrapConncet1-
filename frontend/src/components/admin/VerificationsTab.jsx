@@ -8,7 +8,7 @@ import {
   reviewVerification,
 } from "../../services/verificationService";
 
-const FILTERS = ["pending", "approved", "rejected"];
+const FILTERS = ["pending", "approved", "rejected", "expired"];
 const ID_LABELS = { aadhaar: "Aadhaar", driving_license: "Driving licence", voter_id: "Voter ID", pan: "PAN" };
 
 export default function VerificationsTab() {
@@ -20,6 +20,7 @@ export default function VerificationsTab() {
   const [docUrl, setDocUrl] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [reason, setReason] = useState("");
+  const [reasonDecision, setReasonDecision] = useState("reject");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,7 +56,7 @@ export default function VerificationsTab() {
   };
 
   const review = async (id, decision) => {
-    if (decision === "reject" && !reason.trim()) return setError("Give a reason for rejecting.");
+    if (decision !== "approve" && !reason.trim()) return setError("Give a reason so the collector knows why.");
     setBusyId(id);
     setError("");
     try {
@@ -111,6 +112,16 @@ export default function VerificationsTab() {
                     {ID_LABELS[v.idType] || v.idType} · ends {v.idLast4} · submitted{" "}
                     {v.submittedAt ? new Date(v.submittedAt).toLocaleDateString() : "—"}
                   </div>
+                  {v.status === "approved" && v.expiresAt && (
+                    <div className="text-xs text-inkSoft mt-1">
+                      Valid until {new Date(v.expiresAt).toLocaleDateString()}
+                    </div>
+                  )}
+                  {v.status === "expired" && v.expiresAt && (
+                    <div className="text-xs text-inkSoft mt-1">
+                      Expired on {new Date(v.expiresAt).toLocaleDateString()}
+                    </div>
+                  )}
                   {v.status === "rejected" && v.rejectionReason && (
                     <div className="text-xs text-inkSoft mt-1">Reason: {v.rejectionReason}</div>
                   )}
@@ -136,6 +147,7 @@ export default function VerificationsTab() {
                       <button
                         onClick={() => {
                           setRejectingId(rejectingId === v.collectorId ? null : v.collectorId);
+                          setReasonDecision("reject");
                           setReason("");
                         }}
                         className="text-sm px-3 py-1.5 rounded-md border border-rust text-rust"
@@ -143,6 +155,18 @@ export default function VerificationsTab() {
                         Reject
                       </button>
                     </>
+                  )}
+                  {v.status === "approved" && (
+                    <button
+                      onClick={() => {
+                        setRejectingId(rejectingId === v.collectorId ? null : v.collectorId);
+                        setReasonDecision("revoke");
+                        setReason("");
+                      }}
+                      className="text-sm px-3 py-1.5 rounded-md border border-rust text-rust"
+                    >
+                      Request re-verification
+                    </button>
                   )}
                 </div>
               </div>
@@ -153,15 +177,19 @@ export default function VerificationsTab() {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     maxLength={300}
-                    placeholder="Reason (shown to the collector)"
+                    placeholder={
+                      reasonDecision === "revoke"
+                        ? "Why re-verification is needed (shown to the collector)"
+                        : "Reason (shown to the collector)"
+                    }
                     className="flex-1 border border-line rounded-md px-3 py-1.5 text-sm bg-surface text-ink"
                   />
                   <button
-                    onClick={() => review(v.collectorId, "reject")}
+                    onClick={() => review(v.collectorId, reasonDecision)}
                     disabled={busyId === v.collectorId}
                     className="text-sm px-3 py-1.5 rounded-md bg-rust text-white disabled:opacity-50"
                   >
-                    Confirm reject
+                    {reasonDecision === "revoke" ? "Confirm" : "Confirm reject"}
                   </button>
                 </div>
               )}
