@@ -117,6 +117,7 @@ function createApp() {
   app.use("/api/scrap-rates", require("./routes/scrapRateRoutes"));
   app.use("/api/verification", require("./routes/verificationRoutes"));
   app.use("/api/impact", require("./routes/impactRoutes"));
+  app.use("/api/quotes", require("./routes/quoteRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

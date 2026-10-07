@@ -44,6 +44,19 @@ const userSchema = new mongoose.Schema(
     // suspend/unsuspend path needed for this.
     noShowCount: { type: Number, default: 0 },
 
+    // A collector's own per-kg prices, used to build the quote they show on
+    // the "compare collectors" screen. Any scrap type left unset means "I pay
+    // the platform rate" (see utils/pricing.js), so a collector who never
+    // opens the rate card still gets quoted at the standard rate.
+    collectorRates: {
+      metal: { type: Number, min: 0, max: 1000 },
+      plastic: { type: Number, min: 0, max: 1000 },
+      paper: { type: Number, min: 0, max: 1000 },
+      "e-waste": { type: Number, min: 0, max: 1000 },
+      glass: { type: Number, min: 0, max: 1000 },
+      other: { type: Number, min: 0, max: 1000 },
+    },
+
     // Set when an admin creates a collector account with a temporary
     // password (see controllers/adminCollectorController.js). While true the
     // frontend keeps nudging them to Profile to change it; changePassword

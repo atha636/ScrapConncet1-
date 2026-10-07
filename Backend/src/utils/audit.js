@@ -5,6 +5,7 @@ const User = require("../models/User");
 // shows. Add new entries here — the viewer's filter reads this list.
 const AUDIT_ACTIONS = {
   "rate.update": "Scrap rate changed",
+  "catalog.update": "Item catalog updated",
   "verification.approve": "ID approved",
   "verification.reject": "ID rejected",
   "verification.revoke": "ID re-verification requested",

@@ -58,7 +58,15 @@ function estimateItemsPrice(items) {
   return items.reduce((total, item) => total + estimatePrice(item.scrapType, item.estimatedWeightKg), 0);
 }
 
+// Snapshot of the rates currently in effect (admin-saved overrides on top of
+// the hardcoded defaults) — used by the quote comparison so every collector's
+// quote is measured against the same live platform rates.
+function getRates() {
+  return { ...rateCache };
+}
+
 module.exports = {
+  getRates,
   estimatePrice,
   estimateItemsPrice,
   BASE_RATE_PER_KG,
