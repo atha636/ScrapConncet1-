@@ -5,6 +5,7 @@ const PayoutRequest = require("../models/PayoutRequest");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { getAvailableBalance } = require("../utils/walletBalance");
+const { logAudit } = require("../utils/audit");
 
 const paginate = (query, defaultLimit = 20) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -149,6 +150,7 @@ exports.deactivateUser = asyncHandler(async (req, res) => {
 
   user.isActive = false;
   await user.save();
+  await logAudit(req, { action: "user.deactivate", targetType: user.role, targetId: user._id, targetLabel: user.name });
   res.json(user);
 });
 
@@ -168,6 +170,7 @@ exports.activateUser = asyncHandler(async (req, res) => {
 
   user.isActive = true;
   await user.save();
+  await logAudit(req, { action: "user.activate", targetType: user.role, targetId: user._id, targetLabel: user.name });
   res.json(user);
 });
 
@@ -184,6 +187,7 @@ exports.reinstateCollector = asyncHandler(async (req, res) => {
   user.collectorSuspended = false;
   user.collectorSuspendedAt = null;
   await user.save();
+  await logAudit(req, { action: "collector.reinstate", targetType: "collector", targetId: user._id, targetLabel: user.name });
   res.json(user);
 });
 
@@ -244,6 +248,12 @@ exports.approvePayout = asyncHandler(async (req, res) => {
       amount: request.amount,
       payoutRequest: request._id,
     });
+    await logAudit(req, {
+      action: "payout.approve",
+      targetType: "payout",
+      targetId: request._id,
+      details: { amount: request.amount },
+    });
   } catch (err) {
     // Unique index on (payoutRequest) means a duplicate here is a retried
     // approve attempt on a request this same call already approved and
@@ -277,6 +287,13 @@ exports.rejectPayout = asyncHandler(async (req, res) => {
       exists ? "This request has already been processed" : "Payout request not found"
     );
   }
+
+  await logAudit(req, {
+    action: "payout.reject",
+    targetType: "payout",
+    targetId: request._id,
+    details: { amount: request.amount, note: req.body?.note || null },
+  });
 
   res.json(request);
 });

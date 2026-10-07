@@ -3,6 +3,8 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { saveKycDocument } = require("../utils/kycStorage");
+const { expiryFrom } = require("../utils/collectorVerification");
+const { logAudit } = require("../utils/audit");
 
 // POST /api/admin/collectors  (admin) — multipart: name, email, phone,
 // password (temporary), idType, idLast4, document
@@ -37,8 +39,17 @@ exports.createCollector = asyncHandler(async (req, res) => {
       documentFormat: saved.format,
       submittedAt: now,
       reviewedAt: now,
+      expiresAt: expiryFrom(now),
       reviewedBy: req.user.id,
     },
+  });
+
+  await logAudit(req, {
+    action: "collector.create",
+    targetType: "collector",
+    targetId: user._id,
+    targetLabel: user.name,
+    details: { email: user.email, idType },
   });
 
   res.status(201).json(user);
@@ -76,6 +87,13 @@ exports.resetCollectorPassword = asyncHandler(async (req, res) => {
   // Signs out any session still using the old password (see middleware/auth.js)
   user.sessionVersion = (user.sessionVersion || 0) + 1;
   await user.save();
+
+  await logAudit(req, {
+    action: "collector.reset_password",
+    targetType: "collector",
+    targetId: user._id,
+    targetLabel: user.name,
+  });
 
   res.json({ success: true });
 });

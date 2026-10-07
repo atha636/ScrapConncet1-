@@ -15,6 +15,7 @@ const { notifyBatchableClusters } = require("./jobs/notifyBatchableClusters");
 const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
 const { autoConfirmSettlements } = require("./jobs/autoConfirmSettlements");
 const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
+const { expireVerifications } = require("./jobs/expireVerifications");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -100,6 +101,12 @@ cron.schedule("*/30 * * * *", () => {
 
 cron.schedule("*/30 * * * *", () => {
   expireStaleNegotiations(io).catch((err) => console.error("Negotiation-expiry job failed:", err));
+});
+
+// Hourly — expires collector IDs past their validity date and sends the
+// one-time "expires soon" reminder (see jobs/expireVerifications.js).
+cron.schedule("15 * * * *", () => {
+  expireVerifications(io).catch((err) => console.error("ID expiry job failed:", err));
 });
 
 // Every Monday at 9am IST — node-cron's own `timezone` option, not a

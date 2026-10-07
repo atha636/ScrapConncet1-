@@ -18,6 +18,7 @@ const {
 const { getDisputes, resolveDispute } = require("../controllers/disputeController");
 const { getGrowthStats } = require("../controllers/adminGrowthController");
 const uploadKyc = require("../middleware/uploadKyc");
+const { getAuditLogs } = require("../controllers/auditController");
 const { createCollectorSchema, resetCollectorPasswordSchema } = require("../validators/adminCollectorValidator");
 const {
   createCollector,
@@ -41,6 +42,8 @@ router.get("/pickups", auth, role("admin"), getAllPickups);
 router.get("/disputes", auth, role("admin"), getDisputes);
 router.patch("/disputes/:id/resolve", auth, role("admin"), validate(resolveDisputeSchema), resolveDispute);
 
+
+router.get("/audit-logs", auth, role("admin"), getAuditLogs);
 
 // Admin-created collectors: account + temporary password + ID, all in one step.
 router.post(

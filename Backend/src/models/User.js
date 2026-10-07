@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
     collectorVerification: {
       status: {
         type: String,
-        enum: ["not_submitted", "pending", "approved", "rejected"],
+        enum: ["not_submitted", "pending", "approved", "rejected", "expired"],
         default: "not_submitted",
       },
       idType: { type: String, enum: ["aadhaar", "driving_license", "voter_id", "pan"] },
@@ -72,6 +72,10 @@ const userSchema = new mongoose.Schema(
       documentFormat: { type: String, select: false },
       submittedAt: { type: Date },
       reviewedAt: { type: Date },
+      // When the approval lapses and the collector must re-upload (see
+      // utils/collectorVerification.js and jobs/expireVerifications.js).
+      expiresAt: { type: Date },
+      expiryReminderSentAt: { type: Date },
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       rejectionReason: { type: String, maxlength: 300 },
     },

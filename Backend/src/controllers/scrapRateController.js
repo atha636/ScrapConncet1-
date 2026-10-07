@@ -1,5 +1,6 @@
 const ScrapRate = require("../models/ScrapRate");
 const ScrapRateHistory = require("../models/ScrapRateHistory");
+const { logAudit } = require("../utils/audit");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { BASE_RATE_PER_KG, setCachedRate } = require("../utils/pricing");
@@ -72,6 +73,13 @@ exports.updateRate = asyncHandler(async (req, res) => {
   // Make the new rate live for pricing immediately, not just visible on
   // the public rates page.
   setCachedRate(rate.scrapType, rate.ratePerKg);
+
+  await logAudit(req, {
+    action: "rate.update",
+    targetType: "scrap_rate",
+    targetLabel: rate.scrapType,
+    details: { from: previousRate, to: rate.ratePerKg },
+  });
 
   await ScrapRateHistory.create({
     scrapType: rate.scrapType,

@@ -3,6 +3,7 @@ const Dispute = require("../models/Dispute");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { finalizeSettlement } = require("../utils/settlement");
+const { logAudit } = require("../utils/audit");
 
 const paginate = (query, defaultLimit = 20) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -137,6 +138,13 @@ exports.resolveDispute = asyncHandler(async (req, res) => {
       await finalizeSettlement(req.io, dispute.pickup, { finalPrice, status: "resolved", from: ["disputed"] });
     }
   }
+
+  await logAudit(req, {
+    action: "dispute.resolve",
+    targetType: "dispute",
+    targetId: dispute._id,
+    details: { outcome: status, reason: dispute.reason },
+  });
 
   res.json(dispute);
 });

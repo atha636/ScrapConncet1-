@@ -150,7 +150,7 @@ exports.getMyRequests = asyncHandler(async (req, res) => {
 // optionally bounded by ?radiusKm=. Without coordinates, falls back to the
 // original newest-first behavior — old clients/tests keep working.
 exports.getAvailable = asyncHandler(async (req, res) => {
-  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification.status"));
+  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification"));
   const { page, limit, skip } = paginate(req.query);
   const lat = parseFloat(req.query.lat);
   const lng = parseFloat(req.query.lng);
@@ -692,7 +692,7 @@ exports.getMyInvites = asyncHandler(async (req, res) => {
 // land — one gets negotiation.collector set, the other gets null back and
 // a clear 409, exactly like acceptPickup's own race.
 exports.proposeOffer = asyncHandler(async (req, res) => {
-  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification.status"));
+  assertCollectorVerified(await User.findById(req.user.id).select("collectorVerification"));
   const { amount, note } = req.body;
 
   const pickup = await Pickup.findOneAndUpdate(
