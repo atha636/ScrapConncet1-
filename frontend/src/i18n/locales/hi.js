@@ -11,6 +11,7 @@ const hi = {
     rates: "स्क्रैप दरें",
     impact: "मेरा प्रभाव",
     more: "और",
+    quotes: "कोट्स की तुलना",
     collector: "कलेक्टर",
     admin: "एडमिन",
     profile: "प्रोफ़ाइल",

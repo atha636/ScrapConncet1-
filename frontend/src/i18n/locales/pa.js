@@ -11,6 +11,7 @@ const pa = {
     rates: "ਸਕਰੈਪ ਰੇਟ",
     impact: "ਮੇਰਾ ਪ੍ਰਭਾਵ",
     more: "ਹੋਰ",
+    quotes: "ਕੋਟ ਦੀ ਤੁਲਨਾ",
     collector: "ਕਲੈਕਟਰ",
     admin: "ਐਡਮਿਨ",
     profile: "ਪ੍ਰੋਫਾਈਲ",

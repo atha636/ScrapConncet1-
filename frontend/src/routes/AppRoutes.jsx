@@ -25,6 +25,7 @@ const VerifyEmail = lazy(() => import("../pages/auth/VerifyEmail"));
 
 const UserDashboard = lazy(() => import("../pages/user/Dashboard"));
 const RequestPickup = lazy(() => import("../pages/user/RequestPickup"));
+const GetQuotes = lazy(() => import("../pages/user/GetQuotes"));
 const MyRequests = lazy(() => import("../pages/user/MyRequests"));
 
 const CollectorDashboard = lazy(() => import("../pages/collector/Dashboard"));
@@ -68,6 +69,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute role="user">
               <UserDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/quotes"
+          element={
+            <ProtectedRoute role="user">
+              <GetQuotes />
             </ProtectedRoute>
           }
         />

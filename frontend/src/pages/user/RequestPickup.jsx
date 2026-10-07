@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { createPickup, createRecurring, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP, estimateItemsPrice } from "../../services/pickupService";
+import { createPickup, createRecurring, inviteCollector, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP, estimateItemsPrice } from "../../services/pickupService";
+import { getScrapRates } from "../../services/scrapRateService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -25,11 +26,30 @@ export default function RequestPickup() {
   useDocumentMeta({ title: "Request Pickup", noindex: true });
 
   const navigate = useNavigate();
+  // Set when the user arrives from the "Compare quotes" screen: the items
+  // they entered there and, optionally, the collector they chose and the
+  // price that collector quoted.
+  const navState = useLocation().state;
+  const chosenCollector = navState?.collector || null;
   const { user } = useAuth();
   const { showToast } = useToast();
   const { coords, status: locStatus, error: locError, locate } = useGeolocation();
 
-  const [items, setItems] = useState([{ scrapType: "metal", weight: "" }]);
+  const [items, setItems] = useState(() =>
+    navState?.pickupItems?.length
+      ? navState.pickupItems.map((i) => ({ scrapType: i.scrapType, weight: String(i.estimatedWeightKg ?? "") }))
+      : [{ scrapType: "metal", weight: "" }]
+  );
+
+  // Live platform rates (admins can edit them), so the preview below matches
+  // what the server will actually charge. Until they load, the built-in
+  // table is used.
+  const [liveRates, setLiveRates] = useState(null);
+  useEffect(() => {
+    getScrapRates()
+      .then((res) => setLiveRates(Object.fromEntries(res.data.rates.map((r) => [r.scrapType, r.ratePerKg]))))
+      .catch(() => setLiveRates(null));
+  }, []);
 
   // Recomputed on every items/weight change, not debounced — it's a pure
   // client-side table lookup (see estimateItemsPrice's own comment on why
@@ -37,7 +57,7 @@ export default function RequestPickup() {
   // see it move as they type. This is always a preview: the price
   // actually charged is whatever the server's own estimateItemsPrice
   // computes at submit time in createPickup, from the same table.
-  const estimatedPrice = useMemo(() => estimateItemsPrice(items), [items]);
+  const estimatedPrice = useMemo(() => estimateItemsPrice(items, liveRates || undefined), [items, liveRates]);
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
   const [repeat, setRepeat] = useState(false);
@@ -130,7 +150,26 @@ export default function RequestPickup() {
       if (address) form.append("address", address);
       if (file) form.append("image", file);
 
-      await createPickup(form);
+      const created = await createPickup(form);
+
+      // Came from "Compare quotes" with a collector picked: invite them right
+      // away at the price they quoted. Best-effort — the pickup itself is
+      // already posted, so a failed invite just leaves it open to everyone.
+      if (chosenCollector) {
+        try {
+          await inviteCollector(created.data._id, {
+            collectorId: chosenCollector.id,
+            amount: chosenCollector.quote,
+            note: navState.countSummary ? `Quoted for: ${navState.countSummary}`.slice(0, 200) : "Quoted from price comparison",
+          });
+        } catch {
+          showToast({
+            title: "Pickup requested",
+            message: `But we couldn't invite ${chosenCollector.name} — your request is open to other collectors.`,
+            type: "error",
+          });
+        }
+      }
 
       if (repeat) {
         // Best-effort: the one-time pickup above is the primary action and
@@ -177,6 +216,19 @@ export default function RequestPickup() {
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <h1 className="font-display text-2xl font-bold text-ink mb-1">Request a pickup</h1>
           <p className="text-sm text-inkSoft mb-6">Fill in the details and a collector nearby will take it from here.</p>
+          {chosenCollector ? (
+            <div className="mb-4 rounded-md border border-line bg-surface px-4 py-3 text-sm text-ink">
+              Quote from <strong>{chosenCollector.name}</strong>: <strong>{formatPrice(chosenCollector.quote)}</strong>. They'll
+              be invited as soon as you submit, and they still need to accept.
+              {navState.countSummary && <div className="text-xs text-inkSoft mt-1">Includes: {navState.countSummary}</div>}
+            </div>
+          ) : (
+            <p className="text-sm mb-4">
+              <Link to="/quotes" className="text-rust underline">
+                Compare quotes from nearby collectors first →
+              </Link>
+            </p>
+          )}
         </motion.div>
 
         <Card className="p-6 sm:p-8">

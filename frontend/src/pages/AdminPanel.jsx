@@ -27,6 +27,7 @@ import ScrapRatesTab from "../components/admin/ScrapRatesTab";
 import VerificationsTab from "../components/admin/VerificationsTab";
 import AddCollectorTab from "../components/admin/AddCollectorTab";
 import AuditLogTab from "../components/admin/AuditLogTab";
+import ItemCatalogTab from "../components/admin/ItemCatalogTab";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
@@ -42,6 +43,7 @@ const TABS = [
   { key: "rates", label: "Scrap rates" },
   { key: "verifications", label: "ID verification" },
   { key: "addCollector", label: "Add collector" },
+  { key: "catalog", label: "Item catalog" },
   { key: "audit", label: "Audit log" },
 ];
 
@@ -146,7 +148,7 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
-        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit"
+        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog"
         ? async () => {}
         : loadPickups;
     load()
@@ -354,6 +356,8 @@ export default function AdminPanel() {
             {tab === "verifications" && <VerificationsTab />}
 
             {tab === "addCollector" && <AddCollectorTab />}
+
+            {tab === "catalog" && <ItemCatalogTab />}
 
             {tab === "audit" && <AuditLogTab />}
 

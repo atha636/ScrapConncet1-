@@ -42,6 +42,7 @@ import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel"
 import DemandHeatmapModal from "../../components/collector/DemandHeatmapModal";
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
+import RateCardPanel from "../../components/collector/RateCardPanel";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatItemsLabel, formatTotalWeight, scrapLabel } from "../../utils/pickupItems";
@@ -1096,6 +1097,7 @@ export default function CollectorDashboard() {
                 <>
                   <ShareProfileButton collectorId={user?._id || user?.id} />
                   <WorkingHoursCard />
+                  <RateCardPanel />
                   <PerformanceInsightsPanel />
                   <AchievementsPanel />
                   <LeaderboardPanel />

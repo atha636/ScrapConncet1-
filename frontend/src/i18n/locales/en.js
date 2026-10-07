@@ -12,6 +12,7 @@ const en = {
     rates: "Scrap Rates",
     impact: "My Impact",
     more: "More",
+    quotes: "Compare quotes",
     collector: "Collector",
     admin: "Admin",
     profile: "Profile",

@@ -12,6 +12,7 @@ import { useT } from "../../i18n/core";
 const HOME_LINK = { to: "/", label: "nav.home" };
 const ABOUT_LINK = { to: "/about", label: "nav.about", secondary: true };
 const RATES_LINK = { to: "/scrap-rates", label: "nav.rates", secondary: true };
+const QUOTES_LINK = { to: "/quotes", label: "nav.quotes", secondary: true };
 const IMPACT_LINK = { to: "/impact", label: "nav.impact", secondary: true };
 
 const USER_LINKS = [
@@ -19,6 +20,7 @@ const USER_LINKS = [
   { to: "/dashboard", label: "nav.dashboard" },
   { to: "/request", label: "nav.requestPickup" },
   { to: "/my-requests", label: "nav.myRequests" },
+  QUOTES_LINK,
   IMPACT_LINK,
   RATES_LINK,
   ABOUT_LINK,

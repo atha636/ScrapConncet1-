@@ -33,9 +33,9 @@ const MIN_ITEM_PRICE = 5;
 // prices fairly instead of rounding to nothing. `items` here is the
 // frontend's own shape ({ scrapType, weight }), not the backend's
 // ({ scrapType, estimatedWeightKg }).
-export function estimateItemsPrice(items) {
+export function estimateItemsPrice(items, rates = BASE_RATE_PER_KG) {
   return items.reduce((total, item) => {
-    const rate = BASE_RATE_PER_KG[item.scrapType] ?? BASE_RATE_PER_KG.other;
+    const rate = rates[item.scrapType] ?? rates.other ?? BASE_RATE_PER_KG.other;
     const weight = Number(item.weight) > 0 ? Number(item.weight) : 1;
     return total + Math.max(MIN_ITEM_PRICE, Math.round(rate * weight));
   }, 0);
