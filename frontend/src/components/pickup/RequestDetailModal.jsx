@@ -287,6 +287,12 @@ export default function RequestDetailModal({
                 </motion.button>
               )}
 
+              {pickup.status === "completed" && (
+                <a href={`/receipt/${pickup._id}`} className="btn-secondary !py-2 !px-4 text-sm">
+                  View receipt
+                </a>
+              )}
+
               {pickup.status === "completed" && pickup.collector && !alreadyRated && (
                 <motion.button whileTap={{ scale: 0.96 }} onClick={onRate} className="btn-primary !py-2 !px-4 text-sm">
                   Rate collector

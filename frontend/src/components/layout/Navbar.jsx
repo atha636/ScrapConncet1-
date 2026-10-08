@@ -127,7 +127,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`sticky top-0 z-40 bg-surface border-b transition-shadow duration-200 ${
+      className={`print:hidden sticky top-0 z-40 bg-surface border-b transition-shadow duration-200 ${
         scrolled ? "border-line shadow-[0_2px_12px_rgba(36,26,18,0.06)]" : "border-line"
       }`}
     >

@@ -78,6 +78,7 @@ export const updateStatus = (id, status, photoFile, extra = {}) => {
   const form = new FormData();
   form.append("status", status);
   form.append("photo", photoFile);
+  if (extra.weighPhoto) form.append("weighPhoto", extra.weighPhoto);
   if (extra.otp) form.append("otp", extra.otp);
   if (extra.actualItems) form.append("actualItems", JSON.stringify(extra.actualItems));
   return API.patch(`/pickup/${id}/status`, form, {

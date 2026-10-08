@@ -111,6 +111,8 @@ const en = {
     hint: "Enter the actual weighed weight and add a photo of the collected scrap — together they're the evidence if anything's ever disputed.",
     est: "est. {kg}kg",
     takePhoto: "Take or choose a photo",
+    proofPhotoLabel: "1. Photo of the collected scrap",
+    scalePhotoLabel: "2. Photo of the scale or weighed load",
     optimizing: "Optimizing…",
     submit: "Mark completed",
     submitting: "Submitting…",

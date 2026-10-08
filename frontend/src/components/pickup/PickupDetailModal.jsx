@@ -247,6 +247,12 @@ export default function PickupDetailModal({
                 Close
               </motion.button>
 
+              {pickup.status === "completed" && (
+                <a href={`/receipt/${pickup._id}`} className="btn-secondary !py-2 !px-4 text-sm">
+                  View receipt
+                </a>
+              )}
+
               {pickup.status !== "pending" && onReport && (
                 <motion.button
                   whileTap={{ scale: 0.96 }}

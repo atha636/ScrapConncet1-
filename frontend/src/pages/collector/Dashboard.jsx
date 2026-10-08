@@ -556,11 +556,11 @@ export default function CollectorDashboard() {
     }
   };
 
-  const handleCompletionSubmit = async (file, actualItems) => {
+  const handleCompletionSubmit = async (file, actualItems, weighPhoto) => {
     setCompletingSubmitting(true);
     setCompletingError("");
     try {
-      const res = await updateStatus(completingPickup._id, "completed", file, { actualItems });
+      const res = await updateStatus(completingPickup._id, "completed", file, { actualItems, weighPhoto });
       setMyJobs((prev) => prev.map((p) => (p._id === completingPickup._id ? res.data : p)));
       setWallet(null);
       setCompletingPickup(null);
