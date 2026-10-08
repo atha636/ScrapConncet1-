@@ -53,7 +53,8 @@ async function creditEarning(amount, forCollector = collector) {
     .set("Authorization", `Bearer ${token(forCollector)}`)
     .field("status", "completed")
     .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
-    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
+    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg")
+      .attach("weighPhoto", Buffer.from("fake image bytes"), "scale.jpg");
 }
 
 beforeEach(async () => {

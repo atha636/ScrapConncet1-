@@ -127,7 +127,8 @@ describe("PATCH /api/pickup/:id/status", () => {
       .set("Authorization", `Bearer ${token(collector)}`)
       .field("status", "completed")
       .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
-      .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
+      .attach("photo", Buffer.from("fake image bytes"), "proof.jpg")
+      .attach("weighPhoto", Buffer.from("fake image bytes"), "scale.jpg");
     expect(step2.status).toBe(200);
     expect(step2.body.status).toBe("completed");
     expect(step2.body.statusHistory).toHaveLength(3);
@@ -177,7 +178,8 @@ describe("PATCH /api/pickup/:id/status", () => {
         .set("Authorization", `Bearer ${token(collector)}`)
         .field("status", "completed")
         .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
-        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
+        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg")
+      .attach("weighPhoto", Buffer.from("fake image bytes"), "scale.jpg");
 
     // Fired concurrently (not awaited one after another) to actually
     // exercise the race, not just call the endpoint twice sequentially.

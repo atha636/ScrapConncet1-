@@ -10,6 +10,12 @@ const app = createApp();
 
 let collector, collectorToken, requester, pickup;
 
+// Starting an in-memory MongoDB (and, on a cold cache, downloading its
+// binary) can legitimately take longer than Jest's default 20s hook
+// timeout on a slow connection or a loaded CI runner — bumping this
+// specific hook avoids that showing up as a flaky, unrelated-looking
+// failure. Retry logic for genuine transient failures lives in
+// connect() itself (see tests/helpers/db.js).
 beforeAll(async () => {
   await connect();
 }, 60000);
@@ -65,7 +71,8 @@ async function complete() {
     // Weighed load matches the 5kg estimate, so the agreed price stands and
     // the earning is credited immediately (see utils/settlement.js).
     .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 5 }]))
-    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
+    .attach("photo", Buffer.from("fake image bytes"), "proof.jpg")
+      .attach("weighPhoto", Buffer.from("fake image bytes"), "scale.jpg");
 }
 
 describe("Completing a pickup credits the collector's ledger", () => {
@@ -172,7 +179,8 @@ describe("GET /api/wallet/transactions", () => {
         .field("status", "completed")
         // Matches this pickup's 1kg estimate, so the earning credits immediately.
         .field("actualItems", JSON.stringify([{ scrapType: "metal", actualWeightKg: 1 }]))
-        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg");
+        .attach("photo", Buffer.from("fake image bytes"), "proof.jpg")
+      .attach("weighPhoto", Buffer.from("fake image bytes"), "scale.jpg");
     }
 
     const page1 = await request(app)
