@@ -108,6 +108,7 @@ function createApp() {
   app.use("/api/pickup", require("./routes/pickupRoutes"));
   app.use("/api/pickup", require("./routes/messageRoutes"));
   app.use("/api/pickup", require("./routes/ratingRoutes"));
+  app.use("/api/pickup", require("./routes/receiptRoutes"));
   app.use("/api/notifications", require("./routes/notificationRoutes"));
   app.use("/api/admin", require("./routes/adminRoutes"));
   app.use("/api/push", require("./routes/pushRoutes"));

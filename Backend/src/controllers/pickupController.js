@@ -1080,6 +1080,10 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   if (nextStatus === "completed" && !req.file) {
     throw new ApiError(400, "A completion photo is required to mark this pickup as done");
   }
+  const weighFile = req.files?.weighPhoto?.[0];
+  if (nextStatus === "completed" && !weighFile) {
+    throw new ApiError(400, "A photo of the scale or the weighed load is required to mark this pickup as done");
+  }
 
   // --- Start handshake: the collector must enter the code the requester
   // sees. Checked before the atomic transition below; wrong tries are
@@ -1155,6 +1159,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   }
 
   const completionPhotoUrl = req.file?.path || req.file?.secure_url;
+  const weighPhotoUrl = weighFile?.path || weighFile?.secure_url;
 
   // Atomic, scoped by both collector ownership and current status in the
   // filter itself — not a separate read-then-write (see acceptPickup's
@@ -1176,6 +1181,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
               ...handshakeUpdate,
               ...settlementDoc,
               ...(completionPhotoUrl ? { completionPhoto: completionPhotoUrl } : {}),
+              ...(weighPhotoUrl ? { weighPhoto: weighPhotoUrl } : {}),
             },
             $push: { statusHistory: { status: nextStatus, changedBy: req.user.id } },
           },

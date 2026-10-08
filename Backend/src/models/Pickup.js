@@ -47,6 +47,12 @@ const pickupSchema = new mongoose.Schema(
     // just one party's word against the other's.
     completionPhoto: { type: String, default: null },
 
+    // Second required photo at completion: the scale reading or the load
+    // being weighed. completionPhoto shows the pickup happened; this one
+    // backs up the weight the settlement price is built on, so a "that's not
+    // what it weighed" dispute has evidence for the number itself.
+    weighPhoto: { type: String, default: null },
+
     // Start-of-pickup OTP handshake bookkeeping. The code itself is derived
     // (see utils/handshake.js), never stored — this only tracks attempts.
     handshake: {

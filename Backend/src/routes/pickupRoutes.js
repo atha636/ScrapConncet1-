@@ -259,7 +259,15 @@ router.patch(
   // accepted/in_progress transitions, which still send a normal JSON body
   // with no file. Only a "completed" transition needs to actually attach
   // a photo (see updateStatus's own check for that requirement).
-  upload.single("photo"),
+  upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "weighPhoto", maxCount: 1 },
+  ]),
+  // Everything downstream still reads req.file as the completion photo.
+  (req, res, next) => {
+    req.file = req.files?.photo?.[0];
+    next();
+  },
   validate(updateStatusSchema),
   updateStatus
 );
