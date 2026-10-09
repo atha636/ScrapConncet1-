@@ -87,6 +87,7 @@ const en = {
     tabAvailable: "Available",
     tabMine: "My jobs",
     tabHistory: "History",
+    tabRecycle: "Recycle",
     tabWallet: "Wallet",
     tabProfile: "Profile & stats",
     startPickup: "Start pickup",

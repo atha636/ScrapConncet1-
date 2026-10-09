@@ -44,6 +44,7 @@ import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import RateCardPanel from "../../components/collector/RateCardPanel";
 import DropOffPanel from "../../components/collector/DropOffPanel";
+import { getPendingDropOffs } from "../../services/dropOffService";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatItemsLabel, formatTotalWeight, scrapLabel } from "../../utils/pickupItems";
@@ -71,6 +72,7 @@ const TABS = [
   { key: "available", label: "collectorDash.tabAvailable" },
   { key: "mine", label: "collectorDash.tabMine" },
   { key: "history", label: "collectorDash.tabHistory" },
+  { key: "recycle", label: "collectorDash.tabRecycle" },
   { key: "wallet", label: "collectorDash.tabWallet" },
   { key: "profile", label: "collectorDash.tabProfile" },
 ];
@@ -120,6 +122,14 @@ export default function CollectorDashboard() {
   const preferredScrapTypes = user?.collectorPreferences?.scrapTypes;
   const isSuspended = !!user?.collectorSuspended;
   const [tab, setTab] = useState("available");
+  // Completed pickups not yet delivered to a recycling partner (the Recycle
+  // tab's badge). Loaded up front so the count shows before the tab is opened.
+  const [pendingDrops, setPendingDrops] = useState(0);
+  useEffect(() => {
+    getPendingDropOffs()
+      .then((res) => setPendingDrops(res.data.pickups.length))
+      .catch(() => setPendingDrops(0));
+  }, []);
   const [available, setAvailable] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -625,7 +635,7 @@ export default function CollectorDashboard() {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-  const counts = { available: filteredAvailable.length, mine: activeJobs.length, history: pastJobs.length };
+  const counts = { available: filteredAvailable.length, mine: activeJobs.length, history: pastJobs.length, recycle: pendingDrops };
 
   return (
     <MotionConfig reducedMotion="user">
@@ -658,7 +668,7 @@ export default function CollectorDashboard() {
                 tab === tabDef.key ? "text-rust" : "text-inkSoft hover:text-ink"
               }`}
             >
-              {t(tabDef.label)}{tabDef.key !== "wallet" ? ` (${counts[tabDef.key]})` : ""}
+              {t(tabDef.label)}{counts[tabDef.key] !== undefined ? ` (${counts[tabDef.key]})` : ""}
               {tab === tabDef.key && (
                 <motion.span
                   layoutId="collector-tab-underline"
@@ -1030,7 +1040,7 @@ export default function CollectorDashboard() {
                 )
               )}
 
-              {tab === "history" && <DropOffPanel />}
+              {tab === "recycle" && <DropOffPanel onPendingChange={setPendingDrops} />}
 
               {tab === "history" && (
                 pastJobs.length === 0 ? (
