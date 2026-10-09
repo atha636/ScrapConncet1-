@@ -129,6 +129,25 @@ export default function Receipt() {
         <Row label="Collection started">{fmtDateTime(data.timeline.started)}</Row>
         <Row label="Completed">{fmtDateTime(data.timeline.completed)}</Row>
 
+        <h2 className="text-sm font-semibold text-ink mt-5 mb-2">Recycling destination</h2>
+        {data.destination ? (
+          <div className="border border-line rounded-md p-3 flex items-center gap-3">
+            {data.destination.photo && (
+              <a href={data.destination.photo} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                <img src={data.destination.photo} alt="Delivery at recycling partner" className="w-20 h-16 object-cover rounded-md border border-line" />
+              </a>
+            )}
+            <div className="text-sm">
+              <div className="text-ink font-medium">Delivered to {data.destination.partnerName}</div>
+              <div className="text-xs text-inkSoft">
+                {data.destination.city} · {fmtDateTime(data.destination.deliveredAt)}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-inkSoft">Not recorded yet — the collector adds this once the load reaches a recycling partner.</p>
+        )}
+
         {(data.photos.completion || data.photos.weighing) && (
           <>
             <h2 className="text-sm font-semibold text-ink mt-5 mb-2">Proof</h2>

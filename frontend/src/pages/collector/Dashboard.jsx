@@ -43,6 +43,7 @@ import DemandHeatmapModal from "../../components/collector/DemandHeatmapModal";
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import RateCardPanel from "../../components/collector/RateCardPanel";
+import DropOffPanel from "../../components/collector/DropOffPanel";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatItemsLabel, formatTotalWeight, scrapLabel } from "../../utils/pickupItems";
@@ -1028,6 +1029,8 @@ export default function CollectorDashboard() {
                   </motion.div>
                 )
               )}
+
+              {tab === "history" && <DropOffPanel />}
 
               {tab === "history" && (
                 pastJobs.length === 0 ? (

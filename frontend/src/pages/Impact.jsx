@@ -97,6 +97,23 @@ export default function Impact() {
             </div>
           </Card>
 
+          {data.destinations?.length > 0 && (
+            <Card className="p-4 mt-6">
+              <h2 className="font-display text-lg font-bold text-ink mb-3">Where it went</h2>
+              <div className="divide-y divide-line">
+                {data.destinations.map((d) => (
+                  <div key={`${d.name}-${d.city}`} className="flex justify-between py-2 text-sm">
+                    <span className="text-ink">
+                      {d.name} <span className="text-inkSoft">· {d.city}</span>
+                    </span>
+                    <span className="text-inkSoft">{d.kg} kg</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-inkFaint mt-2">Counts only loads the collector has recorded as delivered.</p>
+            </Card>
+          )}
+
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={() =>
