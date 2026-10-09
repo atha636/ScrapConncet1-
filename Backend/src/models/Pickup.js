@@ -53,6 +53,18 @@ const pickupSchema = new mongoose.Schema(
     // what it weighed" dispute has evidence for the number itself.
     weighPhoto: { type: String, default: null },
 
+    // Where the scrap went after collection. Recorded later by the collector
+    // (a drop-off can cover several completed pickups at once — see
+    // controllers/dropOffController.js). Partner name/city are copied in so
+    // the receipt and impact history stay readable if a partner is renamed.
+    dropOff: {
+      partner: { type: mongoose.Schema.Types.ObjectId, ref: "RecyclingPartner", default: null },
+      partnerName: { type: String, default: null },
+      partnerCity: { type: String, default: null },
+      photo: { type: String, default: null },
+      at: { type: Date, default: null },
+    },
+
     // Start-of-pickup OTP handshake bookkeeping. The code itself is derived
     // (see utils/handshake.js), never stored — this only tracks attempts.
     handshake: {

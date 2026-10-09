@@ -71,5 +71,14 @@ exports.getReceipt = asyncHandler(async (req, res) => {
       completed: completedAt,
     },
     photos: { completion: pickup.completionPhoto || null, weighing: pickup.weighPhoto || null },
+    // null until the collector records the delivery to a recycling partner
+    destination: pickup.dropOff?.at
+      ? {
+          partnerName: pickup.dropOff.partnerName,
+          city: pickup.dropOff.partnerCity,
+          deliveredAt: pickup.dropOff.at,
+          photo: pickup.dropOff.photo || null,
+        }
+      : null,
   });
 });

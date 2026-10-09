@@ -6,6 +6,8 @@ const User = require("../models/User");
 const AUDIT_ACTIONS = {
   "rate.update": "Scrap rate changed",
   "catalog.update": "Item catalog updated",
+  "partner.create": "Recycling partner added",
+  "partner.update": "Recycling partner updated",
   "verification.approve": "ID approved",
   "verification.reject": "ID rejected",
   "verification.revoke": "ID re-verification requested",

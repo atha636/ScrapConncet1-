@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Pickup = require("../models/Pickup");
 const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
-const { computeImpact, weightByTypePipeline } = require("../utils/impact");
+const { computeImpact, weightByTypePipeline, weightByPartnerPipeline } = require("../utils/impact");
 
 const toByType = (rows) => Object.fromEntries(rows.map((r) => [r._id, r.kg]));
 
@@ -12,8 +12,9 @@ exports.getMyImpact = asyncHandler(async (req, res) => {
   const field = req.user.role === "collector" ? "collector" : "user";
   const userId = new mongoose.Types.ObjectId(req.user.id);
 
-  const [rows, pickupCount] = await Promise.all([
+  const [rows, partnerRows, pickupCount] = await Promise.all([
     Pickup.aggregate(weightByTypePipeline({ [field]: userId })),
+    Pickup.aggregate(weightByPartnerPipeline({ [field]: userId })),
     Pickup.countDocuments({
       [field]: userId,
       status: "completed",
@@ -21,7 +22,13 @@ exports.getMyImpact = asyncHandler(async (req, res) => {
     }),
   ]);
 
-  res.json({ ...computeImpact(toByType(rows)), pickupCount, role: req.user.role });
+  const destinations = partnerRows.map((r) => ({
+    name: r._id.name,
+    city: r._id.city,
+    kg: Math.round(r.kg * 10) / 10,
+  }));
+
+  res.json({ ...computeImpact(toByType(rows)), pickupCount, role: req.user.role, destinations });
 });
 
 // GET /api/impact/community  (public) — whole-platform totals for the Home

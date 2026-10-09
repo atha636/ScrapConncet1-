@@ -119,6 +119,8 @@ function createApp() {
   app.use("/api/verification", require("./routes/verificationRoutes"));
   app.use("/api/impact", require("./routes/impactRoutes"));
   app.use("/api/quotes", require("./routes/quoteRoutes"));
+  app.use("/api/partners", require("./routes/partnerRoutes"));
+  app.use("/api/dropoffs", require("./routes/dropOffRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

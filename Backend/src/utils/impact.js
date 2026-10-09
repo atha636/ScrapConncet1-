@@ -48,7 +48,7 @@ function computeImpact(byType) {
 // them, otherwise the requester's estimate. Pickups whose weight settlement
 // is still disputed are left out until resolved, so impact never counts a
 // weight someone is contesting.
-function weightByTypePipeline(match) {
+function kgLineStages(match) {
   return [
     {
       $match: {
@@ -59,6 +59,8 @@ function weightByTypePipeline(match) {
     },
     {
       $project: {
+        partnerName: "$dropOff.partnerName",
+        partnerCity: "$dropOff.partnerCity",
         lines: {
           $cond: [
             { $gt: [{ $size: { $ifNull: ["$settlement.actualItems", []] } }, 0] },
@@ -81,8 +83,29 @@ function weightByTypePipeline(match) {
       },
     },
     { $unwind: "$lines" },
+  ];
+}
+
+function weightByTypePipeline(match) {
+  return [
+    ...kgLineStages(match),
     { $group: { _id: "$lines.scrapType", kg: { $sum: { $ifNull: ["$lines.kg", 0] } } } },
   ];
 }
 
-module.exports = { computeImpact, weightByTypePipeline, CO2_KG_SAVED_PER_KG };
+// Same weights, grouped by where they were delivered. Only pickups whose
+// delivery has been recorded are counted.
+function weightByPartnerPipeline(match) {
+  return [
+    ...kgLineStages({ "dropOff.at": { $ne: null }, ...match }),
+    {
+      $group: {
+        _id: { name: "$partnerName", city: "$partnerCity" },
+        kg: { $sum: { $ifNull: ["$lines.kg", 0] } },
+      },
+    },
+    { $sort: { kg: -1 } },
+  ];
+}
+
+module.exports = { computeImpact, weightByTypePipeline, weightByPartnerPipeline, CO2_KG_SAVED_PER_KG };
