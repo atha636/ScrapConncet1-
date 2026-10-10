@@ -16,6 +16,7 @@ const notificationSchema = new mongoose.Schema(
         "pickup_completed",
         "recycling_update",
         "verification_update",
+        "support_update",
       ],
       required: true,
     },

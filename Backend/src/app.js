@@ -121,6 +121,7 @@ function createApp() {
   app.use("/api/quotes", require("./routes/quoteRoutes"));
   app.use("/api/partners", require("./routes/partnerRoutes"));
   app.use("/api/dropoffs", require("./routes/dropOffRoutes"));
+  app.use("/api/support", require("./routes/supportRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);
