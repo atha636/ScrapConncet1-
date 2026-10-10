@@ -10,6 +10,7 @@ const pa = {
     about: "ਸਾਡੇ ਬਾਰੇ",
     rates: "ਸਕਰੈਪ ਰੇਟ",
     impact: "ਮੇਰਾ ਪ੍ਰਭਾਵ",
+    help: "ਮਦਦ",
     more: "ਹੋਰ",
     quotes: "ਕੋਟ ਦੀ ਤੁਲਨਾ",
     collector: "ਕਲੈਕਟਰ",

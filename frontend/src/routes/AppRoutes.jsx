@@ -17,6 +17,7 @@ const Login = lazy(() => import("../pages/auth/Login"));
 const AboutUs = lazy(() => import("../pages/AboutUs"));
 const ScrapRates = lazy(() => import("../pages/ScrapRates"));
 const Impact = lazy(() => import("../pages/Impact"));
+const Help = lazy(() => import("../pages/Help"));
 const Receipt = lazy(() => import("../pages/Receipt"));
 const Register = lazy(() => import("../pages/auth/Register"));
 const AdminLogin = lazy(() => import("../pages/auth/AdminLogin"));
@@ -48,6 +49,8 @@ export default function AppRoutes() {
         <Route path="/about" element={<AboutUs />} />
 
         <Route path="/scrap-rates" element={<ScrapRates />} />
+
+        <Route path="/help" element={<Help />} />
 
         <Route
           path="/receipt/:id"

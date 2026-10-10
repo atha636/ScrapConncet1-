@@ -13,6 +13,7 @@ const HOME_LINK = { to: "/", label: "nav.home" };
 const ABOUT_LINK = { to: "/about", label: "nav.about", secondary: true };
 const RATES_LINK = { to: "/scrap-rates", label: "nav.rates", secondary: true };
 const QUOTES_LINK = { to: "/quotes", label: "nav.quotes", secondary: true };
+const HELP_LINK = { to: "/help", label: "nav.help", secondary: true };
 const IMPACT_LINK = { to: "/impact", label: "nav.impact", secondary: true };
 
 const USER_LINKS = [
@@ -23,10 +24,11 @@ const USER_LINKS = [
   QUOTES_LINK,
   IMPACT_LINK,
   RATES_LINK,
+  HELP_LINK,
   ABOUT_LINK,
 ];
 
-const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "nav.collector" }, IMPACT_LINK, RATES_LINK, ABOUT_LINK];
+const COLLECTOR_LINKS = [HOME_LINK, { to: "/collector", label: "nav.collector" }, IMPACT_LINK, RATES_LINK, HELP_LINK, ABOUT_LINK];
 const ADMIN_LINKS = [HOME_LINK, { to: "/admin", label: "nav.admin" }, RATES_LINK, ABOUT_LINK];
 
 export default function Navbar() {
@@ -52,7 +54,7 @@ export default function Navbar() {
   const secondaryLinks = links.filter((l) => l.secondary);
   // Roles with few links (collector, admin) can show everything inline on wide
   // screens; the user role has too many to fit, so it always uses "More".
-  const inlineSecondary = links.length <= 5;
+  const inlineSecondary = links.length <= 6;
   const moreActive = secondaryLinks.some((l) => l.to === location.pathname);
 
   useEffect(() => {

@@ -10,6 +10,7 @@ const hi = {
     about: "हमारे बारे में",
     rates: "स्क्रैप दरें",
     impact: "मेरा प्रभाव",
+    help: "मदद",
     more: "और",
     quotes: "कोट्स की तुलना",
     collector: "कलेक्टर",
