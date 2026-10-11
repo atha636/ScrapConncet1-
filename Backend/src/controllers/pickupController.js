@@ -4,6 +4,7 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimateItemsPrice } = require("../utils/pricing");
+const { assertCouponUsable, snapshotOf } = require("../utils/coupons");
 const { estimateScrapFromImage } = require("../utils/scrapEstimator");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
@@ -66,7 +67,11 @@ exports.estimateFromPhoto = asyncHandler(async (req, res) => {
 
 // POST /api/pickup/request
 exports.createPickup = asyncHandler(async (req, res) => {
-  const { items, contactName, contactPhone, lat, lng, address } = req.body;
+  const { items, contactName, contactPhone, lat, lng, address, couponCode } = req.body;
+
+  // Checked before anything is created, so a bad code fails the request
+  // instead of silently dropping the promo.
+  const coupon = couponCode ? await assertCouponUsable(couponCode, req.user.id) : null;
 
   const pickup = await Pickup.create({
     user: req.user.id,
@@ -76,6 +81,7 @@ exports.createPickup = asyncHandler(async (req, res) => {
     image: req.file?.path || req.file?.secure_url || null,
     location: { lat, lng, address },
     price: estimateItemsPrice(items),
+    ...(coupon ? { coupon: snapshotOf(coupon) } : {}),
     statusHistory: [{ status: "pending", changedBy: req.user.id }],
   });
 
@@ -1203,7 +1209,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   // confirms, the confirm window lapses, or an admin resolves a dispute —
   // see utils/settlement.js finalizeSettlement.
   if (nextStatus === "completed" && (!settlementInfo || settlementInfo.withinTolerance)) {
-    await creditEarning(pickup);
+    await creditEarning(pickup, req.io);
   }
 
   req.io.emit("updatePickup", pickup);

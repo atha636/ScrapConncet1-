@@ -134,6 +134,18 @@ const pickupSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
 
+    // Promo code applied at request time — a snapshot (see utils/coupons.js).
+    // bonusAmount is filled in once the final price settles.
+    coupon: {
+      couponId: { type: mongoose.Schema.Types.ObjectId, ref: "Coupon" },
+      code: String,
+      type: { type: String, enum: ["percent", "flat"] },
+      value: Number,
+      maxBonus: Number,
+      minOrderValue: Number,
+      bonusAmount: Number,
+    },
+
     // Set by the escalateStalePickups cron job (see src/jobs) when a pickup
     // has sat pending too long — surfaces it higher in the collector feed
     // instead of it silently going stale with nobody accepting it.

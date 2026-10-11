@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema(
     // uniqueness where both fields are present, so any number of
     // referral_bonus transactions without a pickup coexist safely, the same
     // way "payout" transactions already do.
-    type: { type: String, enum: ["earning", "payout", "referral_bonus"], default: "earning" },
+    type: { type: String, enum: ["earning", "payout", "referral_bonus", "coupon_credit"], default: "earning" },
     amount: { type: Number, required: true, min: 0 },
   },
   { timestamps: true }

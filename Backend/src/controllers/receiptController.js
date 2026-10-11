@@ -64,6 +64,7 @@ exports.getReceipt = asyncHandler(async (req, res) => {
     agreedPrice,
     proposedPrice: finalPrice === null ? s.proposedPrice ?? null : null,
     finalPrice,
+    coupon: pickup.coupon?.code ? { code: pickup.coupon.code, bonusAmount: pickup.coupon.bonusAmount || 0 } : null,
     timeline: {
       requested: pickup.createdAt,
       accepted: when(pickup.statusHistory, "accepted"),

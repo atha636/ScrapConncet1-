@@ -2,6 +2,7 @@ const Pickup = require("../models/Pickup");
 const Transaction = require("../models/Transaction");
 const notifyUser = require("./notifyUser");
 const { estimateItemsPrice } = require("./pricing");
+const { creditCouponBonus } = require("./coupons");
 
 // A weighed load within this % of what was estimated settles at the agreed
 // price with no action from the requester. Bigger gaps need their OK.
@@ -40,7 +41,7 @@ function computeSettlement(pickup, actualItems) {
   };
 }
 
-async function creditEarning(pickup) {
+async function creditEarning(pickup, io) {
   try {
     await Transaction.create({
       collector: pickup.collector,
@@ -51,6 +52,11 @@ async function creditEarning(pickup) {
   } catch (err) {
     // Unique (pickup, type) index: a duplicate is a retry, not an error.
     if (err.code !== 11000) throw err;
+  }
+  // Promo bonus rides on the same moment the price becomes final. Never
+  // lets a coupon problem undo the earning itself.
+  if (io) {
+    await creditCouponBonus(io, pickup).catch((err) => console.error("Coupon credit failed:", err.message));
   }
 }
 
@@ -65,7 +71,7 @@ async function finalizeSettlement(io, pickupId, { finalPrice, status, from = ["p
   );
   if (!pickup) return null;
 
-  await creditEarning(pickup);
+  await creditEarning(pickup, io);
   io.emit("updatePickup", pickup);
 
   await notifyUser(io, pickup.collector, {

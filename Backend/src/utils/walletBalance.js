@@ -32,7 +32,7 @@ async function getAvailableBalance(collectorId, excludeRequestId = null) {
     // "earning" alone — see that function's own comment on why mixing
     // transaction kinds there would misrepresent what's being shown.
     Transaction.aggregate([
-      { $match: { collector: id, type: { $in: ["earning", "referral_bonus"] } } },
+      { $match: { collector: id, type: { $in: ["earning", "referral_bonus", "coupon_credit"] } } },
       { $group: { _id: null, sum: { $sum: "$amount" } } },
     ]),
     Transaction.aggregate([

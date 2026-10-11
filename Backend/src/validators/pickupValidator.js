@@ -47,6 +47,7 @@ const createPickupSchema = z.object({
   lat: numberLike.pipe(z.number().min(-90).max(90)),
   lng: numberLike.pipe(z.number().min(-180).max(180)),
   address: z.string().trim().max(200).optional(),
+  couponCode: z.string().trim().max(20).optional(),
 });
 
 // Sent as a JSON string when the request is multipart (completion photo).
