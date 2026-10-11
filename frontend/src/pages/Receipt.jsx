@@ -116,6 +116,9 @@ export default function Receipt() {
             {formatPrice(Math.abs(variance))}
           </Row>
         )}
+        {data.coupon && data.coupon.bonusAmount > 0 && (
+          <Row label={`Promo ${data.coupon.code} bonus`}>+{formatPrice(data.coupon.bonusAmount)}</Row>
+        )}
         <div className="flex items-center justify-between border-t border-line mt-2 pt-3">
           <span className="text-sm font-semibold text-ink">{data.isFinal ? "Final amount" : "Proposed amount"}</span>
           <span className="font-display text-2xl font-bold text-rust">

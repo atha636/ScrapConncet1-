@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createPickup, createRecurring, inviteCollector, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP, estimateItemsPrice } from "../../services/pickupService";
 import { getScrapRates } from "../../services/scrapRateService";
+import { validateCoupon } from "../../services/couponService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -60,6 +61,10 @@ export default function RequestPickup() {
   const estimatedPrice = useMemo(() => estimateItemsPrice(items, liveRates || undefined), [items, liveRates]);
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
   const [repeat, setRepeat] = useState(false);
   const [frequency, setFrequency] = useState("weekly");
   const [address, setAddress] = useState("");
@@ -124,6 +129,27 @@ export default function RequestPickup() {
     setItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   };
 
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      const res = await validateCoupon(couponInput.trim(), estimatedPrice);
+      setCoupon(res.data);
+    } catch (err) {
+      setCoupon(null);
+      setCouponError(err.response?.data?.message || "Couldn't check that code.");
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -148,6 +174,7 @@ export default function RequestPickup() {
       form.append("lat", coords.lat);
       form.append("lng", coords.lng);
       if (address) form.append("address", address);
+      if (coupon) form.append("couponCode", coupon.code);
       if (file) form.append("image", file);
 
       const created = await createPickup(form);
@@ -354,6 +381,45 @@ export default function RequestPickup() {
                 A ballpark based on scrap type and weight — the collector confirms the exact
                 amount on pickup, especially for items left without a weight.
               </p>
+
+              <div className="mt-4">
+                <label className="field-label">Promo code (optional)</label>
+                {coupon ? (
+                  <div className="flex items-center justify-between rounded-ticket bg-amber/15 px-3 py-2 text-sm">
+                    <span className="text-ink">
+                      <span className="font-semibold">{coupon.code}</span> applied — {coupon.summary}
+                      {coupon.estimatedBonus > 0 ? ` (about ${formatPrice(coupon.estimatedBonus)} on this estimate)` : ""}
+                    </span>
+                    <button type="button" onClick={removeCoupon} className="text-xs font-semibold text-rust">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      maxLength={20}
+                      placeholder="e.g. WELCOME50"
+                      className="input flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={couponBusy || !couponInput.trim()}
+                      className="btn-secondary !py-2 !px-4 text-sm disabled:opacity-50"
+                    >
+                      {couponBusy ? "Checking…" : "Apply"}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="text-xs text-rust mt-1">{couponError}</p>}
+                {coupon && (
+                  <p className="text-[11px] text-inkFaint mt-1">
+                    The bonus is worked out on the final weighed price and paid with your payout.
+                  </p>
+                )}
+              </div>
             </motion.div>
 
 

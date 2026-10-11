@@ -30,6 +30,7 @@ import AuditLogTab from "../components/admin/AuditLogTab";
 import ItemCatalogTab from "../components/admin/ItemCatalogTab";
 import PartnersTab from "../components/admin/PartnersTab";
 import SupportTab from "../components/admin/SupportTab";
+import CouponsTab from "../components/admin/CouponsTab";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
@@ -48,6 +49,7 @@ const TABS = [
   { key: "catalog", label: "Item catalog" },
   { key: "partners", label: "Recycling partners" },
   { key: "support", label: "Support" },
+  { key: "coupons", label: "Promo codes" },
   { key: "audit", label: "Audit log" },
 ];
 
@@ -152,7 +154,7 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
-        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support"
+        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support" || tab === "coupons"
         ? async () => {}
         : loadPickups;
     load()
@@ -365,6 +367,7 @@ export default function AdminPanel() {
 
             {tab === "partners" && <PartnersTab />}
             {tab === "support" && <SupportTab />}
+            {tab === "coupons" && <CouponsTab />}
 
             {tab === "audit" && <AuditLogTab />}
 
