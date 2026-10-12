@@ -198,6 +198,27 @@ const userSchema = new mongoose.Schema(
     // Meaningful for both roles, unlike collectorPreferences/
     // lastKnownLocation above — a requester gets a different digest body
     // than a collector, but both get one.
+    // Optional business account (shops, offices, schools, societies...).
+    // Still role "user" — this only unlocks the Business page: saved pickup
+    // sites and monthly recycling reports.
+    businessProfile: {
+      type: {
+        enabled: { type: Boolean, default: false },
+        businessName: { type: String, trim: true, maxlength: 80 },
+        businessType: { type: String, enum: ["shop", "office", "school", "factory", "society", "other"] },
+        gstin: { type: String, trim: true, uppercase: true, maxlength: 15 },
+        sites: [
+          {
+            label: { type: String, trim: true, maxlength: 60 },
+            address: { type: String, trim: true, maxlength: 200 },
+            lat: Number,
+            lng: Number,
+          },
+        ],
+      },
+      default: undefined,
+    },
+
     weeklyDigestOptIn: { type: Boolean, default: true },
 
     // Where a collector's approved payouts actually get sent — captured
