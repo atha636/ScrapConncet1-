@@ -253,15 +253,30 @@ export default function Navbar() {
 
           <NotificationBell />
 
-          <Link to="/profile" title={user?.name || "User"} className="hidden sm:flex items-center gap-2 group">
-            <motion.div
+          <Link
+            to="/profile"
+            title={user?.name || t("nav.profile")}
+            aria-label={t("nav.profile")}
+            aria-current={location.pathname === "/profile" ? "page" : undefined}
+            className={`hidden sm:flex items-center gap-2 h-10 pl-1 lg:pr-3.5 pr-1 rounded-full border transition-colors group ${
+              location.pathname === "/profile"
+                ? "border-rust/60 bg-rust/[0.08]"
+                : "border-line bg-surface hover:border-rust/50 hover:bg-rust/[0.04]"
+            }`}
+          >
+            <motion.span
               whileHover={{ scale: 1.06 }}
-              className="w-7 h-7 rounded-full bg-amber/20 border border-amber/40 flex items-center justify-center text-xs font-bold text-amber-dark font-display"
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-amber/40 to-rust/30 border border-amber/50 flex items-center justify-center text-sm font-bold text-ink font-display"
             >
               {(user?.name || "U")[0].toUpperCase()}
-            </motion.div>
-            <span className="hidden 2xl:inline text-sm text-inkSoft max-w-[110px] truncate group-hover:text-ink transition-colors">
-              {user?.name || "User"}
+            </motion.span>
+            <span className="hidden lg:flex flex-col leading-tight text-left">
+              <span className="text-[13px] font-semibold text-ink max-w-[110px] truncate">
+                {user?.name || "User"}
+              </span>
+              <span className="text-[10px] uppercase tracking-wide text-rust font-semibold group-hover:underline">
+                {t("nav.viewProfile")}
+              </span>
             </span>
           </Link>
 

@@ -6,6 +6,7 @@ import useCountUp from "../hooks/useCountUp";
 import CommunityImpact from "../components/CommunityImpact";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
+import LanguageToggle from "../components/common/LanguageToggle";
 
 
 const RECEIPT_ITEMS = [
@@ -238,6 +239,7 @@ export default function Home() {
               <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
             </Link>
             <div className="flex items-center gap-3">
+              <LanguageToggle />
               {user ? (
                 <Link to={roleHome(user.role)} className="btn-primary !py-2 !px-4 text-sm">
                   Go to Dashboard

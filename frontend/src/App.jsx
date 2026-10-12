@@ -17,7 +17,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      {showAppChrome ? <Navbar /> : <LanguageToggle floating />}
+      {showAppChrome ? <Navbar /> : location.pathname !== "/" && <LanguageToggle floating />}
       {user && <TempPasswordNotice />}
       <div className={showAppChrome ? "max-w-5xl mx-auto px-5 py-8" : ""}>
         <AppRoutes />

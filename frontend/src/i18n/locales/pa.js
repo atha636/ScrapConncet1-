@@ -17,6 +17,7 @@ const pa = {
     collector: "ਕਲੈਕਟਰ",
     admin: "ਐਡਮਿਨ",
     profile: "ਪ੍ਰੋਫਾਈਲ",
+    viewProfile: "ਪ੍ਰੋਫ਼ਾਈਲ ਵੇਖੋ",
     logout: "ਲੌਗ ਆਊਟ",
     logoutTitle: "ਲੌਗ ਆਊਟ ਕਰਨਾ ਹੈ?",
     logoutMessage: "ਆਪਣੇ ਖਾਤੇ ਤੱਕ ਪਹੁੰਚਣ ਲਈ ਤੁਹਾਨੂੰ ਦੁਬਾਰਾ ਸਾਈਨ ਇਨ ਕਰਨਾ ਪਵੇਗਾ।",

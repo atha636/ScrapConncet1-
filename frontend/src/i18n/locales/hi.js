@@ -17,6 +17,7 @@ const hi = {
     collector: "कलेक्टर",
     admin: "एडमिन",
     profile: "प्रोफ़ाइल",
+    viewProfile: "प्रोफ़ाइल देखें",
     logout: "लॉग आउट",
     logoutTitle: "लॉग आउट करें?",
     logoutMessage: "अपने खाते तक पहुँचने के लिए आपको दोबारा साइन इन करना होगा।",

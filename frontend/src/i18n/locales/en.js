@@ -18,6 +18,7 @@ const en = {
     collector: "Collector",
     admin: "Admin",
     profile: "Profile",
+    viewProfile: "View profile",
     logout: "Log out",
     logoutTitle: "Log out?",
     logoutMessage: "You'll need to sign in again to access your account.",
