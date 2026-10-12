@@ -11,6 +11,7 @@ const pa = {
     rates: "ਸਕਰੈਪ ਰੇਟ",
     impact: "ਮੇਰਾ ਪ੍ਰਭਾਵ",
     help: "ਮਦਦ",
+    business: "ਕਾਰੋਬਾਰ",
     more: "ਹੋਰ",
     quotes: "ਕੋਟ ਦੀ ਤੁਲਨਾ",
     collector: "ਕਲੈਕਟਰ",

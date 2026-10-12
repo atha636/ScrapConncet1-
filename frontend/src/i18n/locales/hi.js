@@ -11,6 +11,7 @@ const hi = {
     rates: "स्क्रैप दरें",
     impact: "मेरा प्रभाव",
     help: "मदद",
+    business: "व्यवसाय",
     more: "और",
     quotes: "कोट्स की तुलना",
     collector: "कलेक्टर",

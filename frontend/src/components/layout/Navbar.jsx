@@ -13,6 +13,7 @@ const HOME_LINK = { to: "/", label: "nav.home" };
 const ABOUT_LINK = { to: "/about", label: "nav.about", secondary: true };
 const RATES_LINK = { to: "/scrap-rates", label: "nav.rates", secondary: true };
 const QUOTES_LINK = { to: "/quotes", label: "nav.quotes", secondary: true };
+const BUSINESS_LINK = { to: "/business", label: "nav.business", secondary: true };
 const HELP_LINK = { to: "/help", label: "nav.help", secondary: true };
 const IMPACT_LINK = { to: "/impact", label: "nav.impact", secondary: true };
 
@@ -22,6 +23,7 @@ const USER_LINKS = [
   { to: "/request", label: "nav.requestPickup" },
   { to: "/my-requests", label: "nav.myRequests" },
   QUOTES_LINK,
+  BUSINESS_LINK,
   IMPACT_LINK,
   RATES_LINK,
   HELP_LINK,

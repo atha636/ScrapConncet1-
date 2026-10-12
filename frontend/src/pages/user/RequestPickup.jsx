@@ -34,7 +34,16 @@ export default function RequestPickup() {
   const chosenCollector = navState?.collector || null;
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { coords, status: locStatus, error: locError, locate } = useGeolocation();
+  const { coords: gpsCoords, status: locStatus, error: locError, locate: gpsLocate } = useGeolocation();
+  // Coming from a saved business site: its stored location replaces GPS until
+  // the person taps to re-detect.
+  const site = navState?.site || null;
+  const [siteCoords, setSiteCoords] = useState(site ? { lat: site.lat, lng: site.lng } : null);
+  const coords = siteCoords || gpsCoords;
+  const locate = () => {
+    setSiteCoords(null);
+    gpsLocate();
+  };
 
   const [items, setItems] = useState(() =>
     navState?.pickupItems?.length
@@ -67,7 +76,7 @@ export default function RequestPickup() {
   const [couponBusy, setCouponBusy] = useState(false);
   const [repeat, setRepeat] = useState(false);
   const [frequency, setFrequency] = useState("weekly");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(site?.address || "");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [dragging, setDragging] = useState(false);
