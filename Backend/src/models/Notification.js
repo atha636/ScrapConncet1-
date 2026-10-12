@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema(
         "recycling_update",
         "verification_update",
         "support_update",
+        "team_update",
       ],
       required: true,
     },

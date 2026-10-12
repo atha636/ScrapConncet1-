@@ -16,7 +16,9 @@ async function assertChatAccess(pickupId, userId) {
   }
 
   const isRequester = String(pickup.user) === String(userId);
-  const isCollector = String(pickup.collector) === String(userId);
+  const isCollector =
+    String(pickup.collector) === String(userId) ||
+    (pickup.assignedTo && String(pickup.assignedTo) === String(userId));
   if (!isRequester && !isCollector) {
     throw new ApiError(403, "You don't have access to this conversation");
   }

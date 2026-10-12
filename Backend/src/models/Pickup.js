@@ -134,6 +134,12 @@ const pickupSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
 
+    // Set by a team owner (see controllers/teamController.js assign): the
+    // team member who actually does this job. `collector` stays the owner,
+    // so earnings, the start code and reliability stats all stay with them.
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    assignedAt: { type: Date, default: null },
+
     // Promo code applied at request time — a snapshot (see utils/coupons.js).
     // bonusAmount is filled in once the final price settles.
     coupon: {

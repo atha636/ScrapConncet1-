@@ -5,6 +5,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimateItemsPrice } = require("../utils/pricing");
 const { assertCouponUsable, snapshotOf } = require("../utils/coupons");
+const { actorFilter, isActor } = require("../utils/teamAccess");
 const { estimateScrapFromImage } = require("../utils/scrapEstimator");
 const notifyUser = require("../utils/notifyUser");
 const syncCollectorBadges = require("../utils/badgeNotifier");
@@ -112,7 +113,7 @@ exports.getPickupById = asyncHandler(async (req, res) => {
   if (!pickup) throw new ApiError(404, "Pickup not found");
 
   const isRequester = String(pickup.user._id) === String(req.user.id);
-  const isCollector = pickup.collector && String(pickup.collector._id) === String(req.user.id);
+  const isCollector = isActor(pickup, req.user.id);
   // A collector who's been invited (or has proposed their own offer) is
   // negotiation.collector from the moment that happens — well before
   // pickup.collector is ever set (that only flips once the negotiation is
@@ -241,7 +242,8 @@ exports.getAvailable = asyncHandler(async (req, res) => {
 // GET /api/pickup/collector/jobs  (collector's accepted/active/completed jobs)
 exports.getCollectorJobs = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
-  const filter = { collector: req.user.id };
+  // A team member also sees the jobs their owner assigned to them
+  const filter = actorFilter(req.user.id);
   if (req.query.status) filter.status = req.query.status;
 
   const [data, total] = await Promise.all([
@@ -249,7 +251,9 @@ exports.getCollectorJobs = asyncHandler(async (req, res) => {
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("user", "name phone"),
+      .populate("user", "name phone")
+      .populate("assignedTo", "name")
+      .populate("collector", "name"),
     Pickup.countDocuments(filter),
   ]);
 
@@ -279,7 +283,7 @@ exports.getCollectorRoute = asyncHandler(async (req, res) => {
   const start = { lat, lng };
   touchCollectorLocation(req.user.id, lat, lng);
   const jobs = await Pickup.find({
-    collector: req.user.id,
+    ...actorFilter(req.user.id),
     status: { $in: ["accepted", "in_progress"] },
   })
     .limit(MAX_ROUTE_STOPS)
@@ -1096,7 +1100,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   // counted and lock the collector out after OTP_MAX_ATTEMPTS.
   let handshakeUpdate = {};
   if (nextStatus === "in_progress") {
-    const current = await Pickup.findOne({ _id: req.params.id, collector: req.user.id, status: "accepted" });
+    const current = await Pickup.findOne({ _id: req.params.id, ...actorFilter(req.user.id), status: "accepted" });
     if (current) {
       const lockedUntil = current.handshake?.lockedUntil;
       if (lockedUntil && lockedUntil > new Date()) {
@@ -1136,7 +1140,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   let settlementInfo = null;
   let settlementDoc = {};
   if (nextStatus === "completed") {
-    const current = await Pickup.findOne({ _id: req.params.id, collector: req.user.id, status: "in_progress" });
+    const current = await Pickup.findOne({ _id: req.params.id, ...actorFilter(req.user.id), status: "in_progress" });
     if (current) {
       const actual = req.body.actualItems;
       if (!actual || actual.length === 0) {
@@ -1180,7 +1184,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   const pickup =
     validFrom.length > 0
       ? await Pickup.findOneAndUpdate(
-          { _id: req.params.id, collector: req.user.id, status: { $in: validFrom } },
+          { _id: req.params.id, ...actorFilter(req.user.id), status: { $in: validFrom } },
           {
             $set: {
               status: nextStatus,
@@ -1198,7 +1202,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   if (!pickup) {
     const existing = await Pickup.findById(req.params.id);
     if (!existing) throw new ApiError(404, "Pickup not found");
-    if (String(existing.collector) !== String(req.user.id)) {
+    if (!isActor(existing, req.user.id)) {
       throw new ApiError(403, "You are not assigned to this pickup");
     }
     throw new ApiError(400, `Cannot move from ${existing.status} to ${nextStatus}`);

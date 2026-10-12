@@ -121,6 +121,7 @@ function createApp() {
   app.use("/api/quotes", require("./routes/quoteRoutes"));
   app.use("/api/partners", require("./routes/partnerRoutes"));
   app.use("/api/dropoffs", require("./routes/dropOffRoutes"));
+  app.use("/api/teams", require("./routes/teamRoutes"));
   app.use("/api/business", require("./routes/businessRoutes"));
   app.use("/api/coupons", require("./routes/couponRoutes"));
   app.use("/api/support", require("./routes/supportRoutes"));
