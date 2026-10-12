@@ -89,6 +89,7 @@ const hi = {
     tabMine: "मेरे काम",
     tabHistory: "इतिहास",
     tabRecycle: "रीसायकल",
+    tabTeam: "टीम",
     tabWallet: "वॉलेट",
     tabProfile: "प्रोफ़ाइल और आँकड़े",
     startPickup: "पिकअप शुरू करें",

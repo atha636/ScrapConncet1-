@@ -44,6 +44,8 @@ import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import RateCardPanel from "../../components/collector/RateCardPanel";
 import DropOffPanel from "../../components/collector/DropOffPanel";
+import TeamPanel from "../../components/collector/TeamPanel";
+import { getMyTeam } from "../../services/teamService";
 import { getPendingDropOffs } from "../../services/dropOffService";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
@@ -73,6 +75,7 @@ const TABS = [
   { key: "mine", label: "collectorDash.tabMine" },
   { key: "history", label: "collectorDash.tabHistory" },
   { key: "recycle", label: "collectorDash.tabRecycle" },
+  { key: "team", label: "collectorDash.tabTeam" },
   { key: "wallet", label: "collectorDash.tabWallet" },
   { key: "profile", label: "collectorDash.tabProfile" },
 ];
@@ -129,6 +132,14 @@ export default function CollectorDashboard() {
     getPendingDropOffs()
       .then((res) => setPendingDrops(res.data.pickups.length))
       .catch(() => setPendingDrops(0));
+  }, []);
+  // Pending team invites (the Team tab's badge), loaded up front like the
+  // Recycle count above.
+  const [teamInvites, setTeamInvites] = useState(0);
+  useEffect(() => {
+    getMyTeam()
+      .then((res) => setTeamInvites(res.data.invites?.length || 0))
+      .catch(() => setTeamInvites(0));
   }, []);
   const [available, setAvailable] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
@@ -635,7 +646,7 @@ export default function CollectorDashboard() {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-  const counts = { available: filteredAvailable.length, mine: activeJobs.length, history: pastJobs.length, recycle: pendingDrops };
+  const counts = { available: filteredAvailable.length, mine: activeJobs.length, history: pastJobs.length, recycle: pendingDrops, team: teamInvites || undefined };
 
   return (
     <MotionConfig reducedMotion="user">
@@ -1041,6 +1052,7 @@ export default function CollectorDashboard() {
               )}
 
               {tab === "recycle" && <DropOffPanel onPendingChange={setPendingDrops} />}
+              {tab === "team" && <TeamPanel onInvitesChange={setTeamInvites} />}
 
               {tab === "history" && (
                 pastJobs.length === 0 ? (

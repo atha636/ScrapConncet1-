@@ -89,6 +89,7 @@ const pa = {
     tabMine: "ਮੇਰੇ ਕੰਮ",
     tabHistory: "ਇਤਿਹਾਸ",
     tabRecycle: "ਰੀਸਾਈਕਲ",
+    tabTeam: "ਟੀਮ",
     tabWallet: "ਵਾਲਿਟ",
     tabProfile: "ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਅੰਕੜੇ",
     startPickup: "ਪਿਕਅੱਪ ਸ਼ੁਰੂ ਕਰੋ",

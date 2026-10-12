@@ -90,6 +90,7 @@ const en = {
     tabMine: "My jobs",
     tabHistory: "History",
     tabRecycle: "Recycle",
+    tabTeam: "Team",
     tabWallet: "Wallet",
     tabProfile: "Profile & stats",
     startPickup: "Start pickup",
