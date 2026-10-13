@@ -7,6 +7,8 @@ import MapThumbnail from "../map/MapThumbnail";
 import OfferPanel from "./OfferPanel";
 import DisputeStatusPanel from "./DisputeStatusPanel";
 import useLocationSharing from "../../hooks/useLocationSharing";
+import { markOnTheWay } from "../../services/pickupService";
+import { formatSlot } from "../../utils/pickupSlots";
 
 const rowStagger = {
   hidden: {},
@@ -37,6 +39,35 @@ export default function PickupDetailModal({
   // broadcasting just because an active job happens to be open.
   const [sharingLocation, setSharingLocation] = useState(false);
   const { error: locationError } = useLocationSharing(pickup?._id, isTrackable && sharingLocation);
+
+  // "I'm on my way": records the departure + ETA on the server and starts
+  // sharing live location in one tap. Keyed by pickup so it doesn't carry
+  // over to another job opened in the same modal.
+  const [headOut, setHeadOut] = useState({ id: null, data: null, busy: false, error: "" });
+  const onWay = headOut.id === pickup?._id ? headOut.data : null;
+  const departedAt = onWay?.onTheWayAt || pickup?.tracking?.onTheWayAt;
+  const etaMin = onWay?.etaMinutes ?? pickup?.tracking?.etaMinutes;
+
+  const handleHeadOut = () => {
+    const id = pickup._id;
+    if (!navigator.geolocation) {
+      return setHeadOut({ id, data: null, busy: false, error: "Location isn't available on this device." });
+    }
+    setHeadOut({ id, data: null, busy: true, error: "" });
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await markOnTheWay(id, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setHeadOut({ id, data: res.data, busy: false, error: "" });
+          setSharingLocation(true);
+        } catch (err) {
+          setHeadOut({ id, data: null, busy: false, error: err.response?.data?.message || "Couldn't start. Try again." });
+        }
+      },
+      () => setHeadOut({ id, data: null, busy: false, error: "Couldn't get your location — check location permissions." }),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // Null-safe (returns [] for a null pickup, e.g. while the modal is
   // closed) — computed unconditionally here rather than inside the
@@ -154,6 +185,31 @@ export default function PickupDetailModal({
                     />
                   </dd>
                 </motion.div>
+
+                {pickup.slot?.start && (
+                  <motion.div variants={rowItem} className="flex items-center justify-between gap-4">
+                    <dt className="text-inkFaint shrink-0">Requested window</dt>
+                    <dd className="text-ink font-semibold text-right">{formatSlot(pickup.slot)}</dd>
+                  </motion.div>
+                )}
+
+                {pickup.status === "accepted" && (
+                  <motion.div variants={rowItem} className="rounded-md border border-line bg-surfaceRaised p-3">
+                    {pickup.tracking?.requesterReadyAt && (
+                      <p className="text-xs font-semibold text-rust mb-2">✓ The requester is home and ready</p>
+                    )}
+                    {departedAt ? (
+                      <p className="text-sm text-ink">
+                        On your way{etaMin ? ` · about ${etaMin} min` : ""}. Live location is shared with the requester.
+                      </p>
+                    ) : (
+                      <button type="button" onClick={handleHeadOut} disabled={headOut.busy} className="btn-primary !py-2 !px-4 text-sm w-full disabled:opacity-50">
+                        {headOut.busy ? "Starting…" : "I'm on my way"}
+                      </button>
+                    )}
+                    {headOut.id === pickup._id && headOut.error && <p className="text-xs text-danger mt-1.5">{headOut.error}</p>}
+                  </motion.div>
+                )}
 
                 {isTrackable && (
                   <motion.div variants={rowItem} className="flex items-center justify-between">

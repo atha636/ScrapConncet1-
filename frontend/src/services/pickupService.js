@@ -208,3 +208,6 @@ export const proposeOffer = (id, amount, note) => API.post(`/pickup/${id}/offer`
 
 export const respondToOffer = (id, action, amount, note) =>
   API.patch(`/pickup/${id}/offer`, { action, amount, note });
+// Slots & arrival tracking
+export const markOnTheWay = (id, coords) => API.post(`/pickup/${id}/on-the-way`, coords);
+export const markReady = (id) => API.post(`/pickup/${id}/ready`);

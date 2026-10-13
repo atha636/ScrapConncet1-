@@ -13,6 +13,8 @@ import PhotoLightbox from "./PhotoLightbox";
 import StartCodeCard from "./StartCodeCard";
 import SettlementCard from "./SettlementCard";
 import useLiveLocation from "../../hooks/useLiveLocation";
+import { markReady } from "../../services/pickupService";
+import { formatSlot } from "../../utils/pickupSlots";
 
 const rowStagger = {
   hidden: {},
@@ -41,6 +43,23 @@ export default function RequestDetailModal({
   const [showPickCollector, setShowPickCollector] = useState(false);
   const [showCompletionPhoto, setShowCompletionPhoto] = useState(false);
   const liveCollectorPosition = useLiveLocation(pickup?._id, isTrackable);
+
+  // "I'm home and ready" — keyed by pickup so it can't leak to another one.
+  const [ready, setReady] = useState({ id: null, busy: false, error: "" });
+  const readyDone = pickup?.tracking?.requesterReadyAt || (ready.id === pickup?._id && ready.done);
+  const handleReady = async () => {
+    const id = pickup._id;
+    setReady({ id, busy: true, error: "" });
+    try {
+      await markReady(id);
+      setReady({ id, busy: false, error: "", done: true });
+    } catch (err) {
+      setReady({ id, busy: false, error: err.response?.data?.message || "Couldn't send that. Try again." });
+    }
+  };
+  // Live ETA from the collector's moving position wins over the one saved when they set off
+  const etaMin = liveCollectorPosition?.etaMinutes ?? pickup?.tracking?.etaMinutes;
+  const onTheWay = !!pickup?.tracking?.onTheWayAt || !!liveCollectorPosition;
 
   // Null-safe (returns [] for a null pickup, e.g. while the modal is
   // closed) — see the matching comment in PickupDetailModal.jsx.
@@ -147,6 +166,30 @@ export default function RequestDetailModal({
                     <dd>
                       <CollectorProfileCard collectorId={pickup.collector._id || pickup.collector.id} />
                     </dd>
+                  </motion.div>
+                )}
+
+                {pickup.slot?.start && (
+                  <motion.div variants={rowItem} className="flex items-center justify-between gap-4">
+                    <dt className="text-inkFaint shrink-0">Your pickup window</dt>
+                    <dd className="text-ink font-semibold text-right">{formatSlot(pickup.slot)}</dd>
+                  </motion.div>
+                )}
+
+                {pickup.status === "accepted" && (
+                  <motion.div variants={rowItem} className="rounded-md border border-line bg-surfaceRaised p-3">
+                    <p className="text-sm font-semibold text-ink">
+                      {onTheWay ? `Your collector is on the way${etaMin ? ` — about ${etaMin} min` : ""}` : "Waiting for your collector to set off"}
+                    </p>
+                    <p className="text-xs text-inkSoft mt-0.5">Keep your start code ready for when they arrive.</p>
+                    {readyDone ? (
+                      <p className="text-xs font-semibold text-rust mt-2">✓ You told the collector you're ready</p>
+                    ) : (
+                      <button type="button" onClick={handleReady} disabled={ready.busy} className="btn-secondary !py-1.5 !px-3 text-xs mt-2 disabled:opacity-50">
+                        {ready.busy ? "Sending…" : "I'm home and ready"}
+                      </button>
+                    )}
+                    {ready.id === pickup._id && ready.error && <p className="text-xs text-danger mt-1.5">{ready.error}</p>}
                   </motion.div>
                 )}
 

@@ -50,6 +50,7 @@ import { getMyTeam } from "../../services/teamService";
 import { getPendingDropOffs } from "../../services/dropOffService";
 import NotifyPreferencesModal from "../../components/collector/NotifyPreferencesModal";
 import { formatPrice } from "../../utils/formatPrice";
+import { formatSlot } from "../../utils/pickupSlots";
 import { getPickupItems, formatItemsLabel, formatTotalWeight, scrapLabel } from "../../utils/pickupItems";
 import { maskUpi, maskAccountNumber } from "../../utils/payoutMask";
 import { distanceKm, formatDistance } from "../../utils/distance";
@@ -942,6 +943,9 @@ export default function CollectorDashboard() {
                                   View map
                                 </button>
                               </div>
+                              {item.slot?.start && (
+                                <p className="text-xs font-semibold text-rust mt-1">Window: {formatSlot(item.slot)}</p>
+                              )}
                               {item.user?.name && (
                                 <button
                                   onClick={(e) => {

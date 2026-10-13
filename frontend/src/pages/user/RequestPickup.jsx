@@ -4,6 +4,7 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { createPickup, createRecurring, inviteCollector, RECURRING_FREQUENCIES, SCRAP_TYPES, MAX_ITEMS_PER_PICKUP, estimateItemsPrice } from "../../services/pickupService";
 import { getScrapRates } from "../../services/scrapRateService";
 import { validateCoupon } from "../../services/couponService";
+import SlotPicker from "../../components/pickup/SlotPicker";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -70,6 +71,7 @@ export default function RequestPickup() {
   const estimatedPrice = useMemo(() => estimateItemsPrice(items, liveRates || undefined), [items, liveRates]);
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactPhone, setContactPhone] = useState(user?.phone || "");
+  const [slot, setSlot] = useState(null);
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState(null);
   const [couponError, setCouponError] = useState("");
@@ -184,6 +186,10 @@ export default function RequestPickup() {
       form.append("lng", coords.lng);
       if (address) form.append("address", address);
       if (coupon) form.append("couponCode", coupon.code);
+      if (slot) {
+        form.append("slotStart", slot.start);
+        form.append("slotEnd", slot.end);
+      }
       if (file) form.append("image", file);
 
       const created = await createPickup(form);
@@ -431,6 +437,11 @@ export default function RequestPickup() {
               </div>
             </motion.div>
 
+
+            {/* When */}
+            <motion.div variants={fadeUp}>
+              <SlotPicker onChange={setSlot} />
+            </motion.div>
 
             {/* Contact */}
             <motion.div variants={fadeUp}>
