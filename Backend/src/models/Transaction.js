@@ -10,8 +10,12 @@ const transactionSchema = new mongoose.Schema(
     // uniqueness where both fields are present, so any number of
     // referral_bonus transactions without a pickup coexist safely, the same
     // way "payout" transactions already do.
-    type: { type: String, enum: ["earning", "payout", "referral_bonus", "coupon_credit"], default: "earning" },
+    type: { type: String, enum: ["earning", "payout", "referral_bonus", "coupon_credit", "subscription"], default: "earning" },
+    // For "earning": amount is what the collector keeps. grossAmount is the
+    // pickup price and commission the platform's cut (amount = gross - commission).
     amount: { type: Number, required: true, min: 0 },
+    grossAmount: { type: Number, min: 0 },
+    commission: { type: Number, min: 0, default: 0 },
   },
   { timestamps: true }
 );

@@ -6,6 +6,8 @@ const User = require("../models/User");
 const AUDIT_ACTIONS = {
   "rate.update": "Scrap rate changed",
   "catalog.update": "Item catalog updated",
+  "plans.update": "Commission & plans changed",
+  "plans.grant": "Collector plan granted",
   "coupon.create": "Promo code created",
   "coupon.update": "Promo code updated",
   "ticket.reply": "Support ticket replied",

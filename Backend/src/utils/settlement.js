@@ -3,6 +3,8 @@ const Transaction = require("../models/Transaction");
 const notifyUser = require("./notifyUser");
 const { estimateItemsPrice } = require("./pricing");
 const { creditCouponBonus } = require("./coupons");
+const User = require("../models/User");
+const { getSettings, effectivePlanKey, commissionFor } = require("./plans");
 
 // A weighed load within this % of what was estimated settles at the agreed
 // price with no action from the requester. Bigger gaps need their OK.
@@ -41,13 +43,31 @@ function computeSettlement(pickup, actualItems) {
   };
 }
 
+// The platform's cut for this collector's current plan. A failure here must
+// never block the collector being paid, so it falls back to no commission.
+async function commissionForPickup(pickup) {
+  try {
+    const [settings, collector] = await Promise.all([
+      getSettings(),
+      User.findById(pickup.collector).select("subscription"),
+    ]);
+    return commissionFor(settings, effectivePlanKey(collector), pickup.price);
+  } catch (err) {
+    console.error("Commission lookup failed:", err.message);
+    return 0;
+  }
+}
+
 async function creditEarning(pickup, io) {
   try {
+    const commission = await commissionForPickup(pickup);
     await Transaction.create({
       collector: pickup.collector,
       pickup: pickup._id,
       type: "earning",
-      amount: pickup.price,
+      amount: pickup.price - commission,
+      grossAmount: pickup.price,
+      commission,
     });
   } catch (err) {
     // Unique (pickup, type) index: a duplicate is a retry, not an error.

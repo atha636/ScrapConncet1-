@@ -219,6 +219,16 @@ const userSchema = new mongoose.Schema(
       default: undefined,
     },
 
+    // Collector plan (see utils/plans.js). Counts only until expiresAt;
+    // after that the collector is effectively on Free.
+    subscription: {
+      type: {
+        planKey: { type: String, enum: ["pro", "elite"] },
+        expiresAt: Date,
+      },
+      default: undefined,
+    },
+
     weeklyDigestOptIn: { type: Boolean, default: true },
 
     // Where a collector's approved payouts actually get sent — captured

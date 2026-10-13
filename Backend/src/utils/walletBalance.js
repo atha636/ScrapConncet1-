@@ -22,7 +22,7 @@ async function getAvailableBalance(collectorId, excludeRequestId = null) {
   const pendingMatch = { collector: id, status: "pending" };
   if (excludeRequestId) pendingMatch._id = { $ne: excludeRequestId };
 
-  const [earningsAgg, payoutsAgg, pendingAgg] = await Promise.all([
+  const [earningsAgg, payoutsAgg, pendingAgg, spentAgg] = await Promise.all([
     // "earning" and "referral_bonus" are both credits into the wallet —
     // grouped together here so a referral bonus is real, withdrawable
     // money, not a number that only shows up somewhere cosmetic. Kept as
@@ -43,17 +43,24 @@ async function getAvailableBalance(collectorId, excludeRequestId = null) {
       { $match: pendingMatch },
       { $group: { _id: null, sum: { $sum: "$amount" } } },
     ]),
+    // Plan purchases paid from the wallet
+    Transaction.aggregate([
+      { $match: { collector: id, type: "subscription" } },
+      { $group: { _id: null, sum: { $sum: "$amount" } } },
+    ]),
   ]);
 
   const totalEarned = earningsAgg[0]?.sum || 0;
   const totalPaidOut = payoutsAgg[0]?.sum || 0;
   const totalPending = pendingAgg[0]?.sum || 0;
+  const totalSpent = spentAgg[0]?.sum || 0;
 
   return {
     totalEarned,
     totalPaidOut,
     totalPending,
-    available: totalEarned - totalPaidOut - totalPending,
+    totalSpent,
+    available: totalEarned - totalPaidOut - totalPending - totalSpent,
   };
 }
 

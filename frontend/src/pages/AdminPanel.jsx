@@ -31,6 +31,7 @@ import ItemCatalogTab from "../components/admin/ItemCatalogTab";
 import PartnersTab from "../components/admin/PartnersTab";
 import SupportTab from "../components/admin/SupportTab";
 import CouponsTab from "../components/admin/CouponsTab";
+import PlansTab from "../components/admin/PlansTab";
 import { formatPrice } from "../utils/formatPrice";
 import { downloadBlob } from "../utils/downloadBlob";
 import useDocumentMeta from "../hooks/useDocumentMeta";
@@ -50,6 +51,7 @@ const TABS = [
   { key: "partners", label: "Recycling partners" },
   { key: "support", label: "Support" },
   { key: "coupons", label: "Promo codes" },
+  { key: "plans", label: "Revenue & plans" },
   { key: "audit", label: "Audit log" },
 ];
 
@@ -154,7 +156,7 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
-        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support" || tab === "coupons"
+        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support" || tab === "coupons" || tab === "plans"
         ? async () => {}
         : loadPickups;
     load()
@@ -368,6 +370,7 @@ export default function AdminPanel() {
             {tab === "partners" && <PartnersTab />}
             {tab === "support" && <SupportTab />}
             {tab === "coupons" && <CouponsTab />}
+            {tab === "plans" && <PlansTab />}
 
             {tab === "audit" && <AuditLogTab />}
 

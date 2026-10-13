@@ -16,6 +16,7 @@ import {
 import { getWalletSummary, getEarningsTrend, getTransactions, requestPayout, getMyPayouts, getPayoutDetails } from "../../services/walletService";
 import EarningsChart from "../../components/wallet/EarningsChart";
 import PayoutDetailsCard from "../../components/wallet/PayoutDetailsCard";
+import PlansCard from "../../components/wallet/PlansCard";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import CardSkeleton from "../../components/common/CardSkeleton";
@@ -1188,6 +1189,9 @@ export default function CollectorDashboard() {
                     {/* Payout destination */}
                     <PayoutDetailsCard details={payoutDetails} onSaved={setPayoutDetails} />
 
+                    {/* Plans & commission */}
+                    <PlansCard onPurchased={() => setWallet(null)} />
+
                     {/* Request payout */}
                     <Card className="p-5 mb-6">
                       <h3 className="font-display font-semibold text-ink text-sm mb-3">Request a payout</h3>
@@ -1285,6 +1289,8 @@ export default function CollectorDashboard() {
                                 <div className="font-medium text-ink capitalize">
                                   {tx.type === "payout"
                                     ? "Payout"
+                                    : tx.type === "subscription"
+                                    ? "Plan purchase"
                                     : `${tx.pickup?.scrapType || "Pickup"}${tx.pickup?.estimatedWeightKg ? ` · ${tx.pickup.estimatedWeightKg}kg` : ""}`}
                                 </div>
                                 <div className="text-xs text-inkFaint mt-0.5">
@@ -1293,10 +1299,13 @@ export default function CollectorDashboard() {
                                     month: "short",
                                     year: "numeric",
                                   })}
+                                  {tx.type === "earning" && tx.commission > 0 && (
+                                    <span> · {formatPrice(tx.grossAmount)} − {formatPrice(tx.commission)} platform fee</span>
+                                  )}
                                 </div>
                               </div>
-                              <span className={`font-mono font-semibold ${tx.type === "payout" ? "text-inkSoft" : "text-rust"}`}>
-                                {tx.type === "payout" ? "−" : "+"}{formatPrice(tx.amount)}
+                              <span className={`font-mono font-semibold ${tx.type === "payout" || tx.type === "subscription" ? "text-inkSoft" : "text-rust"}`}>
+                                {tx.type === "payout" || tx.type === "subscription" ? "−" : "+"}{formatPrice(tx.amount)}
                               </span>
                             </Card>
                           </motion.div>

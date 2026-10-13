@@ -52,7 +52,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
   const startOfWeek = new Date(now.getTime() - 7 * DAY_MS);
   const startOfMonth = new Date(now.getTime() - 30 * DAY_MS);
 
-  const [totals, balance] = await Promise.all([
+  const [totals, balance, fees] = await Promise.all([
     Transaction.aggregate([
       // Scoped to "earning" only — this summary is "how much have you
       // earned," not a raw sum of every ledger entry. A payout entry mixed
@@ -74,6 +74,10 @@ exports.getSummary = asyncHandler(async (req, res) => {
       },
     ]),
     getAvailableBalance(req.user.id),
+    Transaction.aggregate([
+      { $match: { collector: collectorId, type: "earning", commission: { $gt: 0 } } },
+      { $group: { _id: null, sum: { $sum: "$commission" } } },
+    ]),
   ]);
 
   const pick = (bucket) => ({
@@ -86,6 +90,7 @@ exports.getSummary = asyncHandler(async (req, res) => {
     last7Days: pick(totals[0].last7Days),
     last30Days: pick(totals[0].last30Days),
     balance,
+    commissionPaid: fees[0]?.sum || 0,
   });
 });
 
