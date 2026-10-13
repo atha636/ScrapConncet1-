@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion, MotionConfig } from "framer-motion";
+import { motion, MotionConfig, useInView } from "framer-motion";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import useCountUp from "../hooks/useCountUp";
 import CommunityImpact from "../components/CommunityImpact";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
 import LanguageToggle from "../components/common/LanguageToggle";
+import LiveTrackDemo from "../components/home/LiveTrackDemo";
+import PlansShowcase from "../components/home/PlansShowcase";
+import "../styles/home.css";
 
 
 const RECEIPT_ITEMS = [
@@ -94,6 +97,43 @@ function ReceiptHero() {
     </div>
   );
 }
+
+const TRUST_ITEMS = [
+  "ID-verified collectors",
+  "Pick your time slot",
+  "Live ETA tracking",
+  "Digital receipts",
+  "Promo codes",
+  "Eco impact certificate",
+  "Free for requesters",
+];
+
+function TrustMarquee() {
+  // Two identical halves so the -50% translate loops seamlessly.
+  const row = TRUST_ITEMS.concat(TRUST_ITEMS);
+  return (
+    <div className="border-y border-line bg-surface overflow-hidden py-3" aria-hidden="true">
+      <div className="home-marquee-track">
+        {[0, 1].map((k) => (
+          <div key={k} className="flex shrink-0">
+            {row.map((t, i) => (
+              <span key={`${k}-${i}`} className="flex items-center text-xs font-semibold text-inkSoft whitespace-nowrap">
+                <span className="mx-5 text-rust">✦</span>
+                {t}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SPOTLIGHT = [
+  { title: "Choose your window", text: "Morning, afternoon or evening — the collector arrives when it suits you, not the other way round." },
+  { title: "Watch them arrive", text: "A live map and a running ETA, updated as they drive. No more waiting by the door." },
+  { title: "Never miss a pickup", text: "A reminder before your window starts and an alert when your collector is almost there." },
+];
 
 const STEPS = [
   {
@@ -230,6 +270,8 @@ function FaqItem({ q, a, index }) {
 
 export default function Home() {
   const { user } = useAuth();
+  const heroRef = useRef(null);
+  const heroInView = useInView(heroRef);
   const [scrolled, setScrolled] = useState(false);
 
   useDocumentMeta({
@@ -256,9 +298,9 @@ export default function Home() {
           <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5">
               <img src="/logo-mark.png" alt="" className="w-8 h-8 rounded-md rotate-[-3deg]" />
-              <span className="font-display font-bold text-lg text-ink tracking-tight">ScrapConnect</span>
+              <span className="font-display font-bold text-base sm:text-lg text-ink tracking-tight">ScrapConnect</span>
             </Link>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 whitespace-nowrap">
               <LanguageToggle />
               {user ? (
                 <Link to={roleHome(user.role)} className="btn-primary !py-2 !px-4 text-sm">
@@ -266,8 +308,10 @@ export default function Home() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/login" className="btn-secondary !py-2 !px-4 text-sm">Sign in</Link>
-                  <Link to="/register" className="btn-primary !py-2 !px-4 text-sm">Get started</Link>
+                  <span className="hidden sm:block">
+                    <Link to="/login" className="btn-secondary !py-2 !px-4 text-sm">Sign in</Link>
+                  </span>
+                  <Link to="/register" className="btn-primary !py-2 !px-3 sm:!px-4 text-sm">Get started</Link>
                 </>
               )}
             </div>
@@ -275,7 +319,11 @@ export default function Home() {
         </nav>
 
         {/* Hero */}
-        <section className="max-w-6xl mx-auto px-5 pt-16 pb-20 grid md:grid-cols-2 gap-12 items-center">
+        <section
+          ref={heroRef}
+          className={`relative max-w-6xl mx-auto px-5 pt-16 pb-20 grid md:grid-cols-2 gap-12 items-center ${heroInView ? "" : "home-paused"}`}
+        >
+          <div aria-hidden="true" className="home-glow pointer-events-none absolute right-4 top-10 w-72 h-72 rounded-full bg-rust/10 blur-3xl" />
           <motion.div initial="hidden" animate="show" variants={staggerContainer}>
             <motion.h1
               variants={fadeUp}
@@ -300,8 +348,21 @@ export default function Home() {
             </motion.div>
           </motion.div>
 
-          <ReceiptHero />
+          <div className="relative">
+            <ReceiptHero />
+            <span aria-hidden="true" className="home-float-a absolute -left-1 sm:-left-6 top-2 w-11 h-11 rounded-full bg-surface border border-line shadow-md flex items-center justify-center text-rust">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v6H4zM4 14h10v6H4zM17 14h3v6h-3z" /></svg>
+            </span>
+            <span aria-hidden="true" className="home-float-b absolute -right-1 sm:-right-6 top-24 w-11 h-11 rounded-full bg-surface border border-line shadow-md flex items-center justify-center text-amber-dark">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M8 20h8M12 16v4" /></svg>
+            </span>
+            <span aria-hidden="true" className="home-float-a absolute left-2 sm:-left-2 bottom-6 w-10 h-10 rounded-full bg-surface border border-line shadow-md flex items-center justify-center text-rust">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2l3 5H9l3-5zM5 9h14l-1.5 11a2 2 0 01-2 1.8H8.5a2 2 0 01-2-1.8L5 9z" /></svg>
+            </span>
+          </div>
         </section>
+
+        <TrustMarquee />
 
         <CommunityImpact />
 
@@ -355,11 +416,16 @@ export default function Home() {
               whileInView="show"
               viewport={{ once: true, margin: "-80px" }}
               variants={staggerContainer}
-              className="grid sm:grid-cols-3 gap-8"
+              className="relative grid sm:grid-cols-3 gap-8"
             >
+              <motion.div
+                aria-hidden="true"
+                variants={{ hidden: { scaleX: 0 }, show: { scaleX: 1, transition: { duration: 1, ease: "easeOut" } } }}
+                className="hidden sm:block absolute top-5 left-[16%] right-[16%] h-0.5 bg-rust/30 origin-left"
+              />
               {STEPS.map((s, i) => (
                 <motion.div key={s.title} variants={fadeUp} className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-rust text-surface font-display font-bold flex items-center justify-center mx-auto mb-4">
+                  <div className="relative w-10 h-10 rounded-full bg-rust text-surface font-display font-bold flex items-center justify-center mx-auto mb-4">
                     {i + 1}
                   </div>
                   <h3 className="font-display font-semibold text-ink mb-2">{s.title}</h3>
@@ -367,6 +433,39 @@ export default function Home() {
                 </motion.div>
               ))}
             </motion.div>
+          </div>
+        </section>
+
+        {/* Spotlight: slots + live tracking */}
+        <section className="max-w-6xl mx-auto px-5 py-16">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <motion.div
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={staggerContainer}
+            >
+              <motion.p variants={fadeUp} className="text-xs font-mono tracking-widest text-rust mb-2">OUR BEST FEATURE</motion.p>
+              <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl font-bold text-ink leading-tight mb-4">
+                Know exactly when your collector arrives
+              </motion.h2>
+              <motion.p variants={fadeUp} className="text-inkSoft text-sm leading-relaxed mb-6 max-w-md">
+                Scrap pickups used to mean a vague "sometime today". With time slots and live tracking, you
+                set the window and follow the collector all the way to your door.
+              </motion.p>
+              <div className="space-y-4">
+                {SPOTLIGHT.map((f, i) => (
+                  <motion.div key={f.title} variants={fadeUp} className="flex gap-3">
+                    <div className="w-7 h-7 shrink-0 rounded-full bg-rust/10 text-rust text-xs font-bold flex items-center justify-center">{i + 1}</div>
+                    <div>
+                      <h3 className="font-display font-semibold text-ink text-sm">{f.title}</h3>
+                      <p className="text-sm text-inkSoft leading-relaxed">{f.text}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+            <LiveTrackDemo />
           </div>
         </section>
 
@@ -387,6 +486,8 @@ export default function Home() {
             ))}
           </div>
         </motion.section>
+
+        <PlansShowcase user={user} />
 
         {/* FAQ */}
         <section className="bg-surface border-y border-line py-16">
