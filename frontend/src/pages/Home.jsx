@@ -102,19 +102,23 @@ const STEPS = [
   },
   {
     title: "A collector accepts",
-    text: "Nearby collectors see your request live and claim it. You'll get notified the moment someone does.",
+    text: "Pick a time window that suits you. Nearby verified collectors see your request live and claim it, and you're notified the moment someone does.",
   },
   {
-    title: "Get paid on the spot",
-    text: "They show up, weigh it, and pay you directly. Mark it complete and you're done.",
+    title: "Track, hand over, get paid",
+    text: "Follow your collector's live ETA. They weigh it and pay you directly, then you get a digital receipt.",
   },
 ];
 
 const FEATURES = [
-  { title: "No listing fees", text: "Post as many pickups you want, completely free." },
-  { title: "Live tracking", text: "Watch your request move from pending to completed in real time,with live chat." },
+  { title: "Free for requesters", text: "Posting pickups costs you nothing — no listing fees and no platform charge on your payout." },
+  { title: "Pick your time slot", text: "Choose a morning, afternoon or evening window, and get a reminder before your collector arrives." },
+  { title: "Live tracking & ETA", text: "See your collector on the way with a live arrival estimate, and get alerted when they're close." },
   { title: "Built-in chat", text: "Coordinate timing and exact location directly with your collector." },
-  { title: "Rated collectors", text: "See ratings from other requesters before you accept an offer, and give them rating also." },
+  { title: "ID-verified collectors", text: "Collectors submit ID for review, and you can check ratings from other requesters before you accept." },
+  { title: "Promo codes", text: "Apply a promo code when you post a pickup to earn a bonus on top of your scrap value." },
+  { title: "Receipts & eco impact", text: "Every completed pickup gets a digital receipt, plus a record of the recycling impact you made." },
+  { title: "Help centre", text: "Raise a support ticket any time and follow the replies right inside the app." },
 ];
 
 const MATERIALS = [
@@ -147,7 +151,23 @@ const MATERIALS = [
 const FAQS = [
   {
     q: "Is ScrapConnect really free to use?",
-    a: "Yes — posting a pickup request costs nothing, and there's no commission taken from either side. The price shown is an estimate based on scrap type and weight; the exact amount is settled directly between you and the collector when they weigh it.",
+    a: "For requesters, yes — posting a pickup costs nothing and we take no fee from what the collector pays you. Collectors may pay a small platform commission on completed pickups, which they can lower by choosing a Pro or Elite plan. The price shown is an estimate; the exact amount is settled when the scrap is weighed.",
+  },
+  {
+    q: "Can I choose when the collector comes?",
+    a: "Yes. When you post a request you can pick a date and a time window — morning, afternoon or evening. You'll get a reminder before the window starts, and you'll be told if it's missed.",
+  },
+  {
+    q: "Can I track my collector?",
+    a: "Once your collector is on the way you can follow their live location and a running ETA, and you'll get a notification when they're about to arrive.",
+  },
+  {
+    q: "How do collectors earn, and what are the plans?",
+    a: "Collectors keep the price paid for each pickup minus a platform commission that depends on their plan: Free, Pro or Elite. Higher plans mean a lower commission. Plans are paid from the collector's in-app wallet, and the commission rate is set by the platform admin.",
+  },
+  {
+    q: "Can I use a promo code?",
+    a: "Yes. Enter a valid promo code when you request a pickup and the bonus is added to your payout once the pickup is completed.",
   },
   {
     q: "How is the price estimated?",
@@ -159,7 +179,7 @@ const FAQS = [
   },
   {
     q: "How do I know a collector is trustworthy?",
-    a: "Every completed pickup can be rated by both sides, so you can check a collector's rating before accepting an offer from them, and vice versa.",
+    a: "Collectors submit ID for verification, and every completed pickup can be rated by both sides, so you can check a collector's rating before accepting an offer from them, and vice versa.",
   },
   {
     q: "What if no collector accepts my request?",
@@ -265,7 +285,8 @@ export default function Home() {
             </motion.h1>
             <motion.p variants={fadeUp} className="text-inkSoft text-base leading-relaxed mb-8 max-w-md">
               Post what you've got and a collector nearby picks it up, weighs it, and pays you
-              on the spot. No fees, no middlemen, no listing hassle.
+              on the spot. Free for you to post, with a time slot you choose and live tracking
+              all the way to your door.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-wrap gap-3">
               {user ? (
@@ -406,7 +427,7 @@ export default function Home() {
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-surface mb-4">
                 Ready to clear out your scrap?
               </h2>
-              <p className="text-surface/80 mb-8">Join free — takes less than a minute.</p>
+              <p className="text-surface/80 mb-8">Free for requesters — sign up in under a minute.</p>
               <Link to="/register" className="inline-flex btn-primary !bg-surface !text-rust hover:!bg-surfaceRaised">
                 Create your account
               </Link>

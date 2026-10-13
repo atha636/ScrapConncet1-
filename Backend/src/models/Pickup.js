@@ -134,6 +134,26 @@ const pickupSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
 
+    // Preferred pickup window chosen by the requester (null = as soon as
+    // possible). Both are absolute times; the client builds them in the
+    // requester's own timezone.
+    slot: {
+      start: { type: Date, default: null },
+      end: { type: Date, default: null },
+    },
+
+    // Arrival tracking. The reminder/missed/arriving markers make each
+    // notification fire at most once.
+    tracking: {
+      onTheWayAt: { type: Date, default: null },
+      etaMinutes: { type: Number, default: null },
+      etaAt: { type: Date, default: null },
+      requesterReadyAt: { type: Date, default: null },
+      arrivingNotifiedAt: { type: Date, default: null },
+      reminderSentAt: { type: Date, default: null },
+      missedNotifiedAt: { type: Date, default: null },
+    },
+
     // Set by a team owner (see controllers/teamController.js assign): the
     // team member who actually does this job. `collector` stays the owner,
     // so earnings, the start code and reliability stats all stay with them.

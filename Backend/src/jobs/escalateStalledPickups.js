@@ -24,7 +24,15 @@ async function escalateStalledPickups(io) {
 
   const stalledPickups = candidates.filter((pickup) => {
     const lastAccepted = [...pickup.statusHistory].reverse().find((h) => h.status === "accepted");
-    return lastAccepted && lastAccepted.changedAt <= stalledBefore;
+    if (!lastAccepted) return false;
+    // A scheduled pickup can't be "stalled" before its window even opens,
+    // so the clock starts at the later of acceptance and the window start.
+    // A collector who has already set off isn't stalled either, until that
+    // has itself gone quiet for as long.
+    const startedAt = pickup.slot?.start && pickup.slot.start > lastAccepted.changedAt ? pickup.slot.start : lastAccepted.changedAt;
+    if (startedAt > stalledBefore) return false;
+    if (pickup.tracking?.onTheWayAt && pickup.tracking.onTheWayAt > stalledBefore) return false;
+    return true;
   });
 
   for (const pickup of stalledPickups) {

@@ -15,7 +15,9 @@ const {
   inviteCollectorSchema,
   reportNoShowSchema,
   disputeSettlementSchema,
+  onTheWaySchema,
 } = require("../validators/pickupValidator");
+const { markOnTheWay, markReady } = require("../controllers/trackingController");
 const { getMyAvailability, updateMyAvailability } = require("../controllers/availabilityController");
 const { createDisputeSchema } = require("../validators/disputeValidator");
 const {
@@ -103,6 +105,8 @@ router.post(
 router.get("/my-requests", auth, role("user"), getMyRequests);
 router.patch("/:id/cancel", auth, role("user"), cancelByRequester);
 router.post("/:id/settlement/confirm", auth, role("user"), confirmSettlement);
+router.post("/:id/on-the-way", auth, role("collector"), validate(onTheWaySchema), markOnTheWay);
+router.post("/:id/ready", auth, role("user"), markReady);
 router.post("/:id/settlement/dispute", auth, role("user"), validate(disputeSettlementSchema), disputeSettlement);
 router.post("/:id/report-no-show", auth, role("user"), validate(reportNoShowSchema), reportNoShow);
 

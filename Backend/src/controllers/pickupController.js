@@ -5,6 +5,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { estimateItemsPrice } = require("../utils/pricing");
 const { assertCouponUsable, snapshotOf } = require("../utils/coupons");
+const { parseSlot } = require("../utils/slots");
 const { actorFilter, isActor } = require("../utils/teamAccess");
 const { estimateScrapFromImage } = require("../utils/scrapEstimator");
 const notifyUser = require("../utils/notifyUser");
@@ -68,7 +69,8 @@ exports.estimateFromPhoto = asyncHandler(async (req, res) => {
 
 // POST /api/pickup/request
 exports.createPickup = asyncHandler(async (req, res) => {
-  const { items, contactName, contactPhone, lat, lng, address, couponCode } = req.body;
+  const { items, contactName, contactPhone, lat, lng, address, couponCode, slotStart, slotEnd } = req.body;
+  const slot = parseSlot(slotStart, slotEnd);
 
   // Checked before anything is created, so a bad code fails the request
   // instead of silently dropping the promo.
@@ -83,6 +85,7 @@ exports.createPickup = asyncHandler(async (req, res) => {
     location: { lat, lng, address },
     price: estimateItemsPrice(items),
     ...(coupon ? { coupon: snapshotOf(coupon) } : {}),
+    ...(slot ? { slot } : {}),
     statusHistory: [{ status: "pending", changedBy: req.user.id }],
   });
 

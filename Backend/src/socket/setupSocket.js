@@ -2,6 +2,9 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const assertChatAccess = require("../utils/assertChatAccess");
 const assertCanShareLocation = require("../utils/assertCanShareLocation");
+const Pickup = require("../models/Pickup");
+const notifyUser = require("../utils/notifyUser");
+const { etaBetween, ARRIVING_KM } = require("../utils/eta");
 
 // Floor on how often one socket's location updates are actually relayed —
 // a phone's GPS can fire far more often than any UI needs to redraw a pin,
@@ -130,13 +133,37 @@ function setupSocket(io) {
       }
 
       try {
-        await assertCanShareLocation(pickupId, socket.user.id);
+        const pickup = await assertCanShareLocation(pickupId, socket.user.id);
         lastLocationUpdateAt = now;
+        const { distanceKm, etaMinutes } = etaBetween({ lat, lng }, pickup.location);
         // Same room chat already uses (see joinPickup above) — a requester
         // who has the pickup detail view open is already in this room,
         // so live location "just works" alongside chat rather than
         // needing its own separate join step.
-        io.to(`pickup:${pickupId}`).emit("collectorLocation", { pickupId, lat, lng, at: new Date() });
+        io.to(`pickup:${pickupId}`).emit("collectorLocation", {
+          pickupId,
+          lat,
+          lng,
+          at: new Date(),
+          distanceKm,
+          etaMinutes,
+        });
+
+        // One "almost there" heads-up per pickup, claimed atomically so
+        // two location updates in quick succession can't both send it.
+        if (pickup.status === "accepted" && distanceKm <= ARRIVING_KM) {
+          const claimed = await Pickup.findOneAndUpdate(
+            { _id: pickup._id, "tracking.arrivingNotifiedAt": null },
+            { $set: { "tracking.arrivingNotifiedAt": new Date() } }
+          );
+          if (claimed) {
+            await notifyUser(io, pickup.user, {
+              type: "status_update",
+              text: "Your collector is almost there — please keep your start code ready.",
+              pickupId: pickup._id,
+            });
+          }
+        }
       } catch {
         socket.emit("locationError", "Can't share location for this pickup right now");
       }

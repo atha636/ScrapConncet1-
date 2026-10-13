@@ -16,6 +16,7 @@ const { expireStaleNegotiations } = require("./jobs/expireStaleNegotiations");
 const { autoConfirmSettlements } = require("./jobs/autoConfirmSettlements");
 const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
 const { expireVerifications } = require("./jobs/expireVerifications");
+const { slotReminders } = require("./jobs/slotReminders");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -59,6 +60,12 @@ cron.schedule("*/5 * * * *", () => {
 // report a no-show (see pickupController.reportNoShow).
 cron.schedule("*/5 * * * *", () => {
   escalateStalledPickups(io).catch((err) => console.error("Stalled-pickup escalation job failed:", err));
+});
+
+// Every 10 minutes — "your pickup window opens in an hour" reminders and a
+// heads-up when a scheduled window passes without the collector setting off.
+cron.schedule("*/10 * * * *", () => {
+  slotReminders(io).catch((err) => console.error("Slot reminder job failed:", err));
 });
 
 // Every hour — weekly/biweekly/monthly schedules only need date-level

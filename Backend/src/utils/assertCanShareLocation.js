@@ -1,5 +1,6 @@
 const Pickup = require("../models/Pickup");
 const ApiError = require("./ApiError");
+const { isActor } = require("./teamAccess");
 
 /**
  * Loads a pickup and confirms the given user is genuinely its assigned
@@ -23,7 +24,7 @@ async function assertCanShareLocation(pickupId, userId) {
     throw new ApiError(403, "Live location is only available while a pickup is on its way");
   }
 
-  if (String(pickup.collector) !== String(userId)) {
+  if (!isActor(pickup, userId)) {
     throw new ApiError(403, "Only the assigned collector can share location for this pickup");
   }
 

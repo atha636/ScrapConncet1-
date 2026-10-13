@@ -48,6 +48,15 @@ const createPickupSchema = z.object({
   lng: numberLike.pipe(z.number().min(-180).max(180)),
   address: z.string().trim().max(200).optional(),
   couponCode: z.string().trim().max(20).optional(),
+  // Optional preferred window — sent together as ISO timestamps. The
+  // controller checks they make sense (in the future, not too long, etc.).
+  slotStart: z.string().datetime().optional(),
+  slotEnd: z.string().datetime().optional(),
+});
+
+const onTheWaySchema = z.object({
+  lat: numberLike.pipe(z.number().min(-90).max(90)),
+  lng: numberLike.pipe(z.number().min(-180).max(180)),
 });
 
 // Sent as a JSON string when the request is multipart (completion photo).
@@ -191,4 +200,5 @@ module.exports = {
   MAX_OFFER_AMOUNT,
   reportNoShowSchema,
   inviteCollectorSchema,
+  onTheWaySchema,
 };
