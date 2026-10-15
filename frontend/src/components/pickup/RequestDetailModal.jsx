@@ -12,6 +12,7 @@ import PickCollectorModal from "./PickCollectorModal";
 import PhotoLightbox from "./PhotoLightbox";
 import StartCodeCard from "./StartCodeCard";
 import SettlementCard from "./SettlementCard";
+import SafetyKit from "../safety/SafetyKit";
 import useLiveLocation from "../../hooks/useLiveLocation";
 import { markReady } from "../../services/pickupService";
 import { formatSlot } from "../../utils/pickupSlots";
@@ -190,6 +191,12 @@ export default function RequestDetailModal({
                       </button>
                     )}
                     {ready.id === pickup._id && ready.error && <p className="text-xs text-danger mt-1.5">{ready.error}</p>}
+                  </motion.div>
+                )}
+
+                {["accepted", "in_progress"].includes(pickup.status) && (
+                  <motion.div variants={rowItem}>
+                    <SafetyKit pickup={pickup} />
                   </motion.div>
                 )}
 

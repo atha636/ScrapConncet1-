@@ -30,6 +30,8 @@ import AuditLogTab from "../components/admin/AuditLogTab";
 import ItemCatalogTab from "../components/admin/ItemCatalogTab";
 import PartnersTab from "../components/admin/PartnersTab";
 import SupportTab from "../components/admin/SupportTab";
+import SafetyTab from "../components/admin/SafetyTab";
+import { adminListSafetyAlerts } from "../services/safetyService";
 import CouponsTab from "../components/admin/CouponsTab";
 import PlansTab from "../components/admin/PlansTab";
 import { formatPrice } from "../utils/formatPrice";
@@ -49,6 +51,7 @@ const TABS = [
   { key: "addCollector", label: "Add collector" },
   { key: "catalog", label: "Item catalog" },
   { key: "partners", label: "Recycling partners" },
+  { key: "safety", label: "Safety" },
   { key: "support", label: "Support" },
   { key: "coupons", label: "Promo codes" },
   { key: "plans", label: "Revenue & plans" },
@@ -87,7 +90,23 @@ function StatValue({ value, isMoney }) {
 
 export default function AdminPanel() {
   useDocumentMeta({ title: "Admin Panel", noindex: true });
-  const [tab, setTab] = useState("overview");
+  // A notification can open a specific tab by navigating with { state: { openTab } };
+  // react-router keeps that on history.state.usr.
+  const [tab, setTab] = useState(() => window.history.state?.usr?.openTab || "overview");
+  const [sosCount, setSosCount] = useState(0);
+
+  // Keeps the red badge on the Safety tab current while the admin is elsewhere.
+  useEffect(() => {
+    const check = () =>
+      adminListSafetyAlerts("active")
+        .then((res) => setSosCount(res.data.activeCount))
+        .catch(() => {});
+    check();
+    const id = setInterval(() => {
+      if (!document.hidden) check();
+    }, 30000);
+    return () => clearInterval(id);
+  }, []);
   const [stats, setStats] = useState(null);
   const [series, setSeries] = useState([]);
   const [growthStats, setGrowthStats] = useState(null);
@@ -293,6 +312,11 @@ export default function AdminPanel() {
             }`}
           >
             {t.label}
+            {t.key === "safety" && sosCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-surface text-[10px] font-bold animate-pulse">
+                {sosCount}
+              </span>
+            )}
             {tab === t.key && (
               <motion.span
                 layoutId="admin-tab-underline"
@@ -369,6 +393,7 @@ export default function AdminPanel() {
 
             {tab === "partners" && <PartnersTab />}
             {tab === "support" && <SupportTab />}
+            {tab === "safety" && <SafetyTab onCountChange={setSosCount} />}
             {tab === "coupons" && <CouponsTab />}
             {tab === "plans" && <PlansTab />}
 

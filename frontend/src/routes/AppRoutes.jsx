@@ -20,6 +20,7 @@ const Impact = lazy(() => import("../pages/Impact"));
 const Business = lazy(() => import("../pages/Business"));
 const Help = lazy(() => import("../pages/Help"));
 const Receipt = lazy(() => import("../pages/Receipt"));
+const TripShare = lazy(() => import("../pages/TripShare"));
 const Register = lazy(() => import("../pages/auth/Register"));
 const AdminLogin = lazy(() => import("../pages/auth/AdminLogin"));
 const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
@@ -52,6 +53,9 @@ export default function AppRoutes() {
         <Route path="/scrap-rates" element={<ScrapRates />} />
 
         <Route path="/help" element={<Help />} />
+
+        {/* Public — the page behind a shared trip link, so no ProtectedRoute */}
+        <Route path="/trip/:token" element={<TripShare />} />
 
         <Route
           path="/business"

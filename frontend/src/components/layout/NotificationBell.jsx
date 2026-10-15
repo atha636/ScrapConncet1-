@@ -27,6 +27,15 @@ const TYPE_STYLE = {
       </svg>
     ),
   },
+  sos_alert: {
+    bg: "bg-danger/15",
+    fg: "text-danger",
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+  },
   team_update: {
     bg: "bg-rust/10",
     fg: "text-rust",
@@ -154,6 +163,11 @@ export default function NotificationBell() {
 
     if (n.type === "team_update" && !n.pickup) {
       navigate("/collector", { state: { openTab: "team" } });
+      return;
+    }
+
+    if (n.type === "sos_alert") {
+      navigate("/admin", { state: { openTab: "safety" } });
       return;
     }
 

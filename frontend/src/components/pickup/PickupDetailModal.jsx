@@ -9,6 +9,7 @@ import DisputeStatusPanel from "./DisputeStatusPanel";
 import useLocationSharing from "../../hooks/useLocationSharing";
 import { markOnTheWay } from "../../services/pickupService";
 import { formatSlot } from "../../utils/pickupSlots";
+import SafetyKit from "../safety/SafetyKit";
 
 const rowStagger = {
   hidden: {},
@@ -208,6 +209,12 @@ export default function PickupDetailModal({
                       </button>
                     )}
                     {headOut.id === pickup._id && headOut.error && <p className="text-xs text-danger mt-1.5">{headOut.error}</p>}
+                  </motion.div>
+                )}
+
+                {["accepted", "in_progress"].includes(pickup.status) && (
+                  <motion.div variants={rowItem}>
+                    <SafetyKit pickup={pickup} />
                   </motion.div>
                 )}
 
