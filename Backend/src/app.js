@@ -126,6 +126,7 @@ function createApp() {
   app.use("/api/business", require("./routes/businessRoutes"));
   app.use("/api/coupons", require("./routes/couponRoutes"));
   app.use("/api/support", require("./routes/supportRoutes"));
+  app.use("/api/safety", require("./routes/safetyRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

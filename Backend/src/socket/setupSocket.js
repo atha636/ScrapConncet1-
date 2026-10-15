@@ -5,6 +5,7 @@ const assertCanShareLocation = require("../utils/assertCanShareLocation");
 const Pickup = require("../models/Pickup");
 const notifyUser = require("../utils/notifyUser");
 const { etaBetween, ARRIVING_KM } = require("../utils/eta");
+const TripShare = require("../models/TripShare");
 
 // Floor on how often one socket's location updates are actually relayed —
 // a phone's GPS can fire far more often than any UI needs to redraw a pin,
@@ -12,6 +13,8 @@ const { etaBetween, ARRIVING_KM } = require("../utils/eta");
 // it's worth capping cheaply here rather than trusting every client to
 // self-throttle correctly.
 const MIN_LOCATION_UPDATE_INTERVAL_MS = 3000;
+// How often the position is copied onto an active trip-share link.
+const SHARE_WRITE_INTERVAL_MS = 10000;
 
 // How often an already-connected socket gets re-checked against the
 // database for revocation (deactivation, or a password change bumping
@@ -123,6 +126,8 @@ function setupSocket(io) {
     // means this is naturally garbage-collected the moment the closure
     // itself goes away on disconnect.
     let lastLocationUpdateAt = 0;
+    // Trip-share viewers poll, so the stored copy only needs refreshing now and then.
+    let lastShareWriteAt = 0;
 
     socket.on("collectorLocationUpdate", async ({ pickupId, lat, lng }) => {
       const now = Date.now();
@@ -148,6 +153,15 @@ function setupSocket(io) {
           distanceKm,
           etaMinutes,
         });
+
+        // Keep the shared-link copy of the position fresh (no-op when there is no link).
+        if (now - lastShareWriteAt >= SHARE_WRITE_INTERVAL_MS) {
+          lastShareWriteAt = now;
+          TripShare.updateOne(
+            { pickup: pickup._id, revokedAt: null },
+            { $set: { lastLocation: { lat, lng, at: new Date() } } }
+          ).catch(() => {});
+        }
 
         // One "almost there" heads-up per pickup, claimed atomically so
         // two location updates in quick succession can't both send it.

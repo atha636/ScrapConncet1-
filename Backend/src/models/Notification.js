@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
         "verification_update",
         "support_update",
         "team_update",
+        "sos_alert",
       ],
       required: true,
     },

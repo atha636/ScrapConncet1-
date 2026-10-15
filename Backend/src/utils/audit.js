@@ -10,6 +10,7 @@ const AUDIT_ACTIONS = {
   "plans.grant": "Collector plan granted",
   "coupon.create": "Promo code created",
   "coupon.update": "Promo code updated",
+  "sos.resolve": "SOS alert resolved",
   "ticket.reply": "Support ticket replied",
   "ticket.status": "Support ticket status changed",
   "partner.create": "Recycling partner added",
