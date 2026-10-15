@@ -5,6 +5,7 @@ import { createPickup, createRecurring, inviteCollector, RECURRING_FREQUENCIES, 
 import { getScrapRates } from "../../services/scrapRateService";
 import { validateCoupon } from "../../services/couponService";
 import SlotPicker from "../../components/pickup/SlotPicker";
+import ScrapPhotoSuggest from "../../components/pickup/ScrapPhotoSuggest";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -126,6 +127,16 @@ export default function RequestPickup() {
     } finally {
       if (requestId === fileRequestIdRef.current) setCompressing(false);
     }
+  };
+
+  // Applies a type suggested from the photo: fills the untouched first row,
+  // otherwise adds a row for it (skipping types already listed).
+  const applySuggestion = (type) => {
+    setItems((prev) => {
+      if (prev.some((it) => it.scrapType === type)) return prev;
+      if (prev.length === 1 && !prev[0].weight) return [{ ...prev[0], scrapType: type }];
+      return prev.length >= MAX_ITEMS_PER_PICKUP ? prev : [...prev, { scrapType: type, weight: "" }];
+    });
   };
 
   const updateItem = (idx, patch) => {
@@ -572,6 +583,7 @@ export default function RequestPickup() {
                 </AnimatePresence>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
               </motion.label>
+              {preview && <ScrapPhotoSuggest key={preview} previewUrl={preview} onUse={applySuggestion} />}
             </motion.div>
 
             <motion.div variants={fadeUp} className="ticket p-4">
