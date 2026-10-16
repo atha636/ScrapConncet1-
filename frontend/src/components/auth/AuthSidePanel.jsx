@@ -1,7 +1,7 @@
 const FEATURES = [
   {
     title: "No listing fees",
-    text: "Post a pickup request in under a minute — completely free.",
+    text: "Post a pickup request in under a minute — free for requesters.",
   },
   {
     title: "Live status tracking",

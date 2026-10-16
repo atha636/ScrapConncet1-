@@ -1,0 +1,38 @@
+/* About page motion. transform/opacity only; every loop pauses off-screen
+   (.about-paused) and switches off for users who prefer reduced motion. */
+@keyframes about-orbit { to { transform: rotate(360deg); } }
+@keyframes about-orbit-reverse { to { transform: rotate(-360deg); } }
+@keyframes about-coin-to-requester {
+  0% { transform: translateX(0); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateX(-168px); opacity: 0; }
+}
+@keyframes about-coin-to-platform {
+  0% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translate(-80px, 52px); opacity: 0; }
+}
+@keyframes about-node-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+.about-orbit { transform-origin: 160px 160px; animation: about-orbit 18s linear infinite; will-change: transform; }
+.about-orbit-reverse { transform-origin: 160px 160px; animation: about-orbit-reverse 28s linear infinite; will-change: transform; }
+.about-coin-a { animation: about-coin-to-requester 3.6s ease-in-out infinite; will-change: transform, opacity; }
+.about-coin-b { animation: about-coin-to-requester 3.6s ease-in-out 1.2s infinite; will-change: transform, opacity; }
+.about-coin-c { animation: about-coin-to-requester 3.6s ease-in-out 2.4s infinite; will-change: transform, opacity; }
+.about-coin-fee { animation: about-coin-to-platform 4.8s ease-in-out 0.6s infinite; will-change: transform, opacity; }
+.about-node { transform-box: fill-box; transform-origin: center; animation: about-node-pulse 3s ease-in-out infinite; }
+
+.about-paused .about-orbit,
+.about-paused .about-orbit-reverse,
+.about-paused .about-coin-a,
+.about-paused .about-coin-b,
+.about-paused .about-coin-c,
+.about-paused .about-coin-fee,
+.about-paused .about-node { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .about-orbit, .about-orbit-reverse, .about-coin-a, .about-coin-b, .about-coin-c, .about-coin-fee, .about-node { animation: none; }
+  .about-coin-a, .about-coin-b, .about-coin-c, .about-coin-fee { opacity: 1; }
+}

@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion, MotionConfig, useReducedMotion } from "framer-motion";
+import { motion, MotionConfig, useReducedMotion, useScroll } from "framer-motion";
+import CycleGraphic from "../components/about/CycleGraphic";
+import MoneyFlow from "../components/about/MoneyFlow";
+import "../styles/home.css";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { useAuth } from "../context/AuthContext";
 import { roleHome } from "../utils/roleHome";
@@ -8,7 +11,7 @@ import { roleHome } from "../utils/roleHome";
 const VALUES = [
   {
     title: "No middlemen",
-    text: "The price you see is settled directly between you and the collector — we never take a cut.",
+    text: "The price you see is settled directly between you and the collector. Requesters never pay a platform fee; collectors may pay a small commission or choose a plan.",
     icon: <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />,
   },
   {
@@ -31,10 +34,10 @@ const VALUES = [
 // Honest product characteristics, not fabricated growth metrics — nothing
 // here claims a user/order count we don't actually have.
 const HIGHLIGHTS = [
-  { value: "0%", label: "Commission taken" },
+  { value: "₹0", label: "Platform fee for requesters" },
   { value: "1:1", label: "Direct chat with your collector" },
   { value: "2-way", label: "Ratings, both sides" },
-  { value: "Free", label: "To post, always" },
+  { value: "Free", label: "To post, for requesters" },
 ];
 
 const JOURNEY = [
@@ -52,6 +55,26 @@ const JOURNEY = [
   },
 ];
 
+const SAFETY = [
+  {
+    title: "ID-verified collectors",
+    text: "Collectors submit an ID for review before they can take pickups, and you can see their ratings first.",
+    icon: <><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2" /><path d="M14 10h4M14 14h4M6 16c.6-1.6 2-2.4 3-2.4s2.4.8 3 2.4" /></>,
+  },
+  {
+    title: "Share your trip",
+    text: "Send a private link so family can follow the pickup live — first name and status only, no phone numbers.",
+    icon: <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 10.6l6.8-4M8.6 13.4l6.8 4" /></>,
+  },
+  {
+    title: "SOS in one hold",
+    text: "Press and hold during a pickup to alert our safety team with your location. The other person isn't told.",
+    icon: <path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0zM12 9v4M12 17h.01" />,
+  },
+];
+
+const MATERIALS_LINE = ["Metal", "Plastic", "Paper", "E-waste", "Glass", "and more"];
+
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -62,78 +85,66 @@ const staggerContainer = {
   show: { transition: { staggerChildren: 0.1 } },
 };
 
-function AboutHero() {
-  const reduceMotion = useReducedMotion();
-
+function MaterialsMarquee() {
+  const row = MATERIALS_LINE.concat(MATERIALS_LINE, MATERIALS_LINE);
   return (
-    <div className="relative flex items-center justify-center">
-      {/* Soft radial glow behind the logo — echoes the receipt hero's
-          "spotlight" without competing with it on a different page */}
-      <div
-        className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-rust/10 blur-3xl"
-        aria-hidden="true"
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.85, rotate: -8 }}
-        animate={{ opacity: 1, scale: 1, rotate: -3 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        whileHover={reduceMotion ? undefined : { rotate: 0, scale: 1.04 }}
-        className="relative"
-      >
-        <img
-          src="/logo-mark.png"
-          alt="ScrapConnect"
-          className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl shadow-[0_12px_32px_rgba(36,26,18,0.18)]"
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.4, ease: "backOut" }}
-          className="stamp stamp-completed absolute -bottom-3 -right-4 rotate-[8deg] scale-[0.6] sm:scale-75 origin-bottom-right"
-        >
-          Est. today
-        </motion.div>
-      </motion.div>
+    <div className="border-y border-line bg-surface overflow-hidden py-3" aria-hidden="true">
+      <div className="home-marquee-track">
+        {[0, 1].map((k) => (
+          <div key={k} className="flex shrink-0">
+            {row.map((t, i) => (
+              <span key={`${k}-${i}`} className="flex items-center text-xs font-semibold text-inkSoft whitespace-nowrap">
+                <span className="mx-5 text-rust">✦</span>
+                {t}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function JourneyStep({ step, index, isLast }) {
-  const [inView, setInView] = useState(false);
+// One continuous line that fills as the reader scrolls through the story
+// (a single transform, no per-frame React work).
+function Timeline() {
+  const ref = useRef(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 75%", "end 60%"] });
 
   return (
-    <motion.div
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-60px" }}
-      onViewportEnter={() => setInView(true)}
-      variants={fadeUp}
-      className="relative flex gap-5 sm:gap-6"
-    >
-      <div className="flex flex-col items-center shrink-0">
+    <div ref={ref} className="relative">
+      <div aria-hidden="true" className="absolute left-[17px] sm:left-[19px] top-4 bottom-4 w-px bg-line" />
+      <motion.div
+        aria-hidden="true"
+        style={{ scaleY: reduce ? 1 : scrollYProgress, transformOrigin: "top" }}
+        className="absolute left-[16px] sm:left-[18px] top-4 bottom-4 w-0.5 bg-rust"
+      />
+      {JOURNEY.map((step, i) => (
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={inView ? { scale: 1, opacity: 1 } : {}}
-          transition={{ duration: 0.35, ease: "backOut" }}
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rust text-surface font-display font-bold text-sm flex items-center justify-center z-10"
+          key={step.title}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={fadeUp}
+          className="relative flex gap-5 sm:gap-6"
         >
-          {index + 1}
-        </motion.div>
-        {!isLast && (
           <motion.div
-            initial={{ scaleY: 0 }}
-            animate={inView ? { scaleY: 1 } : {}}
-            transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
-            style={{ transformOrigin: "top" }}
-            className="w-px flex-1 bg-line min-h-[2.25rem] mt-1"
-          />
-        )}
-      </div>
-      <div className="pb-8 sm:pb-10 min-w-0">
-        <h3 className="font-display font-semibold text-ink text-base sm:text-lg mb-1.5">{step.title}</h3>
-        <p className="text-sm text-inkSoft leading-relaxed max-w-md">{step.text}</p>
-      </div>
-    </motion.div>
+            initial={{ scale: 0.6 }}
+            whileInView={{ scale: 1 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.35, ease: "backOut" }}
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-rust text-surface font-display font-bold text-sm flex items-center justify-center z-10"
+          >
+            {i + 1}
+          </motion.div>
+          <div className="pb-9 sm:pb-11 min-w-0">
+            <h3 className="font-display font-semibold text-ink text-base sm:text-lg mb-1.5">{step.title}</h3>
+            <p className="text-sm text-inkSoft leading-relaxed max-w-md">{step.text}</p>
+          </div>
+        </motion.div>
+      ))}
+    </div>
   );
 }
 
@@ -143,34 +154,29 @@ export default function AboutUs() {
   useDocumentMeta({
     title: "About Us",
     description:
-      "ScrapConnect connects people with scrap to nearby collectors — no fees, no middlemen, paid on the spot.",
+      "ScrapConnect connects people with scrap to nearby collectors — free for requesters, no middlemen, paid on the spot.",
   });
 
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen overflow-x-hidden">
         {/* Hero */}
-        <section className="max-w-4xl mx-auto px-5 pt-14 sm:pt-20 pb-14 sm:pb-16 text-center">
-          <motion.div initial="hidden" animate="show" variants={staggerContainer}>
-            <motion.div variants={fadeUp} className="mb-8 sm:mb-10">
-              <AboutHero />
-            </motion.div>
+        <section className="max-w-6xl mx-auto px-5 pt-12 sm:pt-16 pb-12 sm:pb-16 grid md:grid-cols-2 gap-10 md:gap-12 items-center">
+          <motion.div initial="hidden" animate="show" variants={staggerContainer} className="text-center md:text-left">
+            <motion.p variants={fadeUp} className="text-xs font-mono tracking-widest text-rust mb-3">ABOUT SCRAPCONNECT</motion.p>
             <motion.h1
               variants={fadeUp}
-              className="font-display text-3xl sm:text-5xl font-bold text-ink leading-tight mb-5 px-2"
+              className="font-display text-3xl sm:text-5xl font-bold text-ink leading-tight mb-5"
             >
-              About ScrapConnect
+              Scrap shouldn't<br />sit around.
             </motion.h1>
-            <motion.p
-              variants={fadeUp}
-              className="text-inkSoft text-sm sm:text-base leading-relaxed max-w-xl mx-auto px-2"
-            >
+            <motion.p variants={fadeUp} className="text-inkSoft text-sm sm:text-base leading-relaxed max-w-md mx-auto md:mx-0">
               We built ScrapConnect to make selling scrap as easy as it should always have been —
               post what you've got, a collector nearby picks it up, and you get paid on the spot.
-              No fees, no listing hassle, no middlemen taking a cut.
+              Free for requesters, with a time slot you choose, live tracking and no middlemen.
             </motion.p>
 
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-3 justify-center mt-8">
+            <motion.div variants={fadeUp} className="flex flex-wrap gap-3 justify-center md:justify-start mt-8">
               {user ? (
                 <Link to={roleHome(user.role)} className="btn-primary">Go to Dashboard</Link>
               ) : (
@@ -181,7 +187,11 @@ export default function AboutUs() {
               )}
             </motion.div>
           </motion.div>
+
+          <CycleGraphic />
         </section>
+
+        <MaterialsMarquee />
 
         {/* Highlights strip */}
         <motion.section
@@ -239,12 +249,71 @@ export default function AboutUs() {
             >
               Our story, in three parts
             </motion.h2>
-            <div>
-              {JOURNEY.map((step, i) => (
-                <JourneyStep key={step.title} step={step} index={i} isLast={i === JOURNEY.length - 1} />
+            <Timeline />
+          </div>
+        </section>
+
+        {/* Where the money goes */}
+        <section className="max-w-4xl mx-auto px-5 py-14 sm:py-16 grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+            className="text-center md:text-left"
+          >
+            <motion.p variants={fadeUp} className="text-xs font-mono tracking-widest text-rust mb-2">HOW THE MONEY WORKS</motion.p>
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-2xl font-bold text-ink mb-3">
+              Your payout stays yours
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-sm text-inkSoft leading-relaxed">
+              The collector pays you directly the moment your scrap is weighed. We keep the platform running with a
+              small commission or a plan fee from collectors — never from requesters.
+            </motion.p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <MoneyFlow />
+          </motion.div>
+        </section>
+
+        {/* Trust & safety */}
+        <section className="bg-surface border-y border-line py-14 sm:py-16">
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+            className="max-w-5xl mx-auto px-5"
+          >
+            <motion.p variants={fadeUp} className="text-center text-xs font-mono tracking-widest text-rust mb-2">TRUST &amp; SAFETY</motion.p>
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-2xl font-bold text-ink text-center mb-10 sm:mb-12">
+              Built so you feel safe letting someone in
+            </motion.h2>
+            <div className="grid sm:grid-cols-3 gap-5 sm:gap-6">
+              {SAFETY.map((f) => (
+                <motion.div key={f.title} variants={fadeUp} whileHover={{ y: -4 }} className="ticket p-5 sm:p-6">
+                  <motion.div
+                    initial={{ scale: 0.5, rotate: -20, opacity: 0 }}
+                    whileInView={{ scale: 1, rotate: 0, opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.15 }}
+                    className="w-11 h-11 rounded-full bg-rust/10 text-rust flex items-center justify-center mb-3.5"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      {f.icon}
+                    </svg>
+                  </motion.div>
+                  <h3 className="font-display font-semibold text-ink mb-1.5 text-[15px] sm:text-base">{f.title}</h3>
+                  <p className="text-sm text-inkSoft leading-relaxed">{f.text}</p>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </section>
 
         {/* Values */}
@@ -291,7 +360,7 @@ export default function AboutUs() {
               <h2 className="font-display text-xl sm:text-3xl font-bold text-surface mb-4">
                 Ready to clear out your scrap?
               </h2>
-              <p className="text-surface/80 text-sm sm:text-base mb-8">Join free — takes less than a minute.</p>
+              <p className="text-surface/80 text-sm sm:text-base mb-8">Free for requesters — sign up in under a minute.</p>
               <Link to="/register" className="inline-flex btn-primary !bg-surface !text-rust hover:!bg-surfaceRaised">
                 Create your account
               </Link>
