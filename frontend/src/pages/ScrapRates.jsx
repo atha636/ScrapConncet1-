@@ -5,6 +5,7 @@ import Loader from "../components/common/Loader";
 import ErrorBox from "../components/common/ErrorBox";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import ScrapRateTrendChart from "../components/ScrapRateTrendChart";
+import RateOutlook from "../components/rates/RateOutlook";
 import { getScrapRates, getScrapRateHistory } from "../services/scrapRateService";
 import { SCRAP_TYPE_LABELS } from "../utils/pickupItems";
 
@@ -73,6 +74,8 @@ export default function ScrapRates() {
       {!loading && (
         <ScrapRateTrendChart history={history} currentRates={rates} days={days} onRangeChange={setDays} />
       )}
+
+      {!loading && rates.length > 0 && <RateOutlook rates={rates} />}
     </div>
   );
 }

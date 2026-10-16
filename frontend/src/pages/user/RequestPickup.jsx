@@ -6,6 +6,8 @@ import { getScrapRates } from "../../services/scrapRateService";
 import { validateCoupon } from "../../services/couponService";
 import SlotPicker from "../../components/pickup/SlotPicker";
 import ScrapPhotoSuggest from "../../components/pickup/ScrapPhotoSuggest";
+import VoiceRequest from "../../components/pickup/VoiceRequest";
+import RateTrendHint from "../../components/rates/RateTrendHint";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import useGeolocation from "../../hooks/useGeolocation";
@@ -137,6 +139,10 @@ export default function RequestPickup() {
       if (prev.length === 1 && !prev[0].weight) return [{ ...prev[0], scrapType: type }];
       return prev.length >= MAX_ITEMS_PER_PICKUP ? prev : [...prev, { scrapType: type, weight: "" }];
     });
+  };
+
+  const applyVoiceItems = (parsed) => {
+    if (parsed.length) setItems(parsed.slice(0, MAX_ITEMS_PER_PICKUP));
   };
 
   const updateItem = (idx, patch) => {
@@ -319,6 +325,8 @@ export default function RequestPickup() {
                 Add every kind of scrap in this pile — one pickup, one collector, one trip.
               </p>
 
+              <VoiceRequest onApply={applyVoiceItems} />
+
               <div className="space-y-2.5">
                 {items.map((item, idx) => (
                   <motion.div
@@ -381,6 +389,8 @@ export default function RequestPickup() {
                   </motion.div>
                 ))}
               </div>
+
+              <RateTrendHint types={items.map((it) => it.scrapType)} liveRates={liveRates} />
 
               {items.length < MAX_ITEMS_PER_PICKUP && (
                 <button
