@@ -17,6 +17,7 @@ const { touchCollectorLocation } = require("../utils/touchCollectorLocation");
 const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
 const { assertCollectorVerified } = require("../utils/collectorVerification");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
+const { scoreCollector, isBestMatch } = require("../utils/dispatchScore");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 const Dispute = require("../models/Dispute");
 const { deriveOtp, otpMatches, OTP_MAX_ATTEMPTS, OTP_LOCK_MINUTES } = require("../utils/handshake");
@@ -518,6 +519,8 @@ exports.acceptPickup = asyncHandler(async (req, res) => {
 const NEARBY_COLLECTOR_FRESHNESS_MINUTES = 30;
 const NEARBY_COLLECTOR_RADIUS_KM = 25;
 const NEARBY_COLLECTOR_LIMIT = 5;
+// How many of the closest candidates get a full score (history reads each).
+const NEARBY_COLLECTOR_POOL = 12;
 
 // GET /api/pickup/:id/nearby-collectors  (requester, own pickup only)
 //
@@ -564,7 +567,10 @@ exports.getNearbyCollectors = asyncHandler(async (req, res) => {
     return pickupTypes.every((t) => declared.includes(t));
   };
 
-  const ranked = candidates
+  // Pre-filter by distance (and declared-scrap fit) to a small pool, then
+  // score that pool properly. Scoring needs per-collector history reads, so
+  // the pool is capped rather than scoring everyone in range.
+  const pool = candidates
     .filter((c) => isCollectorAvailableNow(c))
     .map((c) => ({
       doc: c,
@@ -572,21 +578,24 @@ exports.getNearbyCollectors = asyncHandler(async (req, res) => {
       distanceKm: Number(haversineKm(pickup.location, c.lastKnownLocation).toFixed(1)),
     }))
     .filter((c) => c.distanceKm <= NEARBY_COLLECTOR_RADIUS_KM)
-    // Collectors who explicitly don't take this kind of scrap sort behind
-    // everyone else *before* the limit is applied — otherwise a closer
-    // mismatch could push a real fit out of the short list entirely.
     .sort((a, b) => Number(a.handles === false) - Number(b.handles === false) || a.distanceKm - b.distanceKm)
-    .slice(0, NEARBY_COLLECTOR_LIMIT);
+    .slice(0, NEARBY_COLLECTOR_POOL);
 
-  // Badges and experience are per-collector queries, but the list is
-  // capped at NEARBY_COLLECTOR_LIMIT (5), so this stays a handful of small
-  // parallel reads, not a scan.
-  const nearby = await Promise.all(
-    ranked.map(async ({ doc, handles, distanceKm }) => {
+  const scored = await Promise.all(
+    pool.map(async ({ doc, handles, distanceKm }) => {
       const [badgeState, similarCompleted] = await Promise.all([
         getCollectorBadgeState(doc._id, doc),
         Pickup.countDocuments({ collector: doc._id, status: "completed", "items.scrapType": primaryType }),
       ]);
+      const { score, reasons } = scoreCollector({
+        distanceKm,
+        rating: doc.rating || 0,
+        ratingCount: doc.ratingCount || 0,
+        completionRate: badgeState.completionRate ?? null,
+        avgAcceptMinutes: badgeState.avgAcceptMinutes ?? null,
+        similarCompleted,
+        handles,
+      });
       return {
         collectorId: doc._id,
         name: doc.name,
@@ -599,9 +608,19 @@ exports.getNearbyCollectors = asyncHandler(async (req, res) => {
         handlesPickup: handles,
         primaryType,
         similarCompleted,
+        matchScore: score,
+        matchReasons: reasons,
       };
     })
   );
+
+  const nearby = scored.sort((a, b) => b.matchScore - a.matchScore || a.distanceKm - b.distanceKm).slice(0, NEARBY_COLLECTOR_LIMIT);
+
+  // Closest gets its own label — distance is already in the score, but
+  // "Closest" is the one reason people look for first.
+  const closest = nearby.reduce((m, c) => (m === null || c.distanceKm < m.distanceKm ? c : m), null);
+  if (closest && nearby.length > 1) closest.matchReasons = ["Closest", ...closest.matchReasons];
+  if (nearby.length > 0 && isBestMatch(nearby[0])) nearby[0].bestMatch = true;
 
   res.json(nearby);
 });

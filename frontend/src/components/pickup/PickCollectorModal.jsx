@@ -87,7 +87,7 @@ export default function PickCollectorModal({ open, onClose, pickup, onInvited })
             <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-surfaceRaised shrink-0">
               <div>
                 <div className="font-display font-semibold text-ink text-sm">Choose a collector</div>
-                <div className="text-xs text-inkFaint mt-0.5">Nearby and available right now</div>
+                <div className="text-xs text-inkFaint mt-0.5">Ranked by distance, rating, reliability and scrap fit</div>
               </div>
               <button
                 onClick={onClose}
@@ -117,14 +117,28 @@ export default function PickCollectorModal({ open, onClose, pickup, onInvited })
                 </p>
               )}
 
+              {status === "ready" && collectors[0]?.bestMatch && (
+                <button
+                  type="button"
+                  onClick={() => handleInvite(collectors[0])}
+                  disabled={invitingId !== null}
+                  className="btn-primary w-full !py-2.5 text-sm disabled:opacity-50"
+                >
+                  {invitingId === collectors[0].collectorId ? "Inviting…" : `Invite best match — ${collectors[0].name}`}
+                </button>
+              )}
+
               {status === "ready" &&
                 collectors.map((c) => {
                   const typeLabel = (t) => SCRAP_TYPE_LABELS[t] || t;
                   return (
                     <div
                       key={c.collectorId}
-                      className="rounded-ticket border border-line px-3.5 py-3"
+                      className={`rounded-ticket border px-3.5 py-3 ${c.bestMatch ? "border-rust/50 bg-rust/[0.03]" : "border-line"}`}
                     >
+                      {c.bestMatch && (
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-rust mb-1.5">Best match</div>
+                      )}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-semibold text-ink text-sm truncate">{c.name}</div>
@@ -141,15 +155,33 @@ export default function PickCollectorModal({ open, onClose, pickup, onInvited })
                             <span className="text-inkFaint">·</span>
                             <span className="text-inkFaint">{c.distanceKm} km away</span>
                           </div>
+                          {typeof c.matchScore === "number" && (
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="h-1.5 w-20 rounded-full bg-line/60 overflow-hidden" aria-hidden="true">
+                                <div className="h-full rounded-full bg-rust" style={{ width: `${c.matchScore}%` }} />
+                              </div>
+                              <span className="text-[11px] font-semibold text-ink">{c.matchScore}% match</span>
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => handleInvite(c)}
-                          disabled={invitingId === c.collectorId}
+                          disabled={invitingId !== null}
                           className="btn-primary !py-1.5 !px-3 text-xs shrink-0 disabled:opacity-50"
                         >
                           {invitingId === c.collectorId ? "Inviting…" : "Invite"}
                         </button>
                       </div>
+
+                      {c.matchReasons?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {c.matchReasons.map((r) => (
+                            <span key={r} className="px-2 py-0.5 rounded-full border border-line text-[11px] text-inkSoft">
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       {c.badges?.length > 0 && (
                         <div className="mt-2">
