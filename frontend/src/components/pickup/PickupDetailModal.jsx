@@ -10,6 +10,7 @@ import useLocationSharing from "../../hooks/useLocationSharing";
 import { markOnTheWay } from "../../services/pickupService";
 import { formatSlot } from "../../utils/pickupSlots";
 import SafetyKit from "../safety/SafetyKit";
+import CollectorPayCard from "../payment/CollectorPayCard";
 
 const rowStagger = {
   hidden: {},
@@ -300,6 +301,10 @@ export default function PickupDetailModal({
                   submitting={offerSubmitting}
                   error={offerError}
                 />
+              </div>
+
+              <div className="mt-4">
+                <CollectorPayCard pickup={pickup} />
               </div>
 
               {pickup.status !== "pending" && <DisputeStatusPanel pickupId={pickup._id} />}

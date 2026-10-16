@@ -8,6 +8,7 @@ import ErrorBox from "../components/common/ErrorBox";
 import DeleteAccountModal from "../components/profile/DeleteAccountModal";
 import MyReputationCard from "../components/profile/MyReputationCard";
 import ReferralCard from "../components/profile/ReferralCard";
+import UpiIdCard from "../components/payment/UpiIdCard";
 import useDocumentMeta from "../hooks/useDocumentMeta";
 import { isPushSupported, getPushStatus, enablePush, disablePush } from "../lib/push";
 
@@ -256,6 +257,13 @@ export default function Profile() {
       {user?.role === "user" && (
         <motion.div variants={fadeUp}>
           <MyReputationCard />
+        </motion.div>
+      )}
+
+      {/* UPI ID — requesters only: it's where a collector sends the money */}
+      {user?.role === "user" && (
+        <motion.div variants={fadeUp}>
+          <UpiIdCard />
         </motion.div>
       )}
 

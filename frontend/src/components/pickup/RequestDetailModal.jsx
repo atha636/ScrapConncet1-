@@ -12,6 +12,7 @@ import PickCollectorModal from "./PickCollectorModal";
 import PhotoLightbox from "./PhotoLightbox";
 import StartCodeCard from "./StartCodeCard";
 import SettlementCard from "./SettlementCard";
+import RequesterPaymentCard from "../payment/RequesterPaymentCard";
 import SafetyKit from "../safety/SafetyKit";
 import useLiveLocation from "../../hooks/useLiveLocation";
 import { markReady } from "../../services/pickupService";
@@ -288,6 +289,7 @@ export default function RequestDetailModal({
 
               <StartCodeCard pickup={pickup} />
               <SettlementCard pickup={pickup} />
+              <RequesterPaymentCard pickup={pickup} />
 
               {pickup.collector && <DisputeStatusPanel pickupId={pickup._id} />}
             </div>
