@@ -257,6 +257,11 @@ const userSchema = new mongoose.Schema(
       default: undefined,
     },
 
+    // Where collectors send the money for a pickup. select:false like
+    // payoutDetails: it only travels to the collector on that pickup, via
+    // controllers/paymentController.js.
+    upiId: { type: String, trim: true, maxlength: 80, select: false },
+
     isVerified: { type: Boolean, default: false },
     verificationTokenHash: { type: String, select: false, default: null },
     verificationTokenExpires: { type: Date, select: false, default: null },

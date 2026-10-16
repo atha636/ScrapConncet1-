@@ -17,6 +17,7 @@ const { autoConfirmSettlements } = require("./jobs/autoConfirmSettlements");
 const { sendWeeklyDigest } = require("./jobs/sendWeeklyDigest");
 const { expireVerifications } = require("./jobs/expireVerifications");
 const { slotReminders } = require("./jobs/slotReminders");
+const { paymentReminders } = require("./jobs/paymentReminders");
 const { buildCorsOriginCheck } = require("./config/cors");
 const { hasCloudinaryConfig } = require("./config/cloudinary");
 
@@ -114,6 +115,11 @@ cron.schedule("*/30 * * * *", () => {
 // one-time "expires soon" reminder (see jobs/expireVerifications.js).
 cron.schedule("15 * * * *", () => {
   expireVerifications(io).catch((err) => console.error("ID expiry job failed:", err));
+});
+
+// Gentle nudges for UPI/cash payments that haven't been paid or confirmed.
+cron.schedule("*/30 * * * *", () => {
+  paymentReminders(io).catch((err) => console.error("Payment reminder job failed:", err));
 });
 
 // Every Monday at 9am IST — node-cron's own `timezone` option, not a

@@ -96,6 +96,20 @@ const pickupSchema = new mongoose.Schema(
       resolvedAt: { type: Date, default: null },
     },
 
+    // Payment from the collector to the requester once the price is final.
+    // Money moves outside the app (UPI app or cash): the collector says they
+    // paid, the requester confirms or disputes. See controllers/paymentController.js.
+    payment: {
+      status: { type: String, enum: ["unpaid", "claimed", "confirmed", "disputed", "resolved"], default: "unpaid" },
+      method: { type: String, enum: ["upi", "cash"], default: undefined },
+      amount: Number,
+      upiRef: { type: String, trim: true, maxlength: 40, default: null },
+      claimedAt: { type: Date, default: null },
+      confirmedAt: { type: Date, default: null },
+      collectorRemindedAt: { type: Date, default: null },
+      requesterRemindedAt: { type: Date, default: null },
+    },
+
     // Captured on the request form itself (pre-filled from the requester's
     // profile, but editable there) rather than only ever reading
     // user.name/user.phone off the account — the account's phone is

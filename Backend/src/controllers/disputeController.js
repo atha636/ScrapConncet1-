@@ -4,6 +4,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { finalizeSettlement } = require("../utils/settlement");
 const { logAudit } = require("../utils/audit");
+const notifyUser = require("../utils/notifyUser");
 
 const paginate = (query, defaultLimit = 20) => {
   const page = Math.max(1, parseInt(query.page) || 1);
@@ -136,6 +137,22 @@ exports.resolveDispute = asyncHandler(async (req, res) => {
         req.body.finalPrice ??
         (status === "dismissed" ? held.settlement.proposedPrice : held.settlement.originalPrice);
       await finalizeSettlement(req.io, dispute.pickup, { finalPrice, status: "resolved", from: ["disputed"] });
+    }
+  }
+
+  // A "not received" payment dispute: dismissed -> the collector's payment
+  // stands; resolved -> recorded as settled by the admin.
+  if (dispute.reason === "payment_issue") {
+    const next = status === "dismissed" ? "confirmed" : "resolved";
+    const updated = await Pickup.findOneAndUpdate(
+      { _id: dispute.pickup, "payment.status": "disputed" },
+      { $set: { "payment.status": next, "payment.confirmedAt": new Date() } },
+      { new: true }
+    );
+    if (updated) {
+      const text = `An admin reviewed the payment dispute on your ${updated.scrapType} pickup (${status}).${resolutionNotes ? ` Note: ${resolutionNotes}` : ""}`;
+      await notifyUser(req.io, updated.user, { type: "status_update", text, pickupId: updated._id });
+      await notifyUser(req.io, updated.collector, { type: "status_update", text, pickupId: updated._id });
     }
   }
 
