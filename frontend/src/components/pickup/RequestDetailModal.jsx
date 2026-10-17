@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import StatusStamp from "../ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
 import { getPickupItems, formatTotalWeight, SCRAP_TYPE_LABELS } from "../../utils/pickupItems";
 import MapThumbnail from "../map/MapThumbnail";
-import LiveTrackingMap from "../map/LiveTrackingMap";
+// Leaflet is heavy and only needed once a live map is actually shown.
+const LiveTrackingMap = lazy(() => import("../map/LiveTrackingMap"));
 import CollectorProfileCard from "../collector/CollectorProfileCard";
 import OfferPanel from "./OfferPanel";
 import DisputeStatusPanel from "./DisputeStatusPanel";
@@ -213,10 +214,12 @@ export default function RequestDetailModal({
                       )}
                     </dt>
                     <dd>
-                      <LiveTrackingMap
-                        destination={pickup.location}
-                        collectorPosition={liveCollectorPosition}
-                      />
+                      <Suspense fallback={<div className="h-48 rounded-md bg-line/30 animate-pulse" />}>
+                        <LiveTrackingMap
+                          destination={pickup.location}
+                          collectorPosition={liveCollectorPosition}
+                        />
+                      </Suspense>
                       {!liveCollectorPosition && (
                         <p className="text-xs text-inkFaint mt-1.5">
                           Waiting for the collector to share their location…
