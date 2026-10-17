@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import {
@@ -40,7 +40,8 @@ import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
 import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel";
-import DemandHeatmapModal from "../../components/collector/DemandHeatmapModal";
+// Map library loads only when the heatmap is first opened.
+const DemandHeatmapModal = lazy(() => import("../../components/collector/DemandHeatmapModal"));
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
 import WorkingHoursCard from "../../components/collector/WorkingHoursCard";
 import RateCardPanel from "../../components/collector/RateCardPanel";
@@ -186,6 +187,8 @@ export default function CollectorDashboard() {
   const [payoutError, setPayoutError] = useState("");
   const { coords: myCoords, status: locStatus, error: locError, locate: locateMe } = useGeolocation();
   const [showHeatmap, setShowHeatmap] = useState(false);
+  // Stays true after the first open so the modal can still play its close animation.
+  const [heatmapOpened, setHeatmapOpened] = useState(false);
 
   // Negotiations (including invites) currently open for this collector —
   // fetched separately from `available` because an invited-but-unaccepted
@@ -806,7 +809,10 @@ export default function CollectorDashboard() {
         {tab === "available" && myCoords && (
           <button
             type="button"
-            onClick={() => setShowHeatmap(true)}
+            onClick={() => {
+              setHeatmapOpened(true);
+              setShowHeatmap(true);
+            }}
             className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-inkSoft hover:text-rust"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -825,7 +831,11 @@ export default function CollectorDashboard() {
           />
         )}
 
-        <DemandHeatmapModal open={showHeatmap} onClose={() => setShowHeatmap(false)} coords={myCoords} />
+        {heatmapOpened && (
+          <Suspense fallback={null}>
+            <DemandHeatmapModal open={showHeatmap} onClose={() => setShowHeatmap(false)} coords={myCoords} />
+          </Suspense>
+        )}
 
         {tab === "available" && selectedIds.size > 0 && (
           <motion.div
