@@ -37,6 +37,8 @@ tags:
   - name: Push
   - name: Admin
   - name: Export
+  - name: Payments
+  - name: Safety
 
 security:
   - bearerAuth: []
@@ -903,6 +905,212 @@ paths:
                   pickups:
                     type: array
                     items: { $ref: "#/components/schemas/Pickup" }
+
+  # ───────────────── PAYMENTS · DISPATCH · SAFETY ─────────────────
+  /api/payments/upi-id:
+    get:
+      tags: [Payments]
+      summary: Get the requester's saved UPI ID
+      description: "Role required: `user`."
+      responses:
+        "200":
+          description: OK
+    put:
+      tags: [Payments]
+      summary: Save the requester's UPI ID
+      description: "Role required: `user`. Validated as `name@bank`."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                upiId: { type: string, example: ravi.k@okhdfcbank }
+      responses:
+        "200":
+          description: OK
+    delete:
+      tags: [Payments]
+      summary: Remove the requester's UPI ID
+      description: "Role required: `user`."
+      responses:
+        "200":
+          description: OK
+
+  /api/payments/pickups/{id}:
+    get:
+      tags: [Payments]
+      summary: Payment state for a completed pickup
+      description: "Role required: `user` or `collector`. The collector also receives the payee UPI link while payment is open; the requester's UPI ID is never exposed otherwise."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+
+  /api/payments/pickups/{id}/claim:
+    post:
+      tags: [Payments]
+      summary: Collector marks the pickup as paid
+      description: "Role required: `collector`. Idempotent if already claimed."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method: { type: string, enum: [upi, cash] }
+                upiRef: { type: string, description: Optional UPI reference, 6-40 chars }
+      responses:
+        "200":
+          description: OK
+
+  /api/payments/pickups/{id}/confirm:
+    post:
+      tags: [Payments]
+      summary: Requester confirms the money was received
+      description: "Role required: `user`. Only valid after the collector has claimed payment."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+
+  /api/payments/pickups/{id}/dispute:
+    post:
+      tags: [Payments]
+      summary: Requester reports the payment as not received
+      description: "Role required: `user`. Opens a `payment_issue` dispute."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: OK
+
+  /api/pickup/{id}/nearby-collectors:
+    get:
+      tags: [Pickups]
+      summary: Ranked nearby collectors (smart dispatch)
+      description: "Role required: `user`, own pending pickup. Each entry has `matchScore` (0-100), `matchReasons`, and `bestMatch` on the top entry when it scores well. Weights: distance 35, rating 25, reliability 15, speed 10, scrap experience 10, declared-type fit 5."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+
+  /api/pickup/{id}/invite:
+    post:
+      tags: [Pickups]
+      summary: Invite one collector to negotiate
+      description: "Role required: `user`, own pending pickup."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                collectorId: { type: string }
+                amount: { type: number }
+                note: { type: string }
+      responses:
+        "200":
+          description: OK
+
+  /api/safety/pickups/{id}/share:
+    get:
+      tags: [Safety]
+      summary: Get the live trip-share link state
+      description: "Role required: `user` or `collector` on the pickup."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [Safety]
+      summary: Create a trip-share link
+      description: "Role required: `user` or `collector` on the pickup."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+    delete:
+      tags: [Safety]
+      summary: Revoke the trip-share link
+      description: "Role required: `user` or `collector` on the pickup."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+
+  /api/safety/pickups/{id}/sos:
+    post:
+      tags: [Safety]
+      summary: Raise an SOS alert
+      description: "Role required: `user` or `collector` on the pickup. Notifies admins."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string }
+      responses:
+        "200":
+          description: OK
+
+  /api/safety/public/trip/{token}:
+    get:
+      tags: [Safety]
+      summary: Public trip-share view
+      description: "No authentication; rate limited. Returns only what a shared trip needs."
+      security: []
+      responses:
+        "200":
+          description: OK
+
+  /api/safety/admin/alerts:
+    get:
+      tags: [Safety]
+      summary: List SOS alerts
+      description: "Role required: `admin`."
+      responses:
+        "200":
+          description: OK
+
+  /api/safety/admin/alerts/{id}/resolve:
+    patch:
+      tags: [Safety]
+      summary: Resolve an SOS alert
+      description: "Role required: `admin`."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string }
+      responses:
+        "200":
+          description: OK
+
 
 components:
   securitySchemes:
