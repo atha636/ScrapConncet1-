@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../utils/formatPrice";
+import FairPriceMeter from "./FairPriceMeter";
 
 // Shown inside PickupDetailModal (role="collector") and RequestDetailModal
 // (role="requester") for any pickup still in "pending" status. Both modals
@@ -123,6 +124,15 @@ export default function OfferPanel({ pickup, role, onPropose, onRespond, submitt
       )}
 
       {error && <p className="text-xs text-danger mb-2">{error}</p>}
+
+      {/* Where the amount in play sits against the fair range: whatever is
+          being typed, else the latest offer, else the listed price. */}
+      <FairPriceMeter
+        pickupId={pickup._id}
+        role={role}
+        amount={Number(amount) > 0 ? Number(amount) : lastOffer ? lastOffer.amount : pickup.price}
+        label={Number(amount) > 0 ? "Your offer" : lastOffer ? "Latest offer" : "Listed price"}
+      />
 
       {/* Nothing active — only a collector can start one */}
       {(negotiation.status === "none" || negotiation.status === "declined") && (

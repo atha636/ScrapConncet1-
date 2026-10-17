@@ -18,6 +18,7 @@ const { isCollectorAvailableNow } = require("../utils/collectorAvailability");
 const { assertCollectorVerified } = require("../utils/collectorVerification");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { scoreCollector, isBestMatch } = require("../utils/dispatchScore");
+const { buildFairBand } = require("../utils/fairPrice");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 const Dispute = require("../models/Dispute");
 const { deriveOtp, otpMatches, OTP_MAX_ATTEMPTS, OTP_LOCK_MINUTES } = require("../utils/handshake");
@@ -132,6 +133,61 @@ exports.getPickupById = asyncHandler(async (req, res) => {
   }
 
   res.json(withRequesterOtp(pickup, req.user.id));
+});
+
+// GET /api/pickup/:id/fair-price  (requester, or a collector involved in it)
+//
+// The data behind the Fair Price Meter: a fair range for this pickup from
+// today's platform rate, nudged by what same-type pickups actually settled
+// at after negotiation. Needs a known weight on every item — a default
+// 1 kg guess would make the range meaningless, so then `reliable` is false
+// and the UI shows nothing.
+const FAIR_PRICE_HISTORY_DAYS = 90;
+const FAIR_PRICE_HISTORY_LIMIT = 200;
+
+exports.getFairPrice = asyncHandler(async (req, res) => {
+  const pickup = await Pickup.findById(req.params.id);
+  if (!pickup) throw new ApiError(404, "Pickup not found");
+
+  const isRequester = String(pickup.user) === String(req.user.id);
+  const isInvolved =
+    isActor(pickup, req.user.id) ||
+    (pickup.negotiation?.collector && String(pickup.negotiation.collector) === String(req.user.id));
+  if (!isRequester && !isInvolved && req.user.role !== "collector") {
+    throw new ApiError(403, "You don't have access to this pickup");
+  }
+
+  const items = pickup.items?.length ? pickup.items : [{ scrapType: pickup.scrapType, estimatedWeightKg: pickup.estimatedWeightKg }];
+  const reliable = items.every((it) => it.estimatedWeightKg > 0);
+  if (!reliable) return res.json({ reliable: false });
+
+  const marketValue = estimateItemsPrice(items);
+
+  // What recent same-type pickups settled at after negotiating, relative to
+  // what today's rates say the same load is worth.
+  const since = new Date(Date.now() - FAIR_PRICE_HISTORY_DAYS * 24 * 60 * 60 * 1000);
+  const past = await Pickup.find({
+    _id: { $ne: pickup._id },
+    scrapType: pickup.scrapType,
+    "negotiation.status": "accepted",
+    updatedAt: { $gte: since },
+  })
+    .select("items scrapType estimatedWeightKg negotiation.offers")
+    .sort({ updatedAt: -1 })
+    .limit(FAIR_PRICE_HISTORY_LIMIT)
+    .lean();
+
+  const settledRatios = past
+    .map((p) => {
+      const pItems = p.items?.length ? p.items : [{ scrapType: p.scrapType, estimatedWeightKg: p.estimatedWeightKg }];
+      if (!pItems.every((it) => it.estimatedWeightKg > 0)) return NaN;
+      const market = estimateItemsPrice(pItems);
+      const last = p.negotiation?.offers?.[p.negotiation.offers.length - 1];
+      return market > 0 && last ? last.amount / market : NaN;
+    })
+    .filter(Number.isFinite);
+
+  res.json({ reliable: true, marketValue, ...buildFairBand({ marketValue, settledRatios }) });
 });
 
 // GET /api/pickup/my-requests

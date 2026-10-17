@@ -43,6 +43,7 @@ const {
   proposeOffer,
   respondToOffer,
   getNearbyCollectors,
+  getFairPrice,
   inviteCollector,
   getMyInvites,
   reportNoShow,
@@ -233,6 +234,9 @@ router.patch("/:id/offer", auth, role("user", "collector"), validate(respondOffe
 // "nearby-collectors" nor "invite" can collide with any other /:id/*
 // route in this file.
 router.get("/:id/nearby-collectors", auth, role("user"), getNearbyCollectors);
+
+// Fair Price Meter data — a fair range for this pickup (see getFairPrice).
+router.get("/:id/fair-price", auth, role("user", "collector"), getFairPrice);
 router.post("/:id/invite", auth, role("user"), validate(inviteCollectorSchema), inviteCollector);
 
 // Always-checkable list of negotiations (including invites) this

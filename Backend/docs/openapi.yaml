@@ -996,6 +996,29 @@ paths:
         "200":
           description: OK
 
+  /api/pickup/{id}/fair-price:
+    get:
+      tags: [Pickups]
+      summary: Fair Price Meter range for a pickup
+      description: "Role required: `user` (own pickup) or `collector`. Returns a fair range from today's platform rate, adjusted by recent same-type negotiated deals when at least 5 exist. `reliable` is false when any item has no weight, and no range is returned."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Fair range
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reliable: { type: boolean }
+                  marketValue: { type: number }
+                  low: { type: number }
+                  mid: { type: number }
+                  high: { type: number }
+                  basis: { type: string, enum: [market, history] }
+                  samples: { type: integer }
+
   /api/pickup/{id}/nearby-collectors:
     get:
       tags: [Pickups]

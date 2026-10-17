@@ -211,3 +211,5 @@ export const respondToOffer = (id, action, amount, note) =>
 // Slots & arrival tracking
 export const markOnTheWay = (id, coords) => API.post(`/pickup/${id}/on-the-way`, coords);
 export const markReady = (id) => API.post(`/pickup/${id}/ready`);
+// Fair Price Meter — fair range for one pickup (see getFairPrice on the backend).
+export const getFairPrice = (pickupId) => API.get(`/pickup/${pickupId}/fair-price`);
