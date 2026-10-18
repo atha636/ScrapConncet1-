@@ -35,6 +35,7 @@ const {
   getCollectorRoute,
   getSuggestedBatch,
   getDemandHeatmap,
+  getDemandForecast,
   acceptPickup,
   batchAcceptPickups,
   updateStatus,
@@ -141,6 +142,8 @@ router.get("/collector/suggested-batch", auth, role("collector"), getSuggestedBa
 // the collector — see the controller's own comment for why this is a
 // different question from suggested-batch/available.
 router.get("/collector/demand-heatmap", auth, role("collector"), getDemandHeatmap);
+// When and where demand tends to be — see getDemandForecast.
+router.get("/collector/demand-forecast", auth, role("collector"), getDemandForecast);
 router.get("/collector/leaderboard", auth, role("collector"), getLeaderboard);
 router.get("/collector/achievements", auth, role("collector"), getMyAchievements);
 

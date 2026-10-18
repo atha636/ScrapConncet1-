@@ -996,6 +996,32 @@ paths:
         "200":
           description: OK
 
+  /api/pickup/collector/demand-forecast:
+    get:
+      tags: [Pickups]
+      summary: When and where pickup demand tends to be near the collector
+      description: "Role required: `collector`. Built from pickup requests created nearby over the last 8 weeks. Areas are about 2 km wide and only named when at least 3 past requests fall in them. Returns `enough: false` when there is too little history."
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radiusKm, in: query, schema: { type: number, default: 10, minimum: 2, maximum: 30 } }
+      responses:
+        "200":
+          description: Forecast
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enough: { type: boolean }
+                  sampleSize: { type: integer }
+                  confidence: { type: string, enum: [low, medium, high] }
+                  hourNow: { type: integer, description: Current hour in IST (0-23) }
+                  hours: { type: array, items: { type: number }, description: Typical requests per week for each hour of today's weekday }
+                  bestWindows: { type: array, items: { type: object } }
+                  nowLevel: { type: string, enum: [busy, moderate, quiet] }
+                  areas: { type: array, items: { type: object } }
+
   /api/pickup/{id}/fair-price:
     get:
       tags: [Pickups]

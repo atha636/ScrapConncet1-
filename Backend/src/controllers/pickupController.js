@@ -19,6 +19,7 @@ const { assertCollectorVerified } = require("../utils/collectorVerification");
 const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { scoreCollector, isBestMatch } = require("../utils/dispatchScore");
 const { buildFairBand } = require("../utils/fairPrice");
+const { buildForecast } = require("../utils/demandForecast");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 const Dispute = require("../models/Dispute");
 const { deriveOtp, otpMatches, OTP_MAX_ATTEMPTS, OTP_LOCK_MINUTES } = require("../utils/handshake");
@@ -133,6 +134,40 @@ exports.getPickupById = asyncHandler(async (req, res) => {
   }
 
   res.json(withRequesterOtp(pickup, req.user.id));
+});
+
+// GET /api/pickup/collector/demand-forecast?lat=&lng=&radiusKm=  (collector only)
+//
+// "When is it busy, and where" — the time dimension the live demand heatmap
+// doesn't have. Reads how many pickup requests were created near this
+// collector, at what hour and weekday, over the last few weeks, and turns
+// that into a busiest-hours profile for today plus the busiest coarse areas
+// for right now. Plain counting on data the app already has — no AI service.
+const FORECAST_WEEKS = 8;
+const FORECAST_MAX_EVENTS = 5000;
+
+exports.getDemandForecast = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new ApiError(400, "Your current location is required for the forecast");
+  }
+  const radiusKm = Math.min(30, Math.max(2, parseFloat(req.query.radiusKm) || 10));
+
+  touchCollectorLocation(req.user.id, lat, lng);
+
+  const since = new Date(Date.now() - FORECAST_WEEKS * 7 * 24 * 60 * 60 * 1000);
+  const rows = await Pickup.find({
+    createdAt: { $gte: since },
+    geo: { $geoWithin: { $centerSphere: [[lng, lat], radiusKm / 6378.1] } },
+  })
+    .select("createdAt location.lat location.lng")
+    .sort({ createdAt: -1 })
+    .limit(FORECAST_MAX_EVENTS)
+    .lean();
+
+  const events = rows.map((r) => ({ createdAt: r.createdAt, lat: r.location.lat, lng: r.location.lng }));
+  res.json({ radiusKm, ...buildForecast({ events, now: new Date(), collector: { lat, lng } }) });
 });
 
 // GET /api/pickup/:id/fair-price  (requester, or a collector involved in it)
