@@ -213,3 +213,6 @@ export const markOnTheWay = (id, coords) => API.post(`/pickup/${id}/on-the-way`,
 export const markReady = (id) => API.post(`/pickup/${id}/ready`);
 // Fair Price Meter — fair range for one pickup (see getFairPrice on the backend).
 export const getFairPrice = (pickupId) => API.get(`/pickup/${pickupId}/fair-price`);
+// When and where demand tends to be (collector) — see getDemandForecast on the backend.
+export const getDemandForecast = (lat, lng, radiusKm) =>
+  API.get(`/pickup/collector/demand-forecast`, { params: { lat, lng, radiusKm } });

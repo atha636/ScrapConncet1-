@@ -40,6 +40,8 @@ import ShareProfileButton from "../../components/collector/ShareProfileButton";
 import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
 import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel";
+import DemandForecastCard from "../../components/collector/DemandForecastCard";
+
 // Map library loads only when the heatmap is first opened.
 const DemandHeatmapModal = lazy(() => import("../../components/collector/DemandHeatmapModal"));
 import AvailabilityToggle from "../../components/collector/AvailabilityToggle";
@@ -822,6 +824,8 @@ export default function CollectorDashboard() {
             Where's the demand?
           </button>
         )}
+
+        {tab === "available" && myCoords && <DemandForecastCard coords={myCoords} />}
 
         {tab === "available" && (
           <SuggestedBatchPanel
