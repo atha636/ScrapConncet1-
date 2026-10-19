@@ -216,3 +216,5 @@ export const getFairPrice = (pickupId) => API.get(`/pickup/${pickupId}/fair-pric
 // When and where demand tends to be (collector) — see getDemandForecast on the backend.
 export const getDemandForecast = (lat, lng, radiusKm) =>
   API.get(`/pickup/collector/demand-forecast`, { params: { lat, lng, radiusKm } });
+// How likely a pickup booked at each weekday/hour is to be taken quickly (requester).
+export const getSlotSuggestions = (lat, lng) => API.get(`/pickup/slot-suggestions`, { params: { lat, lng } });

@@ -1,14 +1,61 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getSlotSuggestions } from "../../services/pickupService";
 import { SLOT_WINDOWS, buildDays, isSlotAvailable, slotRange, formatSlot } from "../../utils/pickupSlots";
 
 // "As soon as possible" or a chosen day + window. Reports the choice upward
 // as { start, end } ISO strings, or null for ASAP.
-export default function SlotPicker({ onChange }) {
+//
+// With `coords`, windows are labelled by how likely a pickup booked then is
+// to be taken quickly nearby (see getSlotSuggestions on the backend), and
+// the best one is offered in one tap.
+const LIKELY_QUICK = 60;
+const FEWER_COLLECTORS = 30;
+
+export default function SlotPicker({ onChange, coords }) {
   const [now] = useState(() => new Date());
   const days = buildDays(now);
   const [mode, setMode] = useState("asap");
   const [dayIdx, setDayIdx] = useState(0);
   const [winKey, setWinKey] = useState(null);
+  const [scores, setScores] = useState(null); // 7 x 24 grid, or null when unavailable
+
+  // Rounded so tiny GPS jitter doesn't refetch.
+  const lat = coords ? Number(coords.lat.toFixed(2)) : null;
+  const lng = coords ? Number(coords.lng.toFixed(2)) : null;
+  useEffect(() => {
+    if (mode !== "schedule" || lat == null) return;
+    let alive = true;
+    getSlotSuggestions(lat, lng)
+      .then((res) => alive && setScores(res.data?.enough ? res.data.scores : null))
+      .catch(() => alive && setScores(null));
+    return () => {
+      alive = false;
+    };
+  }, [mode, lat, lng]);
+
+  // Average score across a window's hours for a given day.
+  const windowScore = (day, win) => {
+    if (!scores) return null;
+    const row = scores[day.date.getDay()];
+    let sum = 0;
+    for (let h = win.from; h < win.to; h++) sum += row[h];
+    return sum / (win.to - win.from);
+  };
+
+  // Best window still bookable across the next days.
+  let best = null;
+  if (scores) {
+    days.forEach((d, di) => {
+      SLOT_WINDOWS.forEach((w) => {
+        if (!isSlotAvailable(d, w, now)) return;
+        const sc = windowScore(d, w);
+        if (best === null || sc > best.score) best = { dayIdx: di, win: w, score: sc };
+      });
+    });
+  }
+  const currentScore = winKey ? windowScore(days[dayIdx], SLOT_WINDOWS.find((w) => w.key === winKey)) : null;
+  const showBest = best && best.score >= 50 && (currentScore === null || best.score - currentScore >= 10) &&
+    !(best.dayIdx === dayIdx && best.win.key === winKey);
 
   const report = (nextMode, nextDay, nextWin) => {
     if (nextMode === "asap" || !nextWin) return onChange(null);
@@ -58,6 +105,23 @@ export default function SlotPicker({ onChange }) {
 
       {mode === "schedule" && (
         <div className="space-y-3">
+          {showBest && (
+            <button
+              type="button"
+              onClick={() => {
+                setDayIdx(best.dayIdx);
+                setWinKey(best.win.key);
+                report("schedule", best.dayIdx, best.win.key);
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-ticket border border-emerald-600/40 bg-emerald-500/[0.06] hover:bg-emerald-500/10"
+            >
+              <span className="block text-xs font-semibold text-emerald-700">Best chance of a quick pickup</span>
+              <span className="block text-sm text-ink">
+                {days[best.dayIdx].label} · {best.win.label}{" "}
+                <span className="text-rust font-semibold">— tap to pick</span>
+              </span>
+            </button>
+          )}
           <div className="flex gap-2 overflow-x-auto pb-1">
             {days.map((d, i) => {
               const anyLeft = SLOT_WINDOWS.some((w) => isSlotAvailable(d, w, now));
@@ -90,6 +154,23 @@ export default function SlotPicker({ onChange }) {
                   }`}
                 >
                   <span className="block text-sm font-semibold">{w.label}</span>
+                  {ok && windowScore(days[dayIdx], w) !== null && (
+                    <span
+                      className={`block text-[10px] font-semibold ${
+                        windowScore(days[dayIdx], w) >= LIKELY_QUICK
+                          ? "text-emerald-700"
+                          : windowScore(days[dayIdx], w) < FEWER_COLLECTORS
+                          ? "text-amber-dark"
+                          : "text-inkFaint"
+                      }`}
+                    >
+                      {windowScore(days[dayIdx], w) >= LIKELY_QUICK
+                        ? "Likely quick"
+                        : windowScore(days[dayIdx], w) < FEWER_COLLECTORS
+                        ? "Fewer collectors"
+                        : "Moderate"}
+                    </span>
+                  )}
                   <span className="block text-[11px]">{w.from > 12 ? w.from - 12 : w.from}{w.from >= 12 ? "pm" : "am"}–{w.to > 12 ? w.to - 12 : w.to}{w.to >= 12 ? "pm" : "am"}</span>
                 </button>
               );

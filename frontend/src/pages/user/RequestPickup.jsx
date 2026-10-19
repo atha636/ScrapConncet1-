@@ -461,7 +461,7 @@ export default function RequestPickup() {
 
             {/* When */}
             <motion.div variants={fadeUp}>
-              <SlotPicker onChange={setSlot} />
+              <SlotPicker onChange={setSlot} coords={coords} />
             </motion.div>
 
             {/* Contact */}
