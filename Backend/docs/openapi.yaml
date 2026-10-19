@@ -39,6 +39,7 @@ tags:
   - name: Export
   - name: Payments
   - name: Safety
+  - name: Fraud
 
 security:
   - bearerAuth: []
@@ -995,6 +996,42 @@ paths:
       responses:
         "200":
           description: OK
+
+  /api/fraud/flags:
+    get:
+      tags: [Fraud]
+      summary: Accounts worth a closer look (fraud watch)
+      description: "Role required: `admin`. Read-only. Rules over the last 60 days: repeated cancellations, no-shows, mutual or repeated high ratings, dispute-heavy accounts, payment-not-received reports, bursts of requests, and requester and collector sharing a phone number. Reviewed flags are hidden until their evidence grows."
+      responses:
+        "200":
+          description: Flags, most serious first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  windowDays: { type: integer }
+                  highCount: { type: integer }
+                  flags: { type: array, items: { type: object } }
+
+  /api/fraud/flags/review:
+    post:
+      tags: [Fraud]
+      summary: Mark a fraud-watch flag as reviewed
+      description: "Role required: `admin`. Recorded in the audit log."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, evidenceCount]
+              properties:
+                key: { type: string }
+                evidenceCount: { type: integer }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: Reviewed
 
   /api/pickup/collector/demand-forecast:
     get:

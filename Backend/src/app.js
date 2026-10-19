@@ -128,6 +128,7 @@ function createApp() {
   app.use("/api/support", require("./routes/supportRoutes"));
   app.use("/api/safety", require("./routes/safetyRoutes"));
   app.use("/api/payments", require("./routes/paymentRoutes"));
+  app.use("/api/fraud", require("./routes/fraudRoutes"));
 
   app.use(notFound);
   app.use(errorHandler);

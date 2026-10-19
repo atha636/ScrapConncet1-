@@ -27,6 +27,7 @@ const AUDIT_ACTIONS = {
   "payout.approve": "Payout approved",
   "payout.reject": "Payout rejected",
   "dispute.resolve": "Dispute resolved",
+  "fraud.review": "Fraud-watch flag reviewed",
 };
 
 /**
