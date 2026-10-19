@@ -45,6 +45,7 @@ const {
   respondToOffer,
   getNearbyCollectors,
   getFairPrice,
+  getSlotSuggestions,
   inviteCollector,
   getMyInvites,
   reportNoShow,
@@ -105,6 +106,9 @@ router.post(
 );
 
 router.get("/my-requests", auth, role("user"), getMyRequests);
+// Which pickup times are likely to be taken quickly near the requester. Registered
+// before "/:id" below so it is not read as a pickup id.
+router.get("/slot-suggestions", auth, role("user"), getSlotSuggestions);
 router.patch("/:id/cancel", auth, role("user"), cancelByRequester);
 router.post("/:id/settlement/confirm", auth, role("user"), confirmSettlement);
 router.post("/:id/on-the-way", auth, role("collector"), validate(onTheWaySchema), markOnTheWay);

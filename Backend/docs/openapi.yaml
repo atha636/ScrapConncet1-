@@ -1033,6 +1033,27 @@ paths:
         "200":
           description: Reviewed
 
+  /api/pickup/slot-suggestions:
+    get:
+      tags: [Pickups]
+      summary: How likely each pickup time is to be taken quickly near the requester
+      description: "Role required: `user`. Returns `scores`, a 7 x 24 grid (weekday 0=Sunday, hour 0-23, India time) of 0-100 scores, from how many approved collectors seen nearby work that hour, adjusted by past accept rates when there are enough scheduled pickups nearby. Returns `enough: false` when no collectors have been seen nearby. No collector is named or located."
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+      responses:
+        "200":
+          description: Score grid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enough: { type: boolean }
+                  collectorCount: { type: integer }
+                  usedHistory: { type: boolean }
+                  scores: { type: array, items: { type: array, items: { type: integer } } }
+
   /api/pickup/collector/demand-forecast:
     get:
       tags: [Pickups]

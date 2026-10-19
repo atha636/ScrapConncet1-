@@ -20,6 +20,7 @@ const { getCollectorBadgeState } = require("../services/collectorBadgeState");
 const { scoreCollector, isBestMatch } = require("../utils/dispatchScore");
 const { buildFairBand } = require("../utils/fairPrice");
 const { buildForecast } = require("../utils/demandForecast");
+const { buildSlotScores } = require("../utils/slotSuggestions");
 const { NO_SHOW_SUSPENSION_THRESHOLD } = require("../utils/reliabilityRules");
 const Dispute = require("../models/Dispute");
 const { deriveOtp, otpMatches, OTP_MAX_ATTEMPTS, OTP_LOCK_MINUTES } = require("../utils/handshake");
@@ -168,6 +169,58 @@ exports.getDemandForecast = asyncHandler(async (req, res) => {
 
   const events = rows.map((r) => ({ createdAt: r.createdAt, lat: r.location.lat, lng: r.location.lng }));
   res.json({ radiusKm, ...buildForecast({ events, now: new Date(), collector: { lat, lng } }) });
+});
+
+// GET /api/pickup/slot-suggestions?lat=&lng=  (requester)
+//
+// Behind the "Likely quick" labels on the time picker: for each weekday and
+// hour, a 0-100 score of how likely a pickup booked then is to be taken
+// fast near the requester. Based on how many approved collectors seen
+// nearby are working that hour (their own saved schedules), nudged by how
+// often past scheduled pickups nearby were accepted at that time of day.
+// Only counts and schedules — no collector is named or located.
+const SLOT_COLLECTOR_RADIUS_KM = 20;
+const SLOT_COLLECTOR_SEEN_DAYS = 14;
+const SLOT_HISTORY_WEEKS = 8;
+const SLOT_TZ_OFFSET_MIN = 330; // IST — India-only, same simplification as collectorAvailability
+
+exports.getSlotSuggestions = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new ApiError(400, "Your location is required for time suggestions");
+  }
+
+  const seenSince = new Date(Date.now() - SLOT_COLLECTOR_SEEN_DAYS * 24 * 60 * 60 * 1000);
+  const collectorRows = await User.find({
+    role: "collector",
+    collectorSuspended: false,
+    isActive: true,
+    "collectorVerification.status": "approved",
+    "lastKnownLocation.updatedAt": { $gte: seenSince },
+  })
+    .select("lastKnownLocation availabilitySchedule")
+    .lean();
+  const collectors = collectorRows.filter(
+    (c) => haversineKm({ lat, lng }, c.lastKnownLocation) <= SLOT_COLLECTOR_RADIUS_KM
+  );
+
+  const histSince = new Date(Date.now() - SLOT_HISTORY_WEEKS * 7 * 24 * 60 * 60 * 1000);
+  const settledBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const past = await Pickup.find({
+    createdAt: { $gte: histSince, $lte: settledBefore },
+    "slot.start": { $ne: null },
+    geo: { $geoWithin: { $centerSphere: [[lng, lat], SLOT_COLLECTOR_RADIUS_KM / 6378.1] } },
+  })
+    .select("slot.start status")
+    .limit(2000)
+    .lean();
+  const history = past.map((p) => ({
+    hour: new Date(p.slot.start.getTime() + SLOT_TZ_OFFSET_MIN * 60 * 1000).getUTCHours(),
+    accepted: ["accepted", "in_progress", "completed"].includes(p.status),
+  }));
+
+  res.json(buildSlotScores({ collectors, history }));
 });
 
 // GET /api/pickup/:id/fair-price  (requester, or a collector involved in it)
