@@ -5,6 +5,17 @@ const cron = require("node-cron");
 
 dotenv.config();
 
+// Error monitoring must start before anything else can fail. No-op without SENTRY_DSN.
+const { initMonitoring, captureError } = require("./config/monitoring");
+initMonitoring();
+
+// Background jobs catch their own errors so one bad run can't crash the server;
+// this logs the failure and also reports it, so it isn't only in the console.
+const jobFailed = (name) => (err) => {
+  console.error(`${name} failed:`, err);
+  captureError(err, { job: name });
+};
+
 const createApp = require("./app");
 const connectDB = require("./config/db");
 const setupSocket = require("./socket/setupSocket");
@@ -52,7 +63,7 @@ setupSocket(io);
 // have sat pending too long as urgent so they surface higher in the
 // collector feed instead of silently going stale.
 cron.schedule("*/5 * * * *", () => {
-  escalateStalePickups(io).catch((err) => console.error("Escalation job failed:", err));
+  escalateStalePickups(io).catch(jobFailed("Escalation job"));
 });
 
 // Same cadence as the job above, but the opposite end of a pickup's
@@ -60,13 +71,13 @@ cron.schedule("*/5 * * * *", () => {
 // one a collector accepted but never started, so the requester can
 // report a no-show (see pickupController.reportNoShow).
 cron.schedule("*/5 * * * *", () => {
-  escalateStalledPickups(io).catch((err) => console.error("Stalled-pickup escalation job failed:", err));
+  escalateStalledPickups(io).catch(jobFailed("Stalled-pickup escalation job"));
 });
 
 // Every 10 minutes — "your pickup window opens in an hour" reminders and a
 // heads-up when a scheduled window passes without the collector setting off.
 cron.schedule("*/10 * * * *", () => {
-  slotReminders(io).catch((err) => console.error("Slot reminder job failed:", err));
+  slotReminders(io).catch(jobFailed("Slot reminder job"));
 });
 
 // Every hour — weekly/biweekly/monthly schedules only need date-level
@@ -74,7 +85,7 @@ cron.schedule("*/10 * * * *", () => {
 // due template never waits more than an hour past its scheduled date to
 // actually spawn.
 cron.schedule("0 * * * *", () => {
-  spawnRecurringPickups(io).catch((err) => console.error("Recurring pickup job failed:", err));
+  spawnRecurringPickups(io).catch(jobFailed("Recurring pickup job"));
 });
 
 // Offset half an hour from the spawn job above, hourly — a reminder
@@ -82,7 +93,7 @@ cron.schedule("0 * * * *", () => {
 // the half hour means a template that's about to spawn is never reminded
 // and spawned in the same minute.
 cron.schedule("30 * * * *", () => {
-  remindUpcomingRecurring(io).catch((err) => console.error("Recurring reminder job failed:", err));
+  remindUpcomingRecurring(io).catch(jobFailed("Recurring reminder job"));
 });
 
 // Every 10 minutes — checks recently-active, currently-available
@@ -93,7 +104,7 @@ cron.schedule("30 * * * *", () => {
 // frequent that it re-scans collectors who haven't moved or whose area
 // hasn't changed.
 cron.schedule("*/10 * * * *", () => {
-  notifyBatchableClusters(io).catch((err) => console.error("Batch-alert job failed:", err));
+  notifyBatchableClusters(io).catch(jobFailed("Batch-alert job"));
 });
 
 // Every 30 minutes — reverts a negotiation nobody has moved on in
@@ -104,22 +115,22 @@ cron.schedule("*/10 * * * *", () => {
 // scanning the (typically small) set of currently-negotiating pickups.
 // Auto-confirms weight settlements the requester never answered.
 cron.schedule("*/30 * * * *", () => {
-  autoConfirmSettlements(io).catch((err) => console.error("Settlement auto-confirm job failed:", err));
+  autoConfirmSettlements(io).catch(jobFailed("Settlement auto-confirm job"));
 });
 
 cron.schedule("*/30 * * * *", () => {
-  expireStaleNegotiations(io).catch((err) => console.error("Negotiation-expiry job failed:", err));
+  expireStaleNegotiations(io).catch(jobFailed("Negotiation-expiry job"));
 });
 
 // Hourly — expires collector IDs past their validity date and sends the
 // one-time "expires soon" reminder (see jobs/expireVerifications.js).
 cron.schedule("15 * * * *", () => {
-  expireVerifications(io).catch((err) => console.error("ID expiry job failed:", err));
+  expireVerifications(io).catch(jobFailed("ID expiry job"));
 });
 
 // Gentle nudges for UPI/cash payments that haven't been paid or confirmed.
 cron.schedule("*/30 * * * *", () => {
-  paymentReminders(io).catch((err) => console.error("Payment reminder job failed:", err));
+  paymentReminders(io).catch(jobFailed("Payment reminder job"));
 });
 
 // Every Monday at 9am IST — node-cron's own `timezone` option, not a
@@ -130,7 +141,7 @@ cron.schedule("*/30 * * * *", () => {
 cron.schedule(
   "0 9 * * 1",
   () => {
-    sendWeeklyDigest().catch((err) => console.error("Weekly digest job failed:", err));
+    sendWeeklyDigest().catch(jobFailed("Weekly digest job"));
   },
   { timezone: "Asia/Kolkata" }
 );

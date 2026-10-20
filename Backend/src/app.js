@@ -7,6 +7,7 @@ const rateLimit = require("express-rate-limit");
 const sanitize = require("./middleware/sanitize");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const { buildCorsOriginCheck } = require("./config/cors");
+const { attachErrorHandler } = require("./config/monitoring");
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
@@ -131,6 +132,8 @@ function createApp() {
   app.use("/api/fraud", require("./routes/fraudRoutes"));
 
   app.use(notFound);
+  // After every route, before our own handler. A no-op unless SENTRY_DSN is set.
+  attachErrorHandler(app);
   app.use(errorHandler);
 
   return app;
