@@ -1,77 +1,69 @@
-// Error monitoring (Sentry free tier). Optional: with no VITE_SENTRY_DSN the
-// SDK is never downloaded and every function here does nothing. Errors only —
-// no performance tracing and no session replay — which keeps it inside the
-// free plan, and no personal data (no name, email, IP or request bodies) is sent.
+// Error monitoring (Sentry, free tier). Entirely optional: with no SENTRY_DSN
+// set, nothing is loaded and every function here does nothing, so local dev
+// and tests are unaffected. Errors only — no performance tracing, no session
+// replay — which keeps it inside the free plan, and no personal data is sent.
 
-let sentry = null;
-const pending = []; // errors caught before the SDK finished loading
-const MAX_PENDING = 10;
+let Sentry = null;
 
-// Links can carry secrets: password-reset and email-verify tokens in the query
-// string, and the private trip-share token in the path.
-export function scrubUrl(url) {
-  if (typeof url !== "string") return url;
-  return url.split("?")[0].split("#")[0].replace(/\/trip\/[^/]+/, "/trip/[redacted]");
-}
-
-function scrubEvent(event) {
-  if (event.request?.url) event.request.url = scrubUrl(event.request.url);
+// Strip anything that could identify a person or carry a secret before an
+// event leaves the server.
+function scrub(event) {
   if (event.request) {
     delete event.request.cookies;
-    delete event.request.query_string;
+    delete event.request.data;
+    if (event.request.headers) {
+      delete event.request.headers.authorization;
+      delete event.request.headers.cookie;
+    }
   }
   if (event.user) {
     delete event.user.email;
     delete event.user.username;
     delete event.user.ip_address;
   }
-  (event.breadcrumbs || []).forEach((b) => {
-    if (b.data) {
-      for (const k of ["url", "from", "to"]) if (b.data[k]) b.data[k] = scrubUrl(b.data[k]);
-    }
-  });
   return event;
 }
 
-export function initMonitoring() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
-  if (!dsn) return;
-
-  // Loaded on demand so it never adds to the main bundle.
-  import("@sentry/react")
-    .then((Sentry) => {
-      Sentry.init({
-        dsn,
-        environment: import.meta.env.MODE,
-        sendDefaultPii: false,
-        tracesSampleRate: 0,
-        // Things that aren't bugs in our code.
-        ignoreErrors: [
-          "ResizeObserver loop limit exceeded",
-          "ResizeObserver loop completed with undelivered notifications",
-          "Network Error",
-          "Failed to fetch",
-          "Load failed",
-          "NetworkError when attempting to fetch resource",
-        ],
-        denyUrls: [/^chrome-extension:\/\//i, /^moz-extension:\/\//i, /^safari-extension:\/\//i],
-        beforeBreadcrumb: (b) => (b.category === "console" ? null : b),
-        beforeSend: scrubEvent,
-      });
-      sentry = Sentry;
-      pending.splice(0).forEach(({ error, extra }) => Sentry.captureException(error, { extra }));
-    })
-    .catch(() => {
-      /* monitoring must never break the app */
+function initMonitoring() {
+  const dsn = process.env.SENTRY_DSN;
+  if (!dsn) return false;
+  try {
+    Sentry = require("@sentry/node");
+    Sentry.init({
+      dsn,
+      environment: process.env.NODE_ENV || "development",
+      release: process.env.APP_VERSION || undefined,
+      sendDefaultPii: false,
+      tracesSampleRate: 0,
+      beforeSend: scrub,
     });
-}
-
-// For errors we catch ourselves (the app-wide error boundary). Uncaught errors
-// and unhandled promise rejections are picked up by the SDK on its own.
-export function captureError(error, extra) {
-  if (sentry) {
-    sentry.captureException(error, { extra });
-  } else if (import.meta.env.VITE_SENTRY_DSN && pending.length < MAX_PENDING) {
-    pending.push({ error, extra });
+    return true;
+  } catch (err) {
+    console.error("Error monitoring failed to start:", err.message);
+    Sentry = null;
+    return false;
   }
 }
+
+// Must run after all routes and before the app's own error handler. Sentry
+// only reports server errors (5xx / unexpected) — expected 4xx responses such
+// as "not found" or validation failures are ignored.
+function attachErrorHandler(app) {
+  if (Sentry) Sentry.setupExpressErrorHandler(app);
+}
+
+// For failures that are caught and logged (background jobs, best-effort
+// work) and would otherwise never reach Sentry.
+function captureError(err, context) {
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) scope.setContext("details", context);
+    Sentry.captureException(err);
+  });
+}
+
+function flushMonitoring(timeoutMs = 2000) {
+  return Sentry ? Sentry.flush(timeoutMs) : Promise.resolve(true);
+}
+
+module.exports = { initMonitoring, attachErrorHandler, captureError, flushMonitoring };

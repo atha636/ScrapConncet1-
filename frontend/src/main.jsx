@@ -10,6 +10,11 @@ import { LanguageProvider } from "./i18n/LanguageContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { hasGoogleAuth } from "./utils/googleAuthConfig";
+import { initMonitoring } from "./lib/monitoring";
+
+// Starts error reporting first so it can catch anything that fails during boot.
+// Does nothing unless VITE_SENTRY_DSN is set.
+initMonitoring();
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 

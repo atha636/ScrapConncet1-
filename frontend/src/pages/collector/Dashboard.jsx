@@ -41,6 +41,8 @@ import AchievementsPanel from "../../components/collector/AchievementsPanel";
 import RoutePlanner from "../../components/collector/RoutePlanner";
 import SuggestedBatchPanel from "../../components/collector/SuggestedBatchPanel";
 import DemandForecastCard from "../../components/collector/DemandForecastCard";
+import EmptyState from "../../components/common/EmptyState";
+import OnboardingChecklist from "../../components/common/OnboardingChecklist";
 
 // Map library loads only when the heatmap is first opened.
 const DemandHeatmapModal = lazy(() => import("../../components/collector/DemandHeatmapModal"));
@@ -666,6 +668,37 @@ export default function CollectorDashboard() {
           <AvailabilityToggle />
         </div>
 
+        {!loading && (
+          <OnboardingChecklist
+            storageKey={`c:${user?._id}`}
+            title="Get started as a collector"
+            steps={[
+              {
+                key: "location",
+                title: "Share your location",
+                hint: "Needed to show pickups near you and sort them by distance.",
+                done: !!myCoords,
+                cta: "Share location",
+                onClick: locateMe,
+              },
+              {
+                key: "accept",
+                title: "Accept your first pickup",
+                hint: "Open a request on the Available tab and tap Accept, or send an offer.",
+                done: myJobs.length > 0,
+                cta: "See available pickups",
+                onClick: () => setTab("available"),
+              },
+              {
+                key: "complete",
+                title: "Complete your first pickup",
+                hint: "Ask for the start code at the door, weigh the scrap, then finish and pay.",
+                done: myJobs.some((j) => j.status === "completed"),
+              },
+            ]}
+          />
+        )}
+
         {isSuspended && (
           <div className="mb-5">
             <ErrorBox>
@@ -882,16 +915,32 @@ export default function CollectorDashboard() {
             >
               {tab === "available" && (
                 filteredAvailable.length === 0 ? (
-                  <Card className="p-10 text-center text-inkSoft">
-                    <EmptyIcon>
+                  <EmptyState
+                    icon={
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
                       </svg>
-                    </EmptyIcon>
+                    }
+                    title={available.length === 0 ? "No pickups open near you right now" : "No pickups match your filters"}
+                    action={
+                      available.length > 0
+                        ? { label: "Clear filters", onClick: () => { setTypeFilter("all"); setMinPrice(""); } }
+                        : undefined
+                    }
+                    tips={
+                      available.length === 0
+                        ? [
+                            "New requests appear here live — keep this tab open.",
+                            "Tap “When is it busy?” above to see the best hours and areas.",
+                            myCoords ? "Make sure you're not paused in the toggle at the top." : "Share your location so nearby pickups can show up.",
+                          ]
+                        : undefined
+                    }
+                  >
                     {available.length === 0
-                      ? "No pickups available right now — check back soon."
-                      : "No pickups match your filters."}
-                  </Card>
+                      ? "Nobody has posted a pickup in your area at the moment."
+                      : "Your filters are hiding every open pickup."}
+                  </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
                     {filteredAvailable.map((item) => (
@@ -994,15 +1043,18 @@ export default function CollectorDashboard() {
 
               {tab === "mine" && (
                 activeJobs.length === 0 ? (
-                  <Card className="p-10 text-center text-inkSoft">
-                    <EmptyIcon>
+                  <EmptyState
+                    icon={
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 7l4-4h10l4 4M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7h18" />
                         <path d="M9 12l2 2 4-4" />
                       </svg>
-                    </EmptyIcon>
-                    No active jobs — accept a pickup to get started.
-                  </Card>
+                    }
+                    title="No active jobs"
+                    action={{ label: "Find a pickup", onClick: () => setTab("available") }}
+                  >
+                    Pickups you accept show up here, with the next step for each.
+                  </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
                     <RoutePlanner coords={myCoords} onOpenPickup={setDetailsPickup} />
@@ -1075,14 +1127,16 @@ export default function CollectorDashboard() {
 
               {tab === "history" && (
                 pastJobs.length === 0 ? (
-                  <Card className="p-10 text-center text-inkSoft">
-                    <EmptyIcon>
+                  <EmptyState
+                    icon={
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" />
                       </svg>
-                    </EmptyIcon>
-                    No completed jobs yet.
-                  </Card>
+                    }
+                    title="No completed jobs yet"
+                  >
+                    Finished and cancelled pickups are kept here, so you can look back at them.
+                  </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
                     {pastJobs.map((item) => (
@@ -1294,10 +1348,9 @@ export default function CollectorDashboard() {
                     )}
 
                     {walletTx.length === 0 ? (
-                      <Card className="p-10 text-center text-inkSoft">
-                        <EmptyIcon><WalletIcon /></EmptyIcon>
-                        No earnings yet — complete a pickup to start building your history.
-                      </Card>
+                      <EmptyState icon={<WalletIcon />} title="No earnings yet">
+                        Complete a pickup and your earnings and wallet history will start building here.
+                      </EmptyState>
                     ) : (
                       <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">
                         {walletTx.map((tx) => (

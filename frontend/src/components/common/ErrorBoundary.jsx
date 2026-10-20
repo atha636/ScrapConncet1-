@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { captureError } from "../../lib/monitoring";
 
 /**
  * Error boundaries must be class components — there's no hook equivalent in
@@ -17,9 +18,9 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // In a real deployment this is where you'd forward to an error-tracking
-    // service (Sentry, etc.) — logged here since none is wired up yet.
     console.error("Uncaught render error:", error, errorInfo);
+    // Reported to error monitoring when it's turned on (VITE_SENTRY_DSN).
+    captureError(error, { componentStack: errorInfo?.componentStack });
   }
 
   render() {

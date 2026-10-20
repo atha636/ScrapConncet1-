@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getMyRequests } from "../../services/pickupService";
+import { getMyUpi } from "../../services/paymentService";
+import OnboardingChecklist from "../../components/common/OnboardingChecklist";
+import { readFlag, writeFlag } from "../../utils/onboardingStore";
 import { useAuth } from "../../context/AuthContext";
 import Card from "../../components/ui/Card";
+import EmptyState from "../../components/common/EmptyState";
 import CardSkeleton from "../../components/common/CardSkeleton";
 import StatusStamp from "../../components/ui/StatusStamp";
 import { formatPrice } from "../../utils/formatPrice";
@@ -37,6 +41,9 @@ export default function Dashboard() {
   const [recent, setRecent] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, earned: 0 });
   const [loading, setLoading] = useState(true);
+  // null while loading, then whether a UPI ID is saved
+  const [hasUpi, setHasUpi] = useState(null);
+  const [seenRates, setSeenRates] = useState(() => readFlag(`u:${user?._id}:rates`));
 
   useEffect(() => {
     getMyRequests({ page: 1, limit: 5 })
@@ -51,6 +58,9 @@ export default function Dashboard() {
         });
       })
       .finally(() => setLoading(false));
+    getMyUpi()
+      .then((res) => setHasUpi(!!res.data?.upiId))
+      .catch(() => setHasUpi(null));
   }, []);
 
   const greeting = () => {
@@ -66,6 +76,49 @@ export default function Dashboard() {
         {greeting()}, {user?.name?.split(" ")[0] || t("greet.there")}
       </h1>
       <p className="text-sm text-inkSoft mb-6">{t("userDash.subtitle")}</p>
+
+      {!loading && hasUpi !== null && (
+        <OnboardingChecklist
+          storageKey={`u:${user?._id}`}
+          title="Get started with ScrapConnect"
+          steps={[
+            {
+              key: "request",
+              title: "Request your first pickup",
+              hint: "Add your scrap, share your location and pick a time. It takes about a minute.",
+              done: stats.total > 0,
+              cta: "Request a pickup",
+              to: "/request",
+            },
+            {
+              key: "upi",
+              title: "Add your UPI ID to get paid",
+              hint: "Your collector can then pay you in one tap from GPay, PhonePe or Paytm.",
+              done: hasUpi,
+              cta: "Add UPI ID",
+              to: "/profile",
+            },
+            {
+              key: "rates",
+              title: "Check today's scrap rates",
+              hint: "Know what your scrap is worth before you sell.",
+              done: seenRates,
+              cta: "See rates",
+              to: "/scrap-rates",
+              onClick: () => {
+                writeFlag(`u:${user?._id}:rates`);
+                setSeenRates(true);
+              },
+            },
+            {
+              key: "complete",
+              title: "Complete your first pickup",
+              hint: "Once a collector accepts, you'll get a start code to share at the door.",
+              done: stats.completed > 0,
+            },
+          ]}
+        />
+      )}
 
       <motion.div
         variants={listStagger}
@@ -98,15 +151,15 @@ export default function Dashboard() {
       {loading ? (
         <CardSkeleton count={3} withImage />
       ) : recent.length === 0 ? (
-        <Card className="p-10 text-center">
-          <div className="w-11 h-11 mx-auto mb-3 rounded-full border-2 border-dashed border-line flex items-center justify-center text-inkFaint">
+        <EmptyState
+          icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
             </svg>
-          </div>
-          <p className="text-inkSoft mb-4">{t("userDash.empty")}</p>
-          <Link to="/request" className="btn-primary inline-flex">{t("userDash.requestCta")}</Link>
-        </Card>
+          }
+          title={t("userDash.empty")}
+          action={{ label: t("userDash.requestCta"), to: "/request" }}
+        />
       ) : (
         <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
           {recent.map((item) => (
