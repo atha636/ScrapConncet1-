@@ -29,6 +29,8 @@ const {
 // Every route here requires an authenticated admin — enforced per-route
 // (not just at the router level) so each stays explicit and self-contained.
 router.get("/stats", auth, role("admin"), getStats);
+// Live "what needs attention" screen — see opsController.
+router.get("/ops", auth, role("admin"), require("../controllers/opsController").getOps);
 router.get("/analytics", auth, role("admin"), getAnalytics);
 router.get("/growth-stats", auth, role("admin"), getGrowthStats);
 router.get("/users", auth, role("admin"), getUsers);

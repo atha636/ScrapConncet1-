@@ -997,6 +997,25 @@ paths:
         "200":
           description: OK
 
+  /api/admin/ops:
+    get:
+      tags: [Admin]
+      summary: Live ops centre summary
+      description: "Role required: `admin`. Today's activity (India time), live pickup counts, a ranked `attention` list (SOS, disputes, fraud, unpaid or unconfirmed payments, stalled and urgent pickups, payouts, ID approvals, support tickets) each with the admin `tab` that handles it, and the pickups waiting longest for a collector. Read-only; the fraud count is cached for 5 minutes."
+      responses:
+        "200":
+          description: Ops summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generatedAt: { type: string, format: date-time }
+                  today: { type: object }
+                  live: { type: object }
+                  attention: { type: array, items: { type: object } }
+                  waiting: { type: array, items: { type: object } }
+
   /api/fraud/flags:
     get:
       tags: [Fraud]

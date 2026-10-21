@@ -20,7 +20,7 @@ const bump = (map, id, by = 1) => map.set(id, (map.get(id) || 0) + by);
 // worth a look, most serious first. Read-only: it never suspends or
 // changes anyone — an admin reviews the evidence and acts through the
 // normal admin tools.
-exports.getFlags = asyncHandler(async (req, res) => {
+async function computeFlags() {
   const now = Date.now();
   const since = new Date(now - WINDOW_DAYS * DAY_MS);
   const dayAgo = new Date(now - DAY_MS);
@@ -125,11 +125,17 @@ exports.getFlags = asyncHandler(async (req, res) => {
     .filter((f) => f.user)
     .sort((a, b) => rank[a.severity] - rank[b.severity] || b.evidenceCount - a.evidenceCount);
 
-  res.json({
+  return {
     windowDays: WINDOW_DAYS,
     highCount: flags.filter((f) => f.severity === "high").length,
     flags,
-  });
+  };
+}
+
+exports.computeFlags = computeFlags;
+
+exports.getFlags = asyncHandler(async (req, res) => {
+  res.json(await computeFlags());
 });
 
 // POST /api/fraud/flags/review  (admin)
