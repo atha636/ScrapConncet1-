@@ -32,6 +32,7 @@ import PartnersTab from "../components/admin/PartnersTab";
 import SupportTab from "../components/admin/SupportTab";
 import SafetyTab from "../components/admin/SafetyTab";
 import FraudTab from "../components/admin/FraudTab";
+import OpsTab from "../components/admin/OpsTab";
 import { adminListSafetyAlerts } from "../services/safetyService";
 import CouponsTab from "../components/admin/CouponsTab";
 import PlansTab from "../components/admin/PlansTab";
@@ -42,6 +43,7 @@ import useCountUp from "../hooks/useCountUp";
 
 const TABS = [
   { key: "overview", label: "Overview" },
+  { key: "ops", label: "Ops centre" },
   { key: "analytics", label: "Analytics" },
   { key: "users", label: "Users" },
   { key: "payouts", label: "Payouts" },
@@ -177,7 +179,7 @@ export default function AdminPanel() {
         ? () => loadPayouts()
         : tab === "disputes"
         ? () => loadDisputes()
-        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support" || tab === "coupons" || tab === "plans" || tab === "fraud"
+        : tab === "rates" || tab === "verifications" || tab === "addCollector" || tab === "audit" || tab === "catalog" || tab === "partners" || tab === "support" || tab === "coupons" || tab === "plans" || tab === "fraud" || tab === "ops"
         ? async () => {}
         : loadPickups;
     load()
@@ -397,6 +399,7 @@ export default function AdminPanel() {
             {tab === "support" && <SupportTab />}
             {tab === "safety" && <SafetyTab onCountChange={setSosCount} />}
             {tab === "fraud" && <FraudTab />}
+            {tab === "ops" && <OpsTab onNavigate={setTab} />}
             {tab === "coupons" && <CouponsTab />}
             {tab === "plans" && <PlansTab />}
 
