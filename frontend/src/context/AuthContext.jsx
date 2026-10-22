@@ -45,6 +45,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     disconnectSocket();
+    // Drop anything the service worker cached on this device.
+    if (typeof caches !== "undefined") caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {});
     setUser(null);
   };
 

@@ -3,6 +3,7 @@ import AppRoutes from "./routes/AppRoutes";
 import Navbar from "./components/layout/Navbar";
 import { useAuth } from "./context/AuthContext";
 import LanguageToggle from "./components/common/LanguageToggle";
+import PwaBanner from "./components/common/PwaBanner";
 import TempPasswordNotice from "./components/common/TempPasswordNotice";
 
 
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {showAppChrome ? <Navbar /> : location.pathname !== "/" && <LanguageToggle floating />}
+      {user && <PwaBanner />}
       {user && <TempPasswordNotice />}
       <div className={showAppChrome ? "max-w-5xl mx-auto px-5 py-8" : ""}>
         <AppRoutes />

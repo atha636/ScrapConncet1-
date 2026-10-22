@@ -4,7 +4,7 @@
 // Bump this on any change to the caching strategy below — the activate
 // handler uses it to throw away stale caches from a previous version of
 // this file, so users don't get stuck on old logic forever.
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `scrapconnect-${CACHE_VERSION}`;
 
 // Vite's JS/CSS chunk filenames are content-hashed and change every build,
@@ -56,22 +56,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API calls: network-first. A GET (e.g. viewing available pickups) falls
-  // back to its last cached response when offline, so the last-known list
-  // still renders instead of a blank error state. Never cached for
-  // anything auth-sensitive by way of not caching non-GET at all (above).
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return res;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
+  // API calls are never cached: responses are per-user (pickups, payments,
+  // chat) and Cache Storage is shared across logins on the same device, so
+  // caching them could show one user's data to the next. Let them hit the
+  // network; the app shows an offline banner when there is no connection.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Everything else (JS/CSS chunks, images, fonts, icons): stale-while-
   // revalidate. Serve the cached version immediately if we have one — for
