@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Card from "../ui/Card";
+import { useT } from "../../i18n/core";
 import { readFlag, writeFlag } from "../../utils/onboardingStore";
 
 /**
@@ -15,6 +16,7 @@ import { readFlag, writeFlag } from "../../utils/onboardingStore";
  * @param {Array<{key:string,title:string,hint?:string,done:boolean,cta?:string,to?:string,onClick?:()=>void}>} props.steps
  */
 export default function OnboardingChecklist({ storageKey, title, steps }) {
+  const { t } = useT();
   const [hidden, setHidden] = useState(() => readFlag(`${storageKey}:dismissed`));
 
   const doneCount = steps.filter((s) => s.done).length;
@@ -32,9 +34,9 @@ export default function OnboardingChecklist({ storageKey, title, steps }) {
     <Card className="p-5 sm:p-6 mb-6">
       <div className="flex items-start justify-between gap-3 mb-1">
         <div>
-          <h2 className="font-display font-semibold text-ink">{allDone ? "You're all set" : title}</h2>
+          <h2 className="font-display font-semibold text-ink">{allDone ? t("onb.allSet") : title}</h2>
           <p className="text-xs text-inkFaint mt-0.5">
-            {allDone ? "You've done everything on the list." : `${doneCount} of ${steps.length} done`}
+            {allDone ? t("onb.allDone") : t("onb.progress", { done: doneCount, total: steps.length })}
           </p>
         </div>
         <button
@@ -42,7 +44,7 @@ export default function OnboardingChecklist({ storageKey, title, steps }) {
           onClick={close}
           className="text-xs font-semibold text-inkFaint hover:text-ink shrink-0"
         >
-          {allDone ? "Close" : "Hide"}
+          {allDone ? t("onb.close") : t("onb.hide")}
         </button>
       </div>
 
@@ -66,7 +68,7 @@ export default function OnboardingChecklist({ storageKey, title, steps }) {
               <div className="min-w-0 flex-1">
                 <p className={`text-sm ${s.done ? "text-inkFaint line-through" : "font-semibold text-ink"}`}>
                   {s.title}
-                  {s.done && <span className="sr-only"> (done)</span>}
+                  {s.done && <span className="sr-only"> {t("onb.doneSr")}</span>}
                 </p>
                 {!s.done && s.hint && <p className="text-xs text-inkSoft mt-0.5">{s.hint}</p>}
                 {isNext && s.cta && (

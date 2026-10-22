@@ -671,28 +671,28 @@ export default function CollectorDashboard() {
         {!loading && (
           <OnboardingChecklist
             storageKey={`c:${user?._id}`}
-            title="Get started as a collector"
+            title={t("onbCol.title")}
             steps={[
               {
                 key: "location",
-                title: "Share your location",
-                hint: "Needed to show pickups near you and sort them by distance.",
+                title: t("onbCol.locTitle"),
+                hint: t("onbCol.locHint"),
                 done: !!myCoords,
-                cta: "Share location",
+                cta: t("onbCol.locCta"),
                 onClick: locateMe,
               },
               {
                 key: "accept",
-                title: "Accept your first pickup",
-                hint: "Open a request on the Available tab and tap Accept, or send an offer.",
+                title: t("onbCol.acceptTitle"),
+                hint: t("onbCol.acceptHint"),
                 done: myJobs.length > 0,
-                cta: "See available pickups",
+                cta: t("onbCol.acceptCta"),
                 onClick: () => setTab("available"),
               },
               {
                 key: "complete",
-                title: "Complete your first pickup",
-                hint: "Ask for the start code at the door, weigh the scrap, then finish and pay.",
+                title: t("onbCol.completeTitle"),
+                hint: t("onbCol.completeHint"),
                 done: myJobs.some((j) => j.status === "completed"),
               },
             ]}
@@ -921,25 +921,25 @@ export default function CollectorDashboard() {
                         <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
                       </svg>
                     }
-                    title={available.length === 0 ? "No pickups open near you right now" : "No pickups match your filters"}
+                    title={available.length === 0 ? t("empty.noneOpen") : t("empty.noMatch")}
                     action={
                       available.length > 0
-                        ? { label: "Clear filters", onClick: () => { setTypeFilter("all"); setMinPrice(""); } }
+                        ? { label: t("empty.clearFilters"), onClick: () => { setTypeFilter("all"); setMinPrice(""); } }
                         : undefined
                     }
                     tips={
                       available.length === 0
                         ? [
-                            "New requests appear here live — keep this tab open.",
-                            "Tap “When is it busy?” above to see the best hours and areas.",
-                            myCoords ? "Make sure you're not paused in the toggle at the top." : "Share your location so nearby pickups can show up.",
+                            t("empty.avTip1"),
+                            t("empty.avTip2"),
+                            myCoords ? t("empty.avTipPaused") : t("empty.avTipLoc"),
                           ]
                         : undefined
                     }
                   >
                     {available.length === 0
-                      ? "Nobody has posted a pickup in your area at the moment."
-                      : "Your filters are hiding every open pickup."}
+                      ? t("empty.avBodyNone")
+                      : t("empty.avBodyFiltered")}
                   </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
@@ -1050,10 +1050,10 @@ export default function CollectorDashboard() {
                         <path d="M9 12l2 2 4-4" />
                       </svg>
                     }
-                    title="No active jobs"
-                    action={{ label: "Find a pickup", onClick: () => setTab("available") }}
+                    title={t("empty.jobsTitle")}
+                    action={{ label: t("empty.jobsCta"), onClick: () => setTab("available") }}
                   >
-                    Pickups you accept show up here, with the next step for each.
+                    {t("empty.jobsBody")}
                   </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
@@ -1133,9 +1133,9 @@ export default function CollectorDashboard() {
                         <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" />
                       </svg>
                     }
-                    title="No completed jobs yet"
+                    title={t("empty.histTitle")}
                   >
-                    Finished and cancelled pickups are kept here, so you can look back at them.
+                    {t("empty.histBody")}
                   </EmptyState>
                 ) : (
                   <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
@@ -1348,8 +1348,8 @@ export default function CollectorDashboard() {
                     )}
 
                     {walletTx.length === 0 ? (
-                      <EmptyState icon={<WalletIcon />} title="No earnings yet">
-                        Complete a pickup and your earnings and wallet history will start building here.
+                      <EmptyState icon={<WalletIcon />} title={t("empty.earnTitle")}>
+                        {t("empty.earnBody")}
                       </EmptyState>
                     ) : (
                       <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-2">

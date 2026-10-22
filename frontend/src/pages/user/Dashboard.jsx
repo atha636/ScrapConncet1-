@@ -80,30 +80,30 @@ export default function Dashboard() {
       {!loading && hasUpi !== null && (
         <OnboardingChecklist
           storageKey={`u:${user?._id}`}
-          title="Get started with ScrapConnect"
+          title={t("onbUser.title")}
           steps={[
             {
               key: "request",
-              title: "Request your first pickup",
-              hint: "Add your scrap, share your location and pick a time. It takes about a minute.",
+              title: t("onbUser.requestTitle"),
+              hint: t("onbUser.requestHint"),
               done: stats.total > 0,
-              cta: "Request a pickup",
+              cta: t("onbUser.requestCta"),
               to: "/request",
             },
             {
               key: "upi",
-              title: "Add your UPI ID to get paid",
-              hint: "Your collector can then pay you in one tap from GPay, PhonePe or Paytm.",
+              title: t("onbUser.upiTitle"),
+              hint: t("onbUser.upiHint"),
               done: hasUpi,
-              cta: "Add UPI ID",
+              cta: t("onbUser.upiCta"),
               to: "/profile",
             },
             {
               key: "rates",
-              title: "Check today's scrap rates",
-              hint: "Know what your scrap is worth before you sell.",
+              title: t("onbUser.ratesTitle"),
+              hint: t("onbUser.ratesHint"),
               done: seenRates,
-              cta: "See rates",
+              cta: t("onbUser.ratesCta"),
               to: "/scrap-rates",
               onClick: () => {
                 writeFlag(`u:${user?._id}:rates`);
@@ -112,8 +112,8 @@ export default function Dashboard() {
             },
             {
               key: "complete",
-              title: "Complete your first pickup",
-              hint: "Once a collector accepts, you'll get a start code to share at the door.",
+              title: t("onbUser.completeTitle"),
+              hint: t("onbUser.completeHint"),
               done: stats.completed > 0,
             },
           ]}

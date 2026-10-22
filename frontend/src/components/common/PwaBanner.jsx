@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import usePwaInstall from "../../hooks/usePwaInstall";
+import { useT } from "../../i18n/core";
 
 function useOnline() {
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -17,6 +18,7 @@ function useOnline() {
 }
 
 export default function PwaBanner() {
+  const { t } = useT();
   const online = useOnline();
   const { canInstall, showIosHint, install, dismiss } = usePwaInstall();
 
@@ -24,7 +26,7 @@ export default function PwaBanner() {
     <>
       {!online && (
         <div role="status" className="bg-ink text-white text-sm text-center px-4 py-2">
-          You're offline. Showing what's already loaded; new requests will fail until you're back online.
+          {t("pwa.offline")}
         </div>
       )}
       {online && (canInstall || showIosHint) && (
@@ -32,16 +34,16 @@ export default function PwaBanner() {
           <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between gap-3 text-sm">
             <span className="text-ink">
               {canInstall
-                ? "Install ScrapConnect for quick access from your home screen."
-                : "To install: tap the Share icon, then “Add to Home Screen”."}
+                ? t("pwa.install")
+                : t("pwa.ios")}
             </span>
             <div className="flex items-center gap-4 shrink-0">
               {canInstall && (
                 <button onClick={install} className="font-semibold text-rust hover:underline">
-                  Install
+                  {t("pwa.installBtn")}
                 </button>
               )}
-              <button onClick={dismiss} className="text-inkFaint hover:text-ink" aria-label="Dismiss">
+              <button onClick={dismiss} className="text-inkFaint hover:text-ink" aria-label={t("pwa.dismiss")}>
                 ✕
               </button>
             </div>

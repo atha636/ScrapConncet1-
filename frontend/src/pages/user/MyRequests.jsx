@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getMyRequests, cancelPickup, exportMyRequests, respondToOffer, createPickup, getPickupById } from "../../services/pickupService";
+import { useT } from "../../i18n/core";
 import useSocket from "../../hooks/useSocket";
 import Card from "../../components/ui/Card";
 import EmptyState from "../../components/common/EmptyState";
@@ -35,6 +36,7 @@ const listItem = {
 export default function MyRequests() {
   useDocumentMeta({ title: "My Requests", noindex: true });
   const { user } = useAuth();
+  const { t } = useT();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -260,15 +262,15 @@ export default function MyRequests() {
               <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
             </svg>
           }
-          title="No pickups yet"
-          action={{ label: "Request your first pickup", to: "/request" }}
+          title={t("empty.reqTitle")}
+          action={{ label: t("empty.reqCta"), to: "/request" }}
           tips={[
-            "Add your scrap and share your location — takes about a minute.",
-            "A nearby collector accepts and comes to you. No fees for you.",
-            "Check today's rates first on the Scrap rates page.",
+            t("empty.reqTip1"),
+            t("empty.reqTip2"),
+            t("empty.reqTip3"),
           ]}
         >
-          Your requests, and where each one stands, will show up here.
+          {t("empty.reqBody")}
         </EmptyState>
       ) : (
         <>

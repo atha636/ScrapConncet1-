@@ -1,21 +1,14 @@
 import { useEffect, useState } from "react";
 import { getFairPrice } from "../../services/pickupService";
 import { formatPrice } from "../../utils/formatPrice";
+import { useT } from "../../i18n/core";
 
 // How the same position on the bar reads to each side. In ScrapConnect the
 // collector pays the requester, so a high number is good news for the
 // requester and a warning for the collector (and the reverse for a low one).
 const MESSAGES = {
-  requester: {
-    low: (b) => `Below market — you can ask for more. Fair is about ${formatPrice(b.low)}–${formatPrice(b.high)}.`,
-    fair: () => "In the fair range.",
-    high: () => "Above market — a good deal for you.",
-  },
-  collector: {
-    low: () => "Below market — the requester may decline.",
-    fair: () => "In the fair range — likely to be accepted.",
-    high: (b) => `Above market — you may be overpaying. Fair is about ${formatPrice(b.low)}–${formatPrice(b.high)}.`,
-  },
+  requester: { low: "fair.reqLow", fair: "fair.reqFair", high: "fair.reqHigh" },
+  collector: { low: "fair.colLow", fair: "fair.colFair", high: "fair.colHigh" },
 };
 
 const TONE = {
@@ -31,7 +24,9 @@ const fairLevel = (amount, band) => (amount < band.low ? "low" : amount > band.h
  * Renders nothing until the range loads, or when the pickup has no
  * weights to price from, so it never gets in the way of the offer form.
  */
-export default function FairPriceMeter({ pickupId, amount, role, label = "This price" }) {
+export default function FairPriceMeter({ pickupId, amount, role, label }) {
+  const { t } = useT();
+  label = label || t("fair.thisPrice");
   const [band, setBand] = useState(null);
 
   useEffect(() => {
@@ -57,13 +52,13 @@ export default function FairPriceMeter({ pickupId, amount, role, label = "This p
   return (
     <div className="mb-3" aria-live="polite">
       <div className="flex items-center justify-between text-[11px] mb-1">
-        <span className="font-semibold uppercase tracking-wide text-inkFaint">Fair price meter</span>
+        <span className="font-semibold uppercase tracking-wide text-inkFaint">{t("fair.title")}</span>
         <span className="text-inkFaint">
           {label}: <span className="font-mono font-semibold text-ink">{formatPrice(value)}</span>
         </span>
       </div>
 
-      <div className="relative h-2 rounded-full bg-line/60" role="img" aria-label={`${label} is ${level === "fair" ? "within" : level === "low" ? "below" : "above"} the fair range`}>
+      <div className="relative h-2 rounded-full bg-line/60" role="img" aria-label={`${label}: ${t(messages[level], { low: formatPrice(band.low), high: formatPrice(band.high) })}`}>
         <div
           className="absolute top-0 h-full rounded-full bg-emerald-500/40"
           style={{ left: `${pct(band.low)}%`, width: `${pct(band.high) - pct(band.low)}%` }}
@@ -79,11 +74,11 @@ export default function FairPriceMeter({ pickupId, amount, role, label = "This p
         <span>{formatPrice(band.high)}</span>
       </div>
 
-      <p className={`text-xs font-medium mt-0.5 ${TONE[level]}`}>{messages[level](band)}</p>
+      <p className={`text-xs font-medium mt-0.5 ${TONE[level]}`}>{t(messages[level], { low: formatPrice(band.low), high: formatPrice(band.high) })}</p>
       <p className="text-[10px] text-inkFaint mt-0.5">
         {band.basis === "history"
-          ? `Based on today's rate and ${band.samples} recent similar deals.`
-          : "Based on today's platform rate and the estimated weight."}
+          ? t("fair.basisHistory", { n: band.samples })
+          : t("fair.basisRate")}
       </p>
     </div>
   );
