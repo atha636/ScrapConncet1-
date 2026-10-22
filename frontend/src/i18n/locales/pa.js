@@ -1,4 +1,4 @@
-// Punjabi (Gurmukhi). Overlay on en.js — anything not listed falls back to English.
+
 const pa = {
   lang: { name: "ਪੰਜਾਬੀ", short: "ਪੰ", switchTo: "ਭਾਸ਼ਾ" },
 
