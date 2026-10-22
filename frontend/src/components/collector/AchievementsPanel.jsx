@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import { getMyAchievements } from "../../services/pickupService";
 
-/**
- * The locked/unlocked counterpart to BadgeRow — that component shows what
- * a collector *has* (on their profile, to anyone looking), this shows the
- * full catalog including what's still locked and how close they are,
- * visible only to the collector themselves. Lives in the Wallet tab next
- * to LeaderboardPanel and ShareProfileButton, same place a collector
- * already checks their own standing.
- */
 export default function AchievementsPanel() {
   const [state, setState] = useState({ status: "loading", achievements: [] });
 
