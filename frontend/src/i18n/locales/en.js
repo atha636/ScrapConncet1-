@@ -1,5 +1,4 @@
-// English is the source of truth: every other locale is a partial overlay,
-// and any key missing there falls back to the string below.
+
 const en = {
   lang: { name: "English", short: "EN", switchTo: "Language" },
 
